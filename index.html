@@ -127,13 +127,12 @@
         }
 
         #bottomBar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: relative;
+            width: 100%;
+            max-width: 800px;
             background: rgba(0, 0, 0, 0.7);
             color: #4ade80;
-            font-size: 12px;
+            font-size: clamp(9px, 2.5vw, 12px);
             padding: 8px 15px;
             font-family: monospace;
             z-index: 10;
@@ -143,6 +142,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-radius: 0 0 10px 10px;
+            margin-top: -5px;
         }
 
         #bottomBar a {
@@ -275,7 +276,7 @@
 
         #muteBtn {
             position: absolute;
-            bottom: 45px;
+            bottom: 10px;
             right: 10px;
             width: 40px;
             height: 40px;
@@ -319,11 +320,6 @@
             <div>Pills: <span id="tokens">0</span></div>
         </div>
 
-        <div id="bottomBar">
-            <a href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">BUY $ALON NOW: <span>8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span></a>
-            <a href="https://x.com/thejpegjunkie" target="_blank" class="credit">created by: @thejpegjunkie</a>
-        </div>
-
         <div id="startScreen">
             <h1><img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"> ALON's PumpRun <img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"></h1>
             <p>Collect pills, avoid enemies, and help ALON pump $ALON to the moon!</p>
@@ -338,6 +334,11 @@
             <p><img src="pumpfun-logo.png" alt="Pills" style="height: 24px; vertical-align: middle;"> Pills Collected: <span id="finalTokens">0</span></p>
             <button id="restartBtn">Play Again</button>
         </div>
+    </div>
+
+    <div id="bottomBar">
+        <a href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">BUY $ALON NOW: <span>8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span></a>
+        <a href="https://x.com/thejpegjunkie" target="_blank" class="credit">created by: @thejpegjunkie</a>
     </div>
 
     <script>
