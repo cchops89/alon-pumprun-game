@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ALON's Run - To The Moon! 🚀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a4d3d 0%, #2d7a5e 50%, #4ade80 100%);
+            font-family: 'Arial Black', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #bgPills {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        #bgPills img {
+            position: absolute;
+            opacity: 0.15;
+        }
+
+        #gameContainer {
+            position: relative;
+            max-width: 800px;
+            width: 100%;
+            height: 100vh;
+            max-height: 600px;
+            background: #87CEEB;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 1;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #ui > div {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 10px;
+        }
+
+        #bottomBar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: #4ade80;
+            font-size: 12px;
+            padding: 8px 15px;
+            font-family: monospace;
+            z-index: 10;
+            pointer-events: all;
+            user-select: text;
+            -webkit-user-select: text;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #bottomBar a {
+            color: #4ade80;
+            text-decoration: none;
+        }
+
+        #bottomBar a:hover {
+            text-decoration: underline;
+        }
+
+        #bottomBar span {
+            color: white;
+            word-break: break-all;
+        }
+
+        #bottomBar .credit {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+        }
+
+        #bottomBar .credit:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+
+        #gameOver h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #4ade80;
+            text-shadow: 2px 2px 4px #1a4d3d;
+        }
+
+        #gameOver p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        #restartBtn {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: #4ade80;
+            color: white;
+            border: 3px solid #1a4d3d;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+            box-shadow: 0 4px 0 #1a4d3d;
+        }
+
+        #restartBtn:active {
+            transform: scale(0.95) translateY(2px);
+            box-shadow: 0 2px 0 #1a4d3d;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        #startScreen h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #4ade80;
+            text-shadow: 3px 3px 6px #1a4d3d;
+        }
+
+        #startScreen p {
+            font-size: 20px;
+            margin: 10px 0;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        #startBtn {
+            margin-top: 30px;
+            padding: 20px 60px;
+            font-size: 28px;
+            background: #4ade80;
+            color: white;
+            border: 4px solid #1a4d3d;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+            box-shadow: 0 6px 0 #1a4d3d;
+        }
+
+        #startBtn:active {
+            transform: scale(0.95) translateY(3px);
+            box-shadow: 0 3px 0 #1a4d3d;
+        }
+    </style>
+</head>
+<body>
+    <div id="bgPills"></div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Pills: <span id="tokens">0</span></div>
+        </div>
+
+        <div id="bottomBar">
+            <a href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">BUY $ALON NOW: <span>8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span></a>
+            <a href="https://x.com/thejpegjunkie" target="_blank" class="credit">created by: @thejpegjunkie</a>
+        </div>
+
+        <div id="startScreen">
+            <h1><img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"> ALON's PumpRun <img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"></h1>
+            <p>Collect pills, avoid enemies, and help ALON pump $ALON to the moon!</p>
+            <p><strong>TAP/CLICK to jump</strong></p>
+            <p><strong>TAP/CLICK TWICE to double jump!</strong></p>
+            <button id="startBtn">START GAME</button>
+        </div>
+
+        <div id="gameOver">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p><img src="pumpfun-logo.png" alt="Pills" style="height: 24px; vertical-align: middle;"> Pills Collected: <span id="finalTokens">0</span></p>
+            <button id="restartBtn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Generate random background pills
+        (function() {
+            const bgPills = document.getElementById('bgPills');
+            const numPills = 50;
+            for (let i = 0; i < numPills; i++) {
+                const img = document.createElement('img');
+                img.src = 'pumpfun-logo.png';
+                const size = 30 + Math.random() * 70; // Random size between 30px and 100px
+                img.style.width = size + 'px';
+                img.style.height = size + 'px';
+                img.style.left = Math.random() * 100 + '%';
+                img.style.top = Math.random() * 100 + '%';
+                img.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+                bgPills.appendChild(img);
+            }
+        })();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let tokensCollected = 0;
+        let gameSpeed = 6;
+        let gravity = 0.8;
+        let jumpPower = -15;
+
+        // Player (ALON)
+        const player = {
+            x: 100,
+            y: 420,
+            width: 60,
+            height: 80,
+            dy: 0,
+            jumping: false,
+            grounded: false,
+            jumpsRemaining: 2,
+            spriteSheet: new Image(),
+            spriteLoaded: false,
+            frameIndex: 0,
+            frameWidth: 64,
+            frameHeight: 64
+        };
+
+        player.spriteSheet.onload = function() {
+            player.spriteLoaded = true;
+            console.log('ALON sprite sheet loaded:', player.spriteSheet.width, 'x', player.spriteSheet.height);
+        };
+
+        player.spriteSheet.onerror = function() {
+            console.error('Failed to load ALON sprite sheet');
+        };
+
+        player.spriteSheet.src = 'alon-sprite-sheet.png';
+
+        // Narc supporter
+        const narc = {
+            x: -200,
+            y: 420,
+            width: 60,
+            height: 80,
+            active: false,
+            message: '',
+            spriteSheet: new Image(),
+            spriteLoaded: false,
+            frameIndex: 0,
+            frameWidth: 64,
+            frameHeight: 64
+        };
+
+        narc.spriteSheet.onload = function() {
+            narc.spriteLoaded = true;
+            console.log('Narc sprite sheet loaded:', narc.spriteSheet.width, 'x', narc.spriteSheet.height);
+        };
+
+        narc.spriteSheet.onerror = function() {
+            console.error('Failed to load Narc sprite sheet');
+        };
+
+        narc.spriteSheet.src = 'narc-sprite-sheet.png';
+
+        // Ground sprite
+        const groundSprite = {
+            image: new Image(),
+            loaded: false,
+            scrollX: 0
+        };
+
+        groundSprite.image.onload = function() {
+            groundSprite.loaded = true;
+            console.log('Ground sprite loaded:', groundSprite.image.width, 'x', groundSprite.image.height);
+        };
+
+        groundSprite.image.onerror = function() {
+            console.error('Failed to load ground sprite');
+        };
+
+        groundSprite.image.src = 'ground-sprite.png';
+
+        // Background sprite (parallax)
+        const backgroundSprite = {
+            image: new Image(),
+            loaded: false,
+            scrollX: 0
+        };
+
+        backgroundSprite.image.onload = function() {
+            backgroundSprite.loaded = true;
+            console.log('Background sprite loaded:', backgroundSprite.image.width, 'x', backgroundSprite.image.height);
+        };
+
+        backgroundSprite.image.onerror = function() {
+            console.error('Failed to load background sprite');
+        };
+
+        backgroundSprite.image.src = 'background-sprite.png';
+
+        // Bonk obstacle sprite
+        const bonkSprite = {
+            image: new Image(),
+            loaded: false,
+            frameWidth: 55,  // 7 frames in the strip
+            frameHeight: 55
+        };
+
+        bonkSprite.image.onload = function() {
+            bonkSprite.loaded = true;
+            // Calculate frame size from actual image
+            bonkSprite.frameWidth = bonkSprite.image.width / 7;
+            bonkSprite.frameHeight = bonkSprite.image.height;
+            console.log('Bonk sprite loaded:', bonkSprite.image.width, 'x', bonkSprite.image.height);
+        };
+
+        bonkSprite.image.onerror = function() {
+            console.error('Failed to load Bonk sprite');
+        };
+
+        bonkSprite.image.src = 'bonksprite.png';
+
+        // Bags obstacle sprite (replaces RUG)
+        const bagsSprite = {
+            image: new Image(),
+            loaded: false,
+            frameWidth: 77,
+            frameHeight: 77
+        };
+
+        bagsSprite.image.onload = function() {
+            bagsSprite.loaded = true;
+            // Calculate frame size from actual image (5 frames)
+            bagsSprite.frameWidth = bagsSprite.image.width / 5;
+            bagsSprite.frameHeight = bagsSprite.image.height;
+            console.log('Bags sprite loaded:', bagsSprite.image.width, 'x', bagsSprite.image.height);
+        };
+
+        bagsSprite.image.onerror = function() {
+            console.error('Failed to load Bags sprite');
+        };
+
+        bagsSprite.image.src = 'bagssprite.png';
+
+        // Bear obstacle sprite
+        const bearSprite = {
+            image: new Image(),
+            loaded: false,
+            frameWidth: 64,
+            frameHeight: 64
+        };
+
+        bearSprite.image.onload = function() {
+            bearSprite.loaded = true;
+            // Calculate frame size from actual image (6 frames)
+            bearSprite.frameWidth = bearSprite.image.width / 6;
+            bearSprite.frameHeight = bearSprite.image.height;
+            console.log('Bear sprite loaded:', bearSprite.image.width, 'x', bearSprite.image.height);
+        };
+
+        bearSprite.image.onerror = function() {
+            console.error('Failed to load Bear sprite');
+        };
+
+        bearSprite.image.src = 'bearsprite.png';
+
+        // Ground
+        const groundHeight = 500;
+
+        // Arrays for game objects
+        let obstacles = [];
+        let tokens = [];
+        let clouds = [];
+        let narcMessages = [
+            "You got this ALON!",
+            "To the moon! 🚀",
+            "WAGMI!",
+            "Don't stop!",
+            "Community strong!",
+            "LFG! 💎"
+        ];
+
+        // Spawn timers
+        let obstacleTimer = 0;
+        let tokenTimer = 0;
+        let narcTimer = 0;
+
+        // Cloud background
+        function createCloud() {
+            return {
+                x: canvas.width,
+                y: Math.random() * 200 + 50,
+                width: 100 + Math.random() * 50,
+                height: 60,
+                speed: 1 + Math.random() * 2
+            };
+        }
+
+        // Initialize clouds
+        for (let i = 0; i < 3; i++) {
+            clouds.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * 200 + 50,
+                width: 100 + Math.random() * 50,
+                height: 60,
+                speed: 1 + Math.random() * 2
+            });
+        }
+
+        // Create obstacle
+        function createObstacle() {
+            const types = ['BEAR', 'BONK', 'BAGS'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            return {
+                x: canvas.width,
+                y: groundHeight - 60,
+                width: 60,
+                height: 60,
+                type: type,
+                color: type === 'BEAR' ? '#654321' : type === 'BAGS' ? '#228B22' : '#FFB800',
+                frameIndex: 0,
+                lastFrameTime: Date.now()
+            };
+        }
+
+        // Create token
+        function createToken() {
+            return {
+                x: canvas.width,
+                y: groundHeight - 150 - Math.random() * 100,
+                width: 40,
+                height: 40,
+                collected: false
+            };
+        }
+
+        // Spawn Narc support
+        function spawnNarc() {
+            narc.active = true;
+            narc.x = -200;
+            narc.message = narcMessages[Math.floor(Math.random() * narcMessages.length)];
+        }
+
+        // Draw cloud
+        function drawCloud(cloud) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.beginPath();
+            ctx.arc(cloud.x, cloud.y, cloud.height/2, 0, Math.PI * 2);
+            ctx.arc(cloud.x + cloud.width/3, cloud.y - 10, cloud.height/2.5, 0, Math.PI * 2);
+            ctx.arc(cloud.x + cloud.width/1.5, cloud.y, cloud.height/2.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw background (parallax scrolling)
+        function drawBackground() {
+            if (backgroundSprite.loaded) {
+                const spriteWidth = backgroundSprite.image.width;
+                const spriteHeight = backgroundSprite.image.height;
+                // Use top 1/3 of the image (since it's 3 stacked scenes)
+                const sourceHeight = spriteHeight / 3;
+
+                // Update scroll position (slower than ground for parallax effect)
+                // Use double width because we mirror every other tile
+                if (gameRunning) {
+                    backgroundSprite.scrollX += gameSpeed * 0.3;
+                    if (backgroundSprite.scrollX >= spriteWidth * 2) {
+                        backgroundSprite.scrollX -= spriteWidth * 2;
+                    }
+                }
+
+                // Draw tiled background with mirroring for seamless loop
+                const tilesNeeded = Math.ceil(canvas.width / spriteWidth) + 3;
+                for (let i = 0; i < tilesNeeded; i++) {
+                    const xPos = (i * spriteWidth) - backgroundSprite.scrollX;
+                    const shouldMirror = i % 2 === 1; // Mirror every other tile
+
+                    ctx.save();
+                    if (shouldMirror) {
+                        // Flip horizontally for seamless edge matching
+                        ctx.translate(xPos + spriteWidth, 0);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(
+                            backgroundSprite.image,
+                            0, 0, spriteWidth, sourceHeight,
+                            0, 0, spriteWidth, groundHeight
+                        );
+                    } else {
+                        ctx.drawImage(
+                            backgroundSprite.image,
+                            0, 0, spriteWidth, sourceHeight,
+                            xPos, 0, spriteWidth, groundHeight
+                        );
+                    }
+                    ctx.restore();
+                }
+            } else {
+                // Fallback: original sky gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#E0F6FF');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // Draw ground
+        function drawGround() {
+            if (groundSprite.loaded) {
+                // Use sprite sheet for ground
+                const groundArea = canvas.height - groundHeight; // 100 pixels
+                const spriteWidth = groundSprite.image.width;
+                const spriteHeight = groundSprite.image.height;
+
+                // Update scroll position based on game speed
+                // Use double width because we mirror every other tile
+                if (gameRunning) {
+                    groundSprite.scrollX += gameSpeed;
+                    if (groundSprite.scrollX >= spriteWidth * 2) {
+                        groundSprite.scrollX -= spriteWidth * 2;
+                    }
+                }
+
+                // Draw tiled ground with mirroring for seamless loop
+                const tilesNeeded = Math.ceil(canvas.width / spriteWidth) + 3;
+                for (let i = 0; i < tilesNeeded; i++) {
+                    const xPos = (i * spriteWidth) - groundSprite.scrollX;
+                    const shouldMirror = i % 2 === 1; // Mirror every other tile
+
+                    ctx.save();
+                    if (shouldMirror) {
+                        // Flip horizontally for seamless edge matching
+                        ctx.translate(xPos + spriteWidth, 0);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(
+                            groundSprite.image,
+                            0, groundHeight, spriteWidth, groundArea
+                        );
+                    } else {
+                        ctx.drawImage(
+                            groundSprite.image,
+                            xPos,
+                            groundHeight,
+                            spriteWidth,
+                            groundArea
+                        );
+                    }
+                    ctx.restore();
+                }
+            } else {
+                // Fallback: original procedural ground
+                ctx.fillStyle = '#4ade80';
+                ctx.fillRect(0, groundHeight, canvas.width, canvas.height - groundHeight);
+
+                ctx.fillStyle = '#22c55e';
+                for (let i = 0; i < canvas.width; i += 40) {
+                    let offset = (Date.now() / 50 + i) % 40;
+                    ctx.fillRect(i - offset, groundHeight, 20, canvas.height - groundHeight);
+                }
+
+                ctx.fillStyle = '#1a4d3d';
+                ctx.fillRect(0, groundHeight, canvas.width, 3);
+            }
+        }
+
+        // Draw player (ALON sprite sheet character)
+        function drawPlayer() {
+            if (!player.spriteLoaded) {
+                // Draw placeholder while loading
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+                return;
+            }
+
+            // Determine which sprite frame to use
+            // Sprite sheet is 384x64 with 6 frames in a single row
+            let frameX = 0;
+            let frameY = 0;
+
+            if (!player.grounded) {
+                // Jumping - use frame 0 (first frame)
+                frameX = 0;
+                frameY = 0;
+            } else {
+                // Running animation - cycle through all 6 frames
+                const runFrame = Math.floor(Date.now() / 100) % 6;
+                frameX = runFrame;
+                frameY = 0;
+            }
+
+            // Draw the sprite from the sheet
+            ctx.drawImage(
+                player.spriteSheet,
+                frameX * player.frameWidth, // source X
+                frameY * player.frameHeight, // source Y
+                player.frameWidth, // source width
+                player.frameHeight, // source height
+                player.x, // destination X
+                player.y, // destination Y
+                player.width, // destination width
+                player.height // destination height
+            );
+
+        }
+
+        // Draw Narc (sprite sheet supporter character)
+        function drawNarc() {
+            if (!narc.active) return;
+
+            if (!narc.spriteLoaded) {
+                // Draw placeholder while loading
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(narc.x, narc.y, narc.width, narc.height);
+            } else {
+                // Waving animation - cycle through 6 frames (same as ALON)
+                const waveFrame = Math.floor(Date.now() / 150) % 6;
+                let frameX = waveFrame;
+                let frameY = 0;
+
+                // Draw the sprite from the sheet
+                ctx.drawImage(
+                    narc.spriteSheet,
+                    frameX * narc.frameWidth, // source X
+                    frameY * narc.frameHeight, // source Y
+                    narc.frameWidth, // source width
+                    narc.frameHeight, // source height
+                    narc.x, // destination X
+                    narc.y, // destination Y
+                    narc.width, // destination width
+                    narc.height // destination height
+                );
+            }
+
+        }
+
+        // Draw obstacle
+        function drawObstacle(obs) {
+            if (obs.type === 'BONK' && bonkSprite.loaded) {
+                // Bounce up and down using sine wave (slower)
+                const bounceOffset = Math.sin(Date.now() / 300 + obs.x) * 8;
+
+                // Draw frame 0 with bounce effect
+                ctx.drawImage(
+                    bonkSprite.image,
+                    0, 0,
+                    bonkSprite.frameWidth, bonkSprite.frameHeight,
+                    obs.x, obs.y + bounceOffset, obs.width, obs.height
+                );
+            } else if (obs.type === 'BAGS' && bagsSprite.loaded) {
+                // Bounce up and down using sine wave
+                const bounceOffset = Math.sin(Date.now() / 300 + obs.x) * 8;
+
+                // Draw frame 0 with bounce effect
+                ctx.drawImage(
+                    bagsSprite.image,
+                    0, 0,
+                    bagsSprite.frameWidth, bagsSprite.frameHeight,
+                    obs.x, obs.y + bounceOffset, obs.width, obs.height
+                );
+            } else if (obs.type === 'BEAR' && bearSprite.loaded) {
+                // Bounce up and down using sine wave
+                const bounceOffset = Math.sin(Date.now() / 300 + obs.x) * 8;
+
+                // Draw last frame (frame 5) bigger with bounce effect
+                const bearSize = 90;
+                ctx.drawImage(
+                    bearSprite.image,
+                    5 * bearSprite.frameWidth, 0,
+                    bearSprite.frameWidth, bearSprite.frameHeight,
+                    obs.x - 15, obs.y - 30 + bounceOffset, bearSize, bearSize
+                );
+            } else {
+                // Draw colored block for FUD/BEAR or fallback
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+                ctx.fillStyle = '#FFF';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(obs.type, obs.x + obs.width/2, obs.y + obs.height/2 + 5);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // Draw token (PumpFun Pill)
+        function drawToken(token) {
+            if (token.collected) return;
+
+            // Animated rotating pill
+            const time = Date.now() / 200;
+            ctx.save();
+            ctx.translate(token.x + token.width/2, token.y + token.height/2);
+            ctx.rotate(time);
+
+            // Pill outline
+            ctx.strokeStyle = '#1a4d3d';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+
+            // Draw capsule shape
+            const pillWidth = 35;
+            const pillHeight = 18;
+
+            // Left green half
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(-pillWidth/4, 0, pillHeight/2, Math.PI/2, Math.PI * 1.5);
+            ctx.lineTo(-pillWidth/4, -pillHeight/2);
+            ctx.lineTo(0, -pillHeight/2);
+            ctx.lineTo(0, pillHeight/2);
+            ctx.lineTo(-pillWidth/4, pillHeight/2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Right white half
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.arc(pillWidth/4, 0, pillHeight/2, -Math.PI/2, Math.PI/2);
+            ctx.lineTo(pillWidth/4, pillHeight/2);
+            ctx.lineTo(0, pillHeight/2);
+            ctx.lineTo(0, -pillHeight/2);
+            ctx.lineTo(pillWidth/4, -pillHeight/2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Shine effect on green half
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.arc(-pillWidth/4 - 5, -3, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+            ctx.textAlign = 'left';
+        }
+
+        // Update game
+        function update() {
+            if (!gameRunning) return;
+
+            // Update score
+            score += 1;
+            document.getElementById('score').textContent = Math.floor(score / 10);
+
+            // Gradually increase difficulty
+            if (score % 500 === 0) {
+                gameSpeed += 0.5;
+            }
+
+            // Player physics
+            player.dy += gravity;
+            player.y += player.dy;
+
+            // Ground collision
+            if (player.y + player.height >= groundHeight) {
+                player.y = groundHeight - player.height;
+                player.dy = 0;
+                player.grounded = true;
+                player.jumping = false;
+                player.jumpsRemaining = 2; // Reset double jump
+            } else {
+                player.grounded = false;
+            }
+
+            // Update clouds
+            clouds.forEach(cloud => {
+                cloud.x -= cloud.speed;
+                if (cloud.x + cloud.width < 0) {
+                    cloud.x = canvas.width;
+                    cloud.y = Math.random() * 200 + 50;
+                }
+            });
+
+            // Spawn obstacles
+            obstacleTimer++;
+            if (obstacleTimer > 120 - gameSpeed * 5) {
+                obstacles.push(createObstacle());
+                obstacleTimer = 0;
+            }
+
+            // Update obstacles
+            obstacles.forEach((obs, index) => {
+                // BONK, BAGS, and BEAR move at fixed speed, others speed up with game
+                const obstacleSpeed = (obs.type === 'BONK' || obs.type === 'BAGS' || obs.type === 'BEAR') ? 6 : gameSpeed;
+                obs.x -= obstacleSpeed;
+
+                // Check collision with player
+                if (player.x < obs.x + obs.width &&
+                    player.x + player.width > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.height > obs.y) {
+                    gameOver();
+                }
+
+                // Remove off-screen obstacles
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(index, 1);
+                }
+            });
+
+            // Spawn tokens
+            tokenTimer++;
+            if (tokenTimer > 80) {
+                tokens.push(createToken());
+                tokenTimer = 0;
+            }
+
+            // Update tokens
+            tokens.forEach((token, index) => {
+                token.x -= gameSpeed;
+
+                // Check collection
+                if (!token.collected &&
+                    player.x < token.x + token.width &&
+                    player.x + player.width > token.x &&
+                    player.y < token.y + token.height &&
+                    player.y + player.height > token.y) {
+                    token.collected = true;
+                    tokensCollected++;
+                    score += 50;
+                    document.getElementById('tokens').textContent = tokensCollected;
+                }
+
+                // Remove off-screen tokens
+                if (token.x + token.width < 0) {
+                    tokens.splice(index, 1);
+                }
+            });
+
+            // Spawn Narc support
+            narcTimer++;
+            if (narcTimer > 400 && !narc.active) {
+                spawnNarc();
+                narcTimer = 0;
+            }
+
+            // Update Narc
+            if (narc.active) {
+                narc.x += 8;
+                if (narc.x > canvas.width) {
+                    narc.active = false;
+                    narc.x = -200;
+                }
+            }
+        }
+
+        // Draw PumpFun logo pill
+        function drawPumpFunLogo() {
+            const x = canvas.width - 100;
+            const y = 70;
+            const pillWidth = 60;
+            const pillHeight = 30;
+
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+
+            // Pill outline
+            ctx.strokeStyle = '#1a4d3d';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            // Left green half
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(x - pillWidth/4, y, pillHeight/2, Math.PI/2, Math.PI * 1.5);
+            ctx.lineTo(x - pillWidth/4, y - pillHeight/2);
+            ctx.lineTo(x, y - pillHeight/2);
+            ctx.lineTo(x, y + pillHeight/2);
+            ctx.lineTo(x - pillWidth/4, y + pillHeight/2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Right white half
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.arc(x + pillWidth/4, y, pillHeight/2, -Math.PI/2, Math.PI/2);
+            ctx.lineTo(x + pillWidth/4, y + pillHeight/2);
+            ctx.lineTo(x, y + pillHeight/2);
+            ctx.lineTo(x, y - pillHeight/2);
+            ctx.lineTo(x + pillWidth/4, y - pillHeight/2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Draw everything
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background (parallax sprite or fallback gradient)
+            drawBackground();
+
+            // Draw clouds (only if no background sprite)
+            if (!backgroundSprite.loaded) {
+                clouds.forEach(drawCloud);
+            }
+
+            // Draw ground
+            drawGround();
+
+            // Draw game objects
+            obstacles.forEach(drawObstacle);
+            tokens.forEach(drawToken);
+            drawNarc();
+            drawPlayer();
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Jump function - with double jump
+        function jump() {
+            if (!gameRunning) return;
+            // Allow jump if we have jumps remaining
+            if (player.jumpsRemaining > 0) {
+                player.dy = jumpPower;
+                player.jumping = true;
+                player.grounded = false;
+                player.jumpsRemaining--;
+            }
+        }
+
+        // Start game
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            tokensCollected = 0;
+            gameSpeed = 6;
+            obstacles = [];
+            tokens = [];
+            obstacleTimer = 0;
+            tokenTimer = 0;
+            narcTimer = 0;
+            groundSprite.scrollX = 0;
+            backgroundSprite.scrollX = 0;
+            player.y = groundHeight - player.height;
+            player.dy = 0;
+            player.jumpsRemaining = 2;
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('score').textContent = '0';
+            document.getElementById('tokens').textContent = '0';
+        }
+
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = Math.floor(score / 10);
+            document.getElementById('finalTokens').textContent = tokensCollected;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Event listeners - multiple events for best responsiveness
+        canvas.addEventListener('mousedown', jump);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        }, { passive: false });
+        canvas.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                jump();
+            }
+        });
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+
+        // Start game loop
+        gameLoop();
+    </script>
+</body>
+</html>
