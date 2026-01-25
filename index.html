@@ -801,6 +801,27 @@
 
         bearSprite.image.src = 'bearsprite.png?v=2';
 
+        // Vlad background character (appears at every 3rd seam)
+        const vladSprite = {
+            image: new Image(),
+            loaded: false,
+            width: 0,
+            height: 0
+        };
+
+        vladSprite.image.onload = function() {
+            vladSprite.loaded = true;
+            vladSprite.width = vladSprite.image.width;
+            vladSprite.height = vladSprite.image.height;
+            console.log('Vlad sprite loaded:', vladSprite.width, 'x', vladSprite.height);
+        };
+
+        vladSprite.image.onerror = function() {
+            console.error('Failed to load Vlad sprite');
+        };
+
+        vladSprite.image.src = 'vladsprite.png';
+
         // Ground
         const groundHeight = 500;
 
@@ -978,6 +999,42 @@
                 gradient.addColorStop(1, '#E0F6FF');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // Draw Vlad at every 3rd background seam point
+        function drawVlad() {
+            if (!vladSprite.loaded || !backgroundSprite.loaded) return;
+
+            const bgWidth = backgroundSprite.image.width;
+            const seamInterval = bgWidth * 3; // Every 3rd seam
+
+            // Calculate Vlad's display size (maintain aspect ratio)
+            const vladHeight = 150; // Target height in pixels
+            const aspectRatio = vladSprite.width / vladSprite.height;
+            const vladWidth = vladHeight * aspectRatio;
+
+            // Position Vlad standing on the ground (in background layer, so smaller/further back)
+            const vladY = groundHeight - vladHeight - 20; // Slightly above ground line for depth
+
+            // Calculate positions based on background scroll
+            // We need to find where the 3rd seam points are relative to scroll
+            const scrollOffset = backgroundSprite.scrollX;
+
+            // Draw multiple Vlads at every 3rd seam point visible on screen
+            for (let i = -1; i < 4; i++) {
+                const seamX = (i * seamInterval) - (scrollOffset % seamInterval);
+
+                // Only draw if on screen (with some buffer)
+                if (seamX > -vladWidth && seamX < canvas.width + vladWidth) {
+                    ctx.drawImage(
+                        vladSprite.image,
+                        seamX - vladWidth / 2, // Center on seam point
+                        vladY,
+                        vladWidth,
+                        vladHeight
+                    );
+                }
             }
         }
 
@@ -1396,6 +1453,9 @@
 
             // Draw background (parallax sprite or fallback gradient)
             drawBackground();
+
+            // Draw Vlad in background (at every 3rd seam)
+            drawVlad();
 
             // Draw clouds (only if no background sprite)
             if (!backgroundSprite.loaded) {
