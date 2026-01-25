@@ -36,14 +36,6 @@ When ALON collides with an obstacle:
 - Falls off bottom of screen
 - Game over screen appears after animation completes
 
-### Background Transition
-At 690 points, the background transitions from normal to storm:
-- **Trigger Score:** 690 displayed points (6900 internal)
-- **Transition Type:** Crossfade (alpha blend)
-- **Transition Speed:** ~50 frames (0.02 alpha per frame)
-- **Safe Zone:** No obstacles spawn from 690-750 points
-- **Storm Background:** Dark city skyline with lightning
-
 ---
 
 ## Characters
@@ -73,27 +65,17 @@ At 690 points, the background transitions from normal to storm:
 - "Community strong!"
 - "LFG!"
 
-### Vlad (Background Character)
-- **Sprite:** `vladsprite.png` (single frame)
-- **Size:** 150px height, width scales to maintain aspect ratio
-- **Animation:** None (static image)
-- **Behavior:** Stands in background at random seam points
-- **Position:** 20px above ground sprite, at background seam locations
-- **Layer:** Background (after background, before ground)
-- **Spawn Logic:** ~35% chance per seam (pseudo-random hash function)
-
 ---
 
 ## Render Order (Back to Front)
 
-1. **Background** - Parallax sky/environment (normal or storm)
+1. **Background** - Parallax sky/environment
 2. **Clouds** - Fallback only (if no background sprite)
-3. **Vlad** - Standing at random seam points
-4. **Narc** - Flying in distant sky
-5. **Ground** - Scrolling terrain
-6. **Obstacles** - BEAR, BONK, BAGS
-7. **Tokens** - Collectible pills
-8. **Player** - ALON (always on top)
+3. **Narc** - Flying in distant sky
+4. **Ground** - Scrolling terrain
+5. **Obstacles** - BEAR, BONK, BAGS
+6. **Tokens** - Collectible pills
+7. **Player** - ALON (always on top)
 
 ---
 
@@ -101,7 +83,7 @@ At 690 points, the background transitions from normal to storm:
 
 ### BEAR
 - **Sprite:** `bearsprite.png` (6 frames)
-- **Size:** 135x135 pixels (50% larger than original)
+- **Size:** 90x90 pixels (displayed larger)
 - **Animation:** Static frame 5 with bounce effect
 - **Speed:** Fixed at 6 (doesn't scale with difficulty)
 
@@ -136,18 +118,11 @@ At 690 points, the background transitions from normal to storm:
 
 ## Environment
 
-### Background (Normal)
+### Background
 - **Sprite:** `background-sprite.png` (1536x1024)
 - **Style:** Tropical paradise with candlestick charts
 - **Scrolling:** Parallax at 0.3x game speed
 - **Tiling:** Mirrored every other tile for seamless loop
-
-### Background (Storm)
-- **Sprite:** `narc-background-sprite.png`
-- **Style:** Dark city skyline with lightning
-- **Scrolling:** Parallax at 0.3x game speed
-- **Tiling:** Mirrored every other tile for seamless loop
-- **Unlock:** Appears at 690 points via crossfade transition
 
 ### Ground
 - **Sprite:** `ground-sprite.png` (1712x158)
@@ -274,21 +249,19 @@ Music plays 10% quieter than sound effects. Toggle with mute button (bottom-righ
 
 ```
 alon-pumprun-game/
-├── index.html                # Main game file (HTML + CSS + JS)
-├── index-test.html           # Test file with mobile portrait support
-├── CNAME                     # Custom domain config (alonpump.run)
-├── og-image.png              # Social sharing preview image (1200x600)
-├── alon-sprite-sheet.png     # Player character (384x64, 6 frames)
-├── narc-sprite-sheet.png     # Flying supporter (1200x600, single frame)
-├── narc-background-sprite.png # Storm background (unlocked at 690 pts)
-├── vladsprite.png            # Vlad background character
-├── bonksprite.png            # BONK obstacle (7 frames)
-├── bearsprite.png            # BEAR obstacle (6 frames)
-├── bagssprite.png            # BAGS obstacle (5 frames)
-├── background-sprite.png     # Parallax background (1536x1024)
-├── ground-sprite.png         # Scrolling ground (1712x158)
-├── pumpfun-logo.png          # Pill logo for UI
-└── ALON-GAME-REFERENCE.md    # This file
+├── index.html              # Main game file (HTML + CSS + JS)
+├── index-test.html         # Test file with mobile portrait support
+├── CNAME                   # Custom domain config (alonpump.run)
+├── og-image.png            # Social sharing preview image (1200x600)
+├── alon-sprite-sheet.png   # Player character (384x64, 6 frames)
+├── narc-sprite-sheet.png   # Flying supporter (1200x600, single frame)
+├── bonksprite.png          # BONK obstacle (7 frames)
+├── bearsprite.png          # BEAR obstacle (6 frames)
+├── bagssprite.png          # BAGS obstacle (5 frames)
+├── background-sprite.png   # Parallax background (1536x1024)
+├── ground-sprite.png       # Scrolling ground (1712x158)
+├── pumpfun-logo.png        # Pill logo for UI
+└── ALON-GAME-REFERENCE.md  # This file
 ```
 
 ---
@@ -353,7 +326,5 @@ DNS configured via Cloudflare:
 - [x] ~~Social sharing meta tags~~ (Implemented)
 - [x] ~~Death animation~~ (Implemented)
 - [x] ~~Flying Narc with jetpack~~ (Implemented)
-- [x] ~~Storm background transition at 690 points~~ (Implemented)
-- [x] ~~Vlad background character at random seams~~ (Implemented)
 - [ ] Share score to Twitter/X
 - [ ] Achievement system
