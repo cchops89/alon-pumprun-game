@@ -610,6 +610,7 @@
 
         // Game state
         let gameRunning = false;
+        let isDying = false;
         let score = 0;
         let tokensCollected = 0;
         let gameSpeed = 6;
@@ -623,6 +624,7 @@
             width: 60,
             height: 80,
             dy: 0,
+            dx: 0,
             jumping: false,
             grounded: false,
             jumpsRemaining: 2,
@@ -630,7 +632,8 @@
             spriteLoaded: false,
             frameIndex: 0,
             frameWidth: 64,
-            frameHeight: 64
+            frameHeight: 64,
+            rotation: 0
         };
 
         player.spriteSheet.onload = function() {
@@ -995,19 +998,36 @@
                 frameY = 0;
             }
 
-            // Draw the sprite from the sheet
-            ctx.drawImage(
-                player.spriteSheet,
-                frameX * player.frameWidth, // source X
-                frameY * player.frameHeight, // source Y
-                player.frameWidth, // source width
-                player.frameHeight, // source height
-                player.x, // destination X
-                player.y, // destination Y
-                player.width, // destination width
-                player.height // destination height
-            );
-
+            // Draw the sprite from the sheet (with rotation if dying)
+            ctx.save();
+            if (isDying) {
+                ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+                ctx.rotate(player.rotation);
+                ctx.drawImage(
+                    player.spriteSheet,
+                    frameX * player.frameWidth,
+                    frameY * player.frameHeight,
+                    player.frameWidth,
+                    player.frameHeight,
+                    -player.width / 2,
+                    -player.height / 2,
+                    player.width,
+                    player.height
+                );
+            } else {
+                ctx.drawImage(
+                    player.spriteSheet,
+                    frameX * player.frameWidth,
+                    frameY * player.frameHeight,
+                    player.frameWidth,
+                    player.frameHeight,
+                    player.x,
+                    player.y,
+                    player.width,
+                    player.height
+                );
+            }
+            ctx.restore();
         }
 
         // Draw Narc (sprite sheet supporter character)
@@ -1142,6 +1162,20 @@
 
         // Update game
         function update() {
+            // Handle death animation
+            if (isDying) {
+                player.dy += gravity;
+                player.y += player.dy;
+                player.x += player.dx;
+                player.rotation += 0.15;
+
+                // Check if player has fallen off screen
+                if (player.y > canvas.height + 100) {
+                    gameOver();
+                }
+                return;
+            }
+
             if (!gameRunning) return;
 
             // Update score
@@ -1191,11 +1225,11 @@
                 obs.x -= obstacleSpeed;
 
                 // Check collision with player
-                if (player.x < obs.x + obs.width &&
+                if (!isDying && player.x < obs.x + obs.width &&
                     player.x + player.width > obs.x &&
                     player.y < obs.y + obs.height &&
                     player.y + player.height > obs.y) {
-                    gameOver();
+                    triggerDeath();
                 }
 
                 // Remove off-screen obstacles
@@ -1349,8 +1383,11 @@
             narcTimer = 0;
             groundSprite.scrollX = 0;
             backgroundSprite.scrollX = 0;
+            player.x = 100;
             player.y = groundHeight - player.height;
             player.dy = 0;
+            player.dx = 0;
+            player.rotation = 0;
             player.jumpsRemaining = 2;
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('gameOver').style.display = 'none';
@@ -1358,10 +1395,19 @@
             document.getElementById('tokens').textContent = '0';
         }
 
-        // Game over
-        function gameOver() {
+        // Trigger death animation
+        function triggerDeath() {
+            isDying = true;
             gameRunning = false;
             playGameOverSound();
+            // Launch player up and back
+            player.dy = -18;
+            player.dx = -3;
+        }
+
+        // Game over
+        function gameOver() {
+            isDying = false;
             playMenuMusic();
             document.getElementById('finalScore').textContent = Math.floor(score / 10);
             document.getElementById('finalTokens').textContent = tokensCollected;
