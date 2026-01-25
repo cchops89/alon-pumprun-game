@@ -1146,12 +1146,12 @@
                 const bounceOffset = Math.sin(Date.now() / 300 + obs.x) * 8;
 
                 // Draw last frame (frame 5) bigger with bounce effect
-                const bearSize = 90;
+                const bearSize = 135; // 50% bigger than original 90
                 ctx.drawImage(
                     bearSprite.image,
                     5 * bearSprite.frameWidth, 0,
                     bearSprite.frameWidth, bearSprite.frameHeight,
-                    obs.x - 15, obs.y - 30 + bounceOffset, bearSize, bearSize
+                    obs.x - 38, obs.y - 75 + bounceOffset, bearSize, bearSize
                 );
             } else {
                 // Draw colored block for FUD/BEAR or fallback
