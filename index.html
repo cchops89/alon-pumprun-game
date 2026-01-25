@@ -1002,12 +1002,18 @@
             }
         }
 
-        // Draw Vlad at every 3rd background seam point
+        // Pseudo-random function based on seam index (consistent per seam)
+        function seamHasVlad(seamIndex) {
+            // Use a simple hash to make it feel random but consistent
+            const hash = Math.sin(seamIndex * 12.9898 + 78.233) * 43758.5453;
+            return (hash - Math.floor(hash)) < 0.35; // ~35% chance per seam
+        }
+
+        // Draw Vlad at random seam points
         function drawVlad() {
             if (!vladSprite.loaded || !backgroundSprite.loaded) return;
 
             const bgWidth = backgroundSprite.image.width;
-            const seamInterval = bgWidth * 3; // Every 3rd seam
 
             // Calculate Vlad's display size (maintain aspect ratio)
             const vladHeight = 150; // Target height in pixels
@@ -1015,18 +1021,19 @@
             const vladWidth = vladHeight * aspectRatio;
 
             // Position Vlad standing on the ground (in background layer, so smaller/further back)
-            const vladY = groundHeight - vladHeight - 20; // Slightly above ground line for depth
+            const vladY = groundHeight - vladHeight - 20; // 20px above ground sprite
 
-            // Calculate positions based on background scroll
-            // We need to find where the 3rd seam points are relative to scroll
+            // Calculate which seam indices are currently visible
             const scrollOffset = backgroundSprite.scrollX;
+            const firstSeamIndex = Math.floor(scrollOffset / bgWidth);
 
-            // Draw multiple Vlads at every 3rd seam point visible on screen
-            for (let i = -1; i < 4; i++) {
-                const seamX = (i * seamInterval) - (scrollOffset % seamInterval);
+            // Check each seam position on screen
+            for (let i = -1; i < 6; i++) {
+                const seamIndex = firstSeamIndex + i;
+                const seamX = (seamIndex * bgWidth) - scrollOffset;
 
-                // Only draw if on screen (with some buffer)
-                if (seamX > -vladWidth && seamX < canvas.width + vladWidth) {
+                // Only draw if this seam has Vlad and is on screen
+                if (seamHasVlad(seamIndex) && seamX > -vladWidth && seamX < canvas.width + vladWidth) {
                     ctx.drawImage(
                         vladSprite.image,
                         seamX - vladWidth / 2, // Center on seam point
