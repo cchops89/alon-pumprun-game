@@ -801,7 +801,7 @@
 
         bearSprite.image.src = 'bearsprite.png?v=2';
 
-        // Vlad background character (appears at every 3rd seam)
+        // Vlad background character
         const vladSprite = {
             image: new Image(),
             loaded: false,
@@ -842,19 +842,9 @@
         let obstacleTimer = 0;
         let tokenTimer = 0;
         let narcTimer = 0;
+        let vladScrollX = 0;
 
-        // Cloud background
-        function createCloud() {
-            return {
-                x: canvas.width,
-                y: Math.random() * 200 + 50,
-                width: 100 + Math.random() * 50,
-                height: 60,
-                speed: 1 + Math.random() * 2
-            };
-        }
-
-        // Initialize clouds
+        // Initialize clouds (fallback when no background sprite)
         for (let i = 0; i < 3; i++) {
             clouds.push({
                 x: Math.random() * canvas.width,
@@ -1002,18 +992,17 @@
             }
         }
 
-        // Pseudo-random function based on seam index (consistent per seam)
-        function seamHasVlad(seamIndex) {
-            // Use a simple hash to make it feel random but consistent
-            const hash = Math.sin(seamIndex * 12.9898 + 78.233) * 43758.5453;
-            return (hash - Math.floor(hash)) < 0.35; // ~35% chance per seam
-        }
-
-        // Draw Vlad at random seam points
+        // Draw Vlad at regular fixed intervals in the background (parallax layer)
         function drawVlad() {
-            if (!vladSprite.loaded || !backgroundSprite.loaded) return;
+            if (!vladSprite.loaded) return;
 
-            const bgWidth = backgroundSprite.image.width;
+            // Update Vlad's own scroll (same parallax speed as background)
+            if (gameRunning) {
+                vladScrollX += gameSpeed * 0.3;
+            }
+
+            // Vlad spawn spacing - fixed intervals for consistent background presence
+            const vladSpacing = 1800;
 
             // Calculate Vlad's display size (maintain aspect ratio)
             const vladHeight = 150; // Target height in pixels
@@ -1021,22 +1010,20 @@
             const vladWidth = vladHeight * aspectRatio;
 
             // Position Vlad standing on the ground (in background layer, so smaller/further back)
-            const vladY = groundHeight - vladHeight - 20; // 20px above ground sprite
+            const vladY = groundHeight - vladHeight - 10; // 10px above ground sprite
 
-            // Calculate which seam indices are currently visible
-            const scrollOffset = backgroundSprite.scrollX;
-            const firstSeamIndex = Math.floor(scrollOffset / bgWidth);
+            // Use modulo on Vlad's own scroll tracker (never wraps abruptly)
+            const scrollOffset = vladScrollX % vladSpacing;
 
-            // Check each seam position on screen
-            for (let i = -1; i < 6; i++) {
-                const seamIndex = firstSeamIndex + i;
-                const seamX = (seamIndex * bgWidth) - scrollOffset;
+            // Draw Vlads at fixed intervals
+            for (let i = -1; i < Math.ceil(canvas.width / vladSpacing) + 2; i++) {
+                const vladX = (i * vladSpacing) - scrollOffset;
 
-                // Only draw if this seam has Vlad and is on screen
-                if (seamHasVlad(seamIndex) && seamX > -vladWidth && seamX < canvas.width + vladWidth) {
+                // Only draw if on screen
+                if (vladX > -vladWidth && vladX < canvas.width + vladWidth) {
                     ctx.drawImage(
                         vladSprite.image,
-                        seamX - vladWidth / 2, // Center on seam point
+                        vladX - vladWidth / 2, // Center on position
                         vladY,
                         vladWidth,
                         vladHeight
@@ -1461,7 +1448,7 @@
             // Draw background (parallax sprite or fallback gradient)
             drawBackground();
 
-            // Draw Vlad in background (at every 3rd seam)
+            // Draw Vlad in background
             drawVlad();
 
             // Draw clouds (only if no background sprite)
@@ -1514,6 +1501,7 @@
             obstacleTimer = 0;
             tokenTimer = 0;
             narcTimer = 0;
+            vladScrollX = 0;
             groundSprite.scrollX = 0;
             backgroundSprite.scrollX = 0;
             stormBackgroundSprite.scrollX = 0;
