@@ -1329,13 +1329,15 @@
                 clouds.forEach(drawCloud);
             }
 
+            // Draw Narc in background (one layer in front of sky)
+            drawNarc();
+
             // Draw ground
             drawGround();
 
             // Draw game objects
             obstacles.forEach(drawObstacle);
             tokens.forEach(drawToken);
-            drawNarc();
             drawPlayer();
         }
 
