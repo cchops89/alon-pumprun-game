@@ -95,43 +95,25 @@
             right: 10px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
             color: white;
-            font-size: clamp(12px, 3vw, 24px);
+            font-size: clamp(11px, 2.8vw, 24px);
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             pointer-events: none;
             z-index: 10;
-        }
-
-        #ui > div {
             background: rgba(0, 0, 0, 0.5);
-            padding: clamp(4px, 1vw, 8px) clamp(6px, 2vw, 16px);
+            padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 12px);
             border-radius: 10px;
         }
 
-        #marketCap {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #4ade80;
-            font-size: clamp(10px, 2.5vw, 18px);
-            white-space: nowrap;
+        #ui > div {
+            background: none;
+            padding: 0;
         }
 
-        @media (max-width: 500px) {
-            #ui {
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 5px;
-            }
-
-            #marketCap {
-                position: relative;
-                left: auto;
-                transform: none;
-                order: -1;
-                width: 100%;
-                text-align: center;
-            }
+        #marketCap {
+            color: #4ade80;
+            white-space: nowrap;
         }
 
         #bottomBar {
