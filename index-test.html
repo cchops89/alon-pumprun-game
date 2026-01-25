@@ -66,10 +66,18 @@
             z-index: 1;
         }
 
-        @media (max-width: 800px) {
+        /* Mobile portrait - taller aspect ratio */
+        @media (max-width: 800px) and (orientation: portrait) {
+            #gameContainer {
+                aspect-ratio: 800 / 1000;
+                max-height: 90vh;
+            }
+        }
+
+        @media (max-width: 800px) and (orientation: landscape) {
             #gameContainer {
                 max-width: 100vw;
-                max-height: 75vw;
+                max-height: 100vh;
             }
         }
 
@@ -341,6 +349,49 @@
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Mobile/portrait detection and canvas sizing
+        function isMobilePortrait() {
+            // Check if portrait orientation (height > width) and reasonable mobile width
+            const isPortrait = window.innerHeight > window.innerWidth;
+            const isMobileWidth = window.innerWidth <= 800;
+            console.log('Mobile check:', {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                isPortrait,
+                isMobileWidth,
+                result: isPortrait && isMobileWidth
+            });
+            return isPortrait && isMobileWidth;
+        }
+
+        function resizeCanvas() {
+            const wasMobilePortrait = canvas.height === 1000;
+
+            if (isMobilePortrait()) {
+                canvas.width = 800;
+                canvas.height = 1000;
+                console.log('Canvas set to MOBILE PORTRAIT: 800x1000');
+            } else {
+                canvas.width = 800;
+                canvas.height = 600;
+                console.log('Canvas set to DESKTOP: 800x600');
+            }
+
+            // Update ground height (always 100px from bottom)
+            groundHeight = canvas.height - 100;
+
+            // Update player position if game not running
+            if (!gameRunning && !isDying) {
+                player.y = groundHeight - player.height;
+            }
+        }
+
+        // Listen for orientation/resize changes
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(resizeCanvas, 100); // Small delay for orientation to settle
+        });
 
         // Sound system using Web Audio API
         let audioCtx = null;
@@ -617,6 +668,9 @@
         let gravity = 0.8;
         let jumpPower = -15;
 
+        // Ground height - now dynamic based on canvas size
+        let groundHeight = canvas.height - 100;
+
         // Player (ALON)
         const player = {
             x: 100,
@@ -775,9 +829,6 @@
 
         bearSprite.image.src = 'bearsprite.png';
 
-        // Ground
-        const groundHeight = 500;
-
         // Arrays for game objects
         let obstacles = [];
         let tokens = [];
@@ -834,11 +885,15 @@
             };
         }
 
-        // Create token
+        // Create token - pill spawn heights scale with canvas height
         function createToken() {
+            // Pills spawn between 150-250px above ground (same relative distance)
+            const minHeight = 150;
+            const maxHeight = 250;
+            const spawnRange = minHeight + Math.random() * (maxHeight - minHeight);
             return {
                 x: canvas.width,
-                y: groundHeight - 150 - Math.random() * 100,
+                y: groundHeight - spawnRange,
                 width: 40,
                 height: 40,
                 collected: false
@@ -1425,6 +1480,9 @@
             initAudio();
             toggleMusic();
         });
+
+        // Initialize canvas size based on device
+        resizeCanvas();
 
         // Start game loop
         gameLoop();
