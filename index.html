@@ -108,6 +108,14 @@
             border-radius: 10px;
         }
 
+        #marketCap {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4ade80;
+            font-size: 18px;
+        }
+
         #bottomBar {
             position: absolute;
             bottom: 0;
@@ -297,6 +305,7 @@
 
         <div id="ui">
             <div>Score: <span id="score">0</span></div>
+            <div id="marketCap">$ALON MC: <span id="mcValue">Loading...</span></div>
             <div>Pills: <span id="tokens">0</span></div>
         </div>
 
@@ -338,6 +347,50 @@
                 bgPills.appendChild(img);
             }
         })();
+
+        // Market cap fetching from DexScreener API
+        const ALON_CONTRACT = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
+        const DEXSCREENER_API = `https://api.dexscreener.com/latest/dex/tokens/${ALON_CONTRACT}`;
+
+        function formatMarketCap(value) {
+            if (value >= 1e9) {
+                return '$' + (value / 1e9).toFixed(2) + 'B';
+            } else if (value >= 1e6) {
+                return '$' + (value / 1e6).toFixed(2) + 'M';
+            } else if (value >= 1e3) {
+                return '$' + (value / 1e3).toFixed(2) + 'K';
+            } else {
+                return '$' + value.toFixed(2);
+            }
+        }
+
+        async function fetchMarketCap() {
+            try {
+                const response = await fetch(DEXSCREENER_API);
+                const data = await response.json();
+
+                if (data.pairs && data.pairs.length > 0) {
+                    // Get the pair with highest liquidity (most accurate price)
+                    const mainPair = data.pairs.reduce((best, pair) => {
+                        const bestLiq = best.liquidity?.usd || 0;
+                        const pairLiq = pair.liquidity?.usd || 0;
+                        return pairLiq > bestLiq ? pair : best;
+                    }, data.pairs[0]);
+
+                    const marketCap = mainPair.marketCap || mainPair.fdv || 0;
+                    document.getElementById('mcValue').textContent = formatMarketCap(marketCap);
+                } else {
+                    document.getElementById('mcValue').textContent = 'N/A';
+                }
+            } catch (error) {
+                console.error('Failed to fetch market cap:', error);
+                document.getElementById('mcValue').textContent = 'N/A';
+            }
+        }
+
+        // Fetch market cap on load and every 30 seconds
+        fetchMarketCap();
+        setInterval(fetchMarketCap, 30000);
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
