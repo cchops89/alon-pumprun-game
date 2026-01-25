@@ -389,10 +389,11 @@
         let musicGain = null;
         let musicInterval = null;
 
-        // Note frequencies for chiptune music
+        // Note frequencies for dark synth music (including flats for minor keys)
         const NOTE_FREQS = {
-            C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
-            C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+            C3: 130.81, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+            C4: 261.63, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+            C5: 523.25, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46, G5: 783.99, Ab5: 830.61, A5: 880.00, Bb5: 932.33, B5: 987.77,
             C6: 1046.50
         };
 
@@ -412,53 +413,60 @@
             osc.stop(startTime + duration);
         }
 
-        // Menu music - chill, catchy chiptune loop
+        // Menu music - dark, atmospheric synth loop
         function playMenuMusic() {
             if (!audioCtx || !musicEnabled) return;
             stopMusic();
 
             musicGain = audioCtx.createGain();
-            musicGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            musicGain.gain.setValueAtTime(0.45, audioCtx.currentTime); // 10% quieter than before
             musicGain.connect(audioCtx.destination);
 
-            const bpm = 100;
+            const bpm = 85; // Slower for moodier feel
             const beatDuration = 60 / bpm;
             const barDuration = beatDuration * 4;
 
-            // Melody pattern (dreamy, chill vibe)
+            // Dark melody pattern (C minor - haunting vibe)
             const melody = [
-                { note: 'E5', beat: 0 }, { note: 'G5', beat: 0.5 }, { note: 'A5', beat: 1 }, { note: 'G5', beat: 1.5 },
-                { note: 'E5', beat: 2 }, { note: 'D5', beat: 2.5 }, { note: 'C5', beat: 3 }, { note: 'D5', beat: 3.5 },
-                { note: 'E5', beat: 4 }, { note: 'G5', beat: 4.5 }, { note: 'A5', beat: 5 }, { note: 'B5', beat: 5.5 },
-                { note: 'A5', beat: 6 }, { note: 'G5', beat: 6.5 }, { note: 'E5', beat: 7 }, { note: 'G5', beat: 7.5 }
+                { note: 'Eb5', beat: 0 }, { note: 'D5', beat: 0.75 }, { note: 'C5', beat: 1.5 }, { note: 'G4', beat: 2.25 },
+                { note: 'Ab4', beat: 3 }, { note: 'G4', beat: 3.5 }, { note: 'Eb4', beat: 4 }, { note: 'D4', beat: 5 },
+                { note: 'C4', beat: 5.5 }, { note: 'Eb4', beat: 6 }, { note: 'G4', beat: 6.5 }, { note: 'Ab4', beat: 7 }
             ];
 
-            // Bass pattern
+            // Deep bass pattern (sub bass feel)
             const bass = [
-                { note: 'C4', beat: 0 }, { note: 'C4', beat: 1 },
-                { note: 'G4', beat: 2 }, { note: 'G4', beat: 3 },
-                { note: 'A4', beat: 4 }, { note: 'A4', beat: 5 },
-                { note: 'E4', beat: 6 }, { note: 'G4', beat: 7 }
+                { note: 'C3', beat: 0 }, { note: 'C3', beat: 2 },
+                { note: 'Ab3', beat: 4 }, { note: 'G3', beat: 6 }
+            ];
+
+            // Pad notes for atmosphere
+            const pad = [
+                { note: 'C4', beat: 0 }, { note: 'Eb4', beat: 0 }, { note: 'G4', beat: 0 }
             ];
 
             function playBar() {
                 if (!musicEnabled || !audioCtx) return;
                 const now = audioCtx.currentTime;
 
-                // Play melody
+                // Play dark melody with sawtooth for synth feel
                 melody.forEach(n => {
-                    playNote(NOTE_FREQS[n.note], beatDuration * 0.4, now + n.beat * beatDuration, 'square', 0.12);
+                    playNote(NOTE_FREQS[n.note], beatDuration * 0.6, now + n.beat * beatDuration, 'sawtooth', 0.08);
                 });
 
-                // Play bass
+                // Play deep bass with triangle
                 bass.forEach(n => {
-                    playNote(NOTE_FREQS[n.note] / 2, beatDuration * 0.8, now + n.beat * beatDuration, 'triangle', 0.2);
+                    playNote(NOTE_FREQS[n.note] / 2, beatDuration * 1.8, now + n.beat * beatDuration, 'triangle', 0.18);
                 });
 
-                // Arpeggio accent
-                const arpNotes = ['C5', 'E5', 'G5', 'E5'];
+                // Atmospheric pad chord (quiet, sustained)
+                pad.forEach(n => {
+                    playNote(NOTE_FREQS[n.note], beatDuration * 4, now, 'sine', 0.04);
+                });
+
+                // Dark arpeggio (minor chord)
+                const arpNotes = ['C4', 'Eb4', 'G4', 'C5', 'G4', 'Eb4'];
                 arpNotes.forEach((note, i) => {
-                    playNote(NOTE_FREQS[note], beatDuration * 0.2, now + (i * 0.125) * beatDuration, 'square', 0.06);
+                    playNote(NOTE_FREQS[note], beatDuration * 0.3, now + 4 * beatDuration + (i * 0.2) * beatDuration, 'sawtooth', 0.05);
                 });
             }
 
@@ -466,37 +474,37 @@
             musicInterval = setInterval(playBar, barDuration * 2 * 1000);
         }
 
-        // Game music - upbeat, energetic chiptune
+        // Game music - dark, driving synth
         function playGameMusic() {
             if (!audioCtx || !musicEnabled) return;
             stopMusic();
 
             musicGain = audioCtx.createGain();
-            musicGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            musicGain.gain.setValueAtTime(0.36, audioCtx.currentTime); // 10% quieter than before
             musicGain.connect(audioCtx.destination);
 
-            const bpm = 140;
+            const bpm = 128; // Driving tempo
             const beatDuration = 60 / bpm;
             const barDuration = beatDuration * 4;
 
-            // Energetic melody pattern
+            // Dark, intense melody pattern (A minor / dark synth)
             const melody = [
-                { note: 'E5', beat: 0 }, { note: 'E5', beat: 0.25 }, { note: 'E5', beat: 0.5 }, { note: 'G5', beat: 0.75 },
-                { note: 'A5', beat: 1 }, { note: 'A5', beat: 1.5 }, { note: 'G5', beat: 2 }, { note: 'E5', beat: 2.5 },
-                { note: 'D5', beat: 3 }, { note: 'E5', beat: 3.25 }, { note: 'G5', beat: 3.5 }, { note: 'A5', beat: 3.75 },
-                { note: 'B5', beat: 4 }, { note: 'A5', beat: 4.5 }, { note: 'G5', beat: 5 }, { note: 'E5', beat: 5.5 },
-                { note: 'G5', beat: 6 }, { note: 'A5', beat: 6.5 }, { note: 'G5', beat: 7 }, { note: 'E5', beat: 7.5 }
+                { note: 'A4', beat: 0 }, { note: 'C5', beat: 0.25 }, { note: 'A4', beat: 0.5 }, { note: 'E5', beat: 0.75 },
+                { note: 'D5', beat: 1 }, { note: 'C5', beat: 1.5 }, { note: 'A4', beat: 2 }, { note: 'G4', beat: 2.5 },
+                { note: 'A4', beat: 3 }, { note: 'C5', beat: 3.25 }, { note: 'E5', beat: 3.5 }, { note: 'D5', beat: 3.75 },
+                { note: 'C5', beat: 4 }, { note: 'A4', beat: 4.5 }, { note: 'G4', beat: 5 }, { note: 'A4', beat: 5.5 },
+                { note: 'E4', beat: 6 }, { note: 'G4', beat: 6.5 }, { note: 'A4', beat: 7 }, { note: 'C5', beat: 7.5 }
             ];
 
-            // Driving bass pattern
+            // Heavy synth bass pattern (pulsing)
             const bass = [
-                { note: 'C4', beat: 0 }, { note: 'C4', beat: 0.5 }, { note: 'C4', beat: 1 }, { note: 'C4', beat: 1.5 },
-                { note: 'G4', beat: 2 }, { note: 'G4', beat: 2.5 }, { note: 'G4', beat: 3 }, { note: 'G4', beat: 3.5 },
-                { note: 'A4', beat: 4 }, { note: 'A4', beat: 4.5 }, { note: 'A4', beat: 5 }, { note: 'A4', beat: 5.5 },
-                { note: 'E4', beat: 6 }, { note: 'E4', beat: 6.5 }, { note: 'G4', beat: 7 }, { note: 'G4', beat: 7.5 }
+                { note: 'A3', beat: 0 }, { note: 'A3', beat: 0.5 }, { note: 'A3', beat: 1 }, { note: 'A3', beat: 1.5 },
+                { note: 'F3', beat: 2 }, { note: 'F3', beat: 2.5 }, { note: 'G3', beat: 3 }, { note: 'G3', beat: 3.5 },
+                { note: 'A3', beat: 4 }, { note: 'A3', beat: 4.5 }, { note: 'A3', beat: 5 }, { note: 'G3', beat: 5.5 },
+                { note: 'F3', beat: 6 }, { note: 'E3', beat: 6.5 }, { note: 'F3', beat: 7 }, { note: 'G3', beat: 7.5 }
             ];
 
-            // Drum-like percussion using noise
+            // Drum-like percussion - darker, heavier
             function playDrum(time, isKick) {
                 if (!audioCtx || !musicEnabled) return;
                 const osc = audioCtx.createOscillator();
@@ -504,21 +512,21 @@
                 osc.connect(gain);
                 gain.connect(musicGain);
                 if (isKick) {
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(150, time);
-                    osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-                    gain.gain.setValueAtTime(0.3, time);
-                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                    osc.type = 'sine'; // Deeper kick
+                    osc.frequency.setValueAtTime(120, time);
+                    osc.frequency.exponentialRampToValueAtTime(40, time + 0.12);
+                    gain.gain.setValueAtTime(0.35, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
                     osc.start(time);
-                    osc.stop(time + 0.1);
+                    osc.stop(time + 0.12);
                 } else {
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(200, time);
-                    osc.frequency.setValueAtTime(150, time + 0.02);
-                    gain.gain.setValueAtTime(0.1, time);
-                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                    osc.type = 'sawtooth'; // Grittier snare
+                    osc.frequency.setValueAtTime(180, time);
+                    osc.frequency.setValueAtTime(120, time + 0.02);
+                    gain.gain.setValueAtTime(0.12, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
                     osc.start(time);
-                    osc.stop(time + 0.05);
+                    osc.stop(time + 0.06);
                 }
             }
 
@@ -526,14 +534,14 @@
                 if (!musicEnabled || !audioCtx) return;
                 const now = audioCtx.currentTime;
 
-                // Play melody
+                // Play dark melody with sawtooth
                 melody.forEach(n => {
-                    playNote(NOTE_FREQS[n.note], beatDuration * 0.3, now + n.beat * beatDuration, 'square', 0.1);
+                    playNote(NOTE_FREQS[n.note], beatDuration * 0.25, now + n.beat * beatDuration, 'sawtooth', 0.09);
                 });
 
-                // Play bass
+                // Play heavy bass with sawtooth for grit
                 bass.forEach(n => {
-                    playNote(NOTE_FREQS[n.note] / 2, beatDuration * 0.4, now + n.beat * beatDuration, 'sawtooth', 0.15);
+                    playNote(NOTE_FREQS[n.note] / 2, beatDuration * 0.35, now + n.beat * beatDuration, 'sawtooth', 0.14);
                 });
 
                 // Play drums (kick on beats 0,2,4,6 - snare on 1,3,5,7)
@@ -541,11 +549,11 @@
                     playDrum(now + i * beatDuration, i % 2 === 0);
                 }
 
-                // Fast arpeggio runs
-                const arpNotes = ['C5', 'E5', 'G5', 'C6', 'G5', 'E5'];
+                // Dark minor arpeggio runs
+                const arpNotes = ['A4', 'C5', 'E5', 'A5', 'E5', 'C5'];
                 arpNotes.forEach((note, i) => {
-                    playNote(NOTE_FREQS[note], beatDuration * 0.15, now + 2 * beatDuration + (i * 0.08) * beatDuration, 'square', 0.05);
-                    playNote(NOTE_FREQS[note], beatDuration * 0.15, now + 6 * beatDuration + (i * 0.08) * beatDuration, 'square', 0.05);
+                    playNote(NOTE_FREQS[note], beatDuration * 0.12, now + 2 * beatDuration + (i * 0.08) * beatDuration, 'sawtooth', 0.04);
+                    playNote(NOTE_FREQS[note], beatDuration * 0.12, now + 6 * beatDuration + (i * 0.08) * beatDuration, 'sawtooth', 0.04);
                 });
             }
 
