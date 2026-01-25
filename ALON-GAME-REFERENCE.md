@@ -29,6 +29,13 @@ A side-scrolling endless runner game featuring ALON, promoting the $ALON token o
 - Base Game Speed: 6
 - Speed Increment: +0.5 every 500 points
 
+### Death Animation
+When ALON collides with an obstacle:
+- Player launches upward (dy: -18) and backward (dx: -3)
+- Spins while falling (rotation: +0.15 per frame)
+- Falls off bottom of screen
+- Game over screen appears after animation completes
+
 ---
 
 ## Characters
@@ -38,12 +45,16 @@ A side-scrolling endless runner game featuring ALON, promoting the $ALON token o
 - **Size:** 60x80 pixels
 - **Animation:** 6-frame run cycle at 100ms per frame
 - **Position:** x=100, ground level
+- **Death:** Launches up/back, spins, falls off screen
 
-### Narc (Supporter)
-- **Sprite:** `narc-sprite-sheet.png` (384x64, 6 frames)
-- **Size:** 60x80 pixels
-- **Animation:** 6-frame wave cycle at 150ms per frame
-- **Behavior:** Appears from left, runs across screen with encouraging messages
+### Narc (Flying Supporter)
+- **Sprite:** `narc-sprite-sheet.png` (1200x600, single frame)
+- **Size:** 240x120 pixels (2:1 aspect ratio)
+- **Animation:** None (static jetpack image)
+- **Behavior:** Flies across the sky from left to right
+- **Position:** Random height between 80-280px from top
+- **Layer:** Background (behind ground, obstacles, tokens, and player)
+- **Speed:** 10px per frame
 - **Spawn Rate:** Every 400 frames when not active
 
 #### Narc Messages
@@ -53,6 +64,18 @@ A side-scrolling endless runner game featuring ALON, promoting the $ALON token o
 - "Don't stop!"
 - "Community strong!"
 - "LFG!"
+
+---
+
+## Render Order (Back to Front)
+
+1. **Background** - Parallax sky/environment
+2. **Clouds** - Fallback only (if no background sprite)
+3. **Narc** - Flying in distant sky
+4. **Ground** - Scrolling terrain
+5. **Obstacles** - BEAR, BONK, BAGS
+6. **Tokens** - Collectible pills
+7. **Player** - ALON (always on top)
 
 ---
 
@@ -96,14 +119,14 @@ A side-scrolling endless runner game featuring ALON, promoting the $ALON token o
 ## Environment
 
 ### Background
-- **Sprite:** `background-sprite.png`
+- **Sprite:** `background-sprite.png` (1536x1024)
 - **Style:** Tropical paradise with candlestick charts
 - **Scrolling:** Parallax at 0.3x game speed
 - **Tiling:** Mirrored every other tile for seamless loop
 
 ### Ground
-- **Sprite:** `ground-sprite.png`
-- **Height:** Canvas height - 500 = 100 pixels
+- **Sprite:** `ground-sprite.png` (1712x158)
+- **Height:** Canvas height - 100 pixels from bottom
 - **Scrolling:** 1x game speed
 - **Tiling:** Mirrored every other tile
 
@@ -190,19 +213,53 @@ Music plays 10% quieter than sound effects. Toggle with mute button (bottom-righ
 
 ---
 
+## Social Sharing / SEO
+
+### Meta Tags
+```html
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://alonpump.run/">
+<meta property="og:title" content="ALON's PumpRun - To The Moon!">
+<meta property="og:description" content="Help ALON dodge the bears and collect pills in this endless runner!">
+<meta property="og:image" content="https://alonpump.run/og-image.png">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ALON's PumpRun - To The Moon!">
+<meta name="twitter:description" content="Help ALON dodge the bears and collect pills in this endless runner!">
+<meta name="twitter:image" content="https://alonpump.run/og-image.png">
+```
+
+### Preview Image
+- **File:** `og-image.png`
+- **Size:** 1200x630 pixels (recommended)
+- **Content:** ALON character with game background and title
+
+### Platform Support
+- Twitter/X posts
+- Facebook
+- LinkedIn
+- Telegram (uses Open Graph)
+- Discord
+
+---
+
 ## File Structure
 
 ```
 alon-pumprun-game/
 ├── index.html              # Main game file (HTML + CSS + JS)
+├── index-test.html         # Test file with mobile portrait support
 ├── CNAME                   # Custom domain config (alonpump.run)
-├── alon-sprite-sheet.png   # Player character (6 frames)
-├── narc-sprite-sheet.png   # Supporter character (6 frames)
+├── og-image.png            # Social sharing preview image (1200x600)
+├── alon-sprite-sheet.png   # Player character (384x64, 6 frames)
+├── narc-sprite-sheet.png   # Flying supporter (1200x600, single frame)
 ├── bonksprite.png          # BONK obstacle (7 frames)
 ├── bearsprite.png          # BEAR obstacle (6 frames)
 ├── bagssprite.png          # BAGS obstacle (5 frames)
-├── background-sprite.png   # Parallax background
-├── ground-sprite.png       # Scrolling ground
+├── background-sprite.png   # Parallax background (1536x1024)
+├── ground-sprite.png       # Scrolling ground (1712x158)
 ├── pumpfun-logo.png        # Pill logo for UI
 └── ALON-GAME-REFERENCE.md  # This file
 ```
@@ -210,6 +267,17 @@ alon-pumprun-game/
 ---
 
 ## Responsive Design
+
+### Desktop
+- Canvas: 800x600 pixels
+- Aspect ratio: 4:3
+
+### Mobile Portrait (Test Version)
+Available in `index-test.html`:
+- Canvas: 800x1000 pixels
+- Aspect ratio: 4:5
+- Triggered when: width ≤ 800px and portrait orientation
+- Ground position: Always 100px from bottom
 
 ### Mobile Scaling
 - Game container uses `aspect-ratio: 800/600`
@@ -226,7 +294,7 @@ alon-pumprun-game/
 
 ### Custom Domain (alonpump.run)
 DNS configured via Cloudflare:
-- A records pointing to GitHub Pages IPs:
+- A records pointing to GitHub Pages IPs (DNS only, no proxy):
   - 185.199.108.153
   - 185.199.109.153
   - 185.199.110.153
@@ -255,5 +323,8 @@ DNS configured via Cloudflare:
 - [ ] Additional obstacle types
 - [x] ~~Background music toggle~~ (Implemented)
 - [x] ~~Dark synth music~~ (Implemented)
+- [x] ~~Social sharing meta tags~~ (Implemented)
+- [x] ~~Death animation~~ (Implemented)
+- [x] ~~Flying Narc with jetpack~~ (Implemented)
 - [ ] Share score to Twitter/X
 - [ ] Achievement system
