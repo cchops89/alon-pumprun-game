@@ -963,6 +963,9 @@
         let clouds = [];
         let particles = [];
         let shakeTime = 0;
+        let hitStop = 0;
+        let zoomPunch = 0;
+        let crtEnabled = true;
         let jumpBufferTime = 0;
         let coyoteTime = 0;
         let lastScore = 0;
@@ -1473,6 +1476,7 @@
         function update() {
             // Juice: screen shake decay + particles run regardless of state
             if (shakeTime > 0) shakeTime--;
+            if (zoomPunch > 0) zoomPunch -= 0.05;
             updateParticles();
 
             // Handle death animation
@@ -1674,11 +1678,17 @@
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Screen shake (offset everything briefly on death)
+            // Screen shake + zoom punch (offset/scale everything briefly on death)
             ctx.save();
             if (shakeTime > 0) {
                 const s = 6 * (shakeTime / 15);
                 ctx.translate((Math.random() - 0.5) * 2 * s, (Math.random() - 0.5) * 2 * s);
+            }
+            if (zoomPunch > 0) {
+                const z = 1 + zoomPunch * 0.06;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(z, z);
+                ctx.translate(-canvas.width / 2, -canvas.height / 2);
             }
 
             // Draw background (parallax sprite or fallback gradient)
@@ -1708,10 +1718,41 @@
             drawPlayer();
 
             ctx.restore();
+
+            // CRT post-processing overlay (screen-fixed, drawn after shake/zoom)
+            if (crtEnabled) drawCRT();
+        }
+
+        // CRT filter: scanlines + vignette for a retro arcade-cabinet look
+        function drawCRT() {
+            const w = canvas.width, h = canvas.height;
+
+            // Scanlines
+            ctx.save();
+            ctx.globalAlpha = 0.10;
+            ctx.fillStyle = '#000';
+            for (let y = 0; y < h; y += 3) {
+                ctx.fillRect(0, y, w, 1);
+            }
+            ctx.restore();
+
+            // Vignette (darken edges)
+            const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, h * 0.75);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(1, 'rgba(0,0,0,0.45)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
         }
 
         // Game loop
         function gameLoop() {
+            // Hit-stop: freeze the world for a few frames on impact (game feel)
+            if (hitStop > 0) {
+                hitStop--;
+                draw();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
             update();
             draw();
             requestAnimationFrame(gameLoop);
@@ -1752,6 +1793,8 @@
             tokens = [];
             particles = [];
             shakeTime = 0;
+            hitStop = 0;
+            zoomPunch = 0;
             jumpBufferTime = 0;
             coyoteTime = 0;
             obstacleTimer = 0;
@@ -1783,6 +1826,8 @@
             isDying = true;
             gameRunning = false;
             shakeTime = 15;
+            hitStop = 5;
+            zoomPunch = 1;
             playGameOverSound();
             // Launch player up and back
             player.dy = -18;
