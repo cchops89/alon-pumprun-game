@@ -992,6 +992,86 @@
         let tokenTimer = 0;
         let narcTimer = 0;
         let ansemTimer = 0;
+        let powerupTimer = 0;
+
+        // Power-ups
+        let powerups = [];          // floating pickups on screen
+        let shieldActive = false;   // survive one hit
+        let magnetTime = 0;         // frames remaining, pulls pills
+        let multTime = 0;           // frames remaining, 2x score
+        const POWER_DURATION = 480; // ~8s at 60fps
+        const POWER_TYPES = {
+            SHIELD: { color: '#22d3ee', icon: (x, y, s) => drawShieldIcon(x, y, s) },
+            MAGNET: { color: '#f43f5e', icon: (x, y, s) => drawMagnetIcon(x, y, s) },
+            MULT:   { color: '#fbbf24', icon: (x, y, s) => draw2xIcon(x, y, s) }
+        };
+        const POWER_KEYS = Object.keys(POWER_TYPES);
+
+        // --- Power-up vector icons (canvas-drawn, no assets) ---
+        function drawShieldIcon(cx, cy, s) {
+            const w = s * 0.82, h = s;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.beginPath();
+            ctx.moveTo(0, -h / 2);
+            ctx.lineTo(w / 2, -h / 2 + h * 0.18);
+            ctx.lineTo(w / 2, h * 0.06);
+            ctx.quadraticCurveTo(w / 2, h * 0.42, 0, h / 2);
+            ctx.quadraticCurveTo(-w / 2, h * 0.42, -w / 2, h * 0.06);
+            ctx.lineTo(-w / 2, -h / 2 + h * 0.18);
+            ctx.closePath();
+            ctx.fillStyle = '#22d3ee';
+            ctx.fill();
+            ctx.lineWidth = Math.max(2, s * 0.08);
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+            // cross emblem
+            ctx.lineWidth = Math.max(2, s * 0.1);
+            ctx.beginPath();
+            ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, h * 0.24);
+            ctx.moveTo(-w * 0.28, -h * 0.02); ctx.lineTo(w * 0.28, -h * 0.02);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawMagnetIcon(cx, cy, s) {
+            const bandR = s * 0.42;
+            const legLen = s * 0.4;
+            const thick = s * 0.26;
+            ctx.save();
+            ctx.translate(cx, cy - s * 0.1);
+            ctx.lineWidth = thick;
+            ctx.lineCap = 'butt';
+            // Red horseshoe body (legs + top arc)
+            ctx.strokeStyle = '#e0245e';
+            ctx.beginPath();
+            ctx.moveTo(-bandR, legLen);
+            ctx.lineTo(-bandR, 0);
+            ctx.arc(0, 0, bandR, Math.PI, 0, false);
+            ctx.lineTo(bandR, legLen);
+            ctx.stroke();
+            // Silver pole tips
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.moveTo(-bandR, legLen);
+            ctx.lineTo(-bandR, legLen + thick * 0.7);
+            ctx.moveTo(bandR, legLen);
+            ctx.lineTo(bandR, legLen + thick * 0.7);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function draw2xIcon(cx, cy, s) {
+            ctx.save();
+            ctx.fillStyle = '#7c2d12';
+            ctx.font = `bold ${Math.round(s * 0.7)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('2×', cx, cy + 1);
+            ctx.restore();
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
         let vladScrollX = 0;
 
         // Initialize clouds (fallback when no background sprite)
@@ -1030,6 +1110,135 @@
                 height: 40,
                 collected: false
             };
+        }
+
+        // Create a power-up pickup (random type)
+        function createPowerup() {
+            const type = POWER_KEYS[Math.floor(Math.random() * POWER_KEYS.length)];
+            return {
+                x: canvas.width,
+                y: groundHeight - 160 - Math.random() * 110,
+                width: 46,
+                height: 46,
+                type: type,
+                collected: false,
+                pulse: 0
+            };
+        }
+
+        // Draw a power-up as a glowing orb with its icon on a white base
+        function drawPowerup(p) {
+            if (p.collected) return;
+            const cfg = POWER_TYPES[p.type];
+            const cx = p.x + p.width / 2;
+            const cy = p.y + p.height / 2;
+            const r = p.width / 2;
+            const glow = 0.5 + 0.5 * Math.sin(p.pulse);
+
+            ctx.save();
+            // Outer glow
+            ctx.globalAlpha = 0.35 + 0.25 * glow;
+            ctx.fillStyle = cfg.color;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 6 + 3 * glow, 0, Math.PI * 2);
+            ctx.fill();
+            // White base for icon contrast
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = cfg.color;
+            ctx.stroke();
+            ctx.restore();
+            // Icon (natural colors)
+            cfg.icon(cx, cy, r * 1.25);
+        }
+
+        // Activate a collected power-up's effect
+        function activatePower(type) {
+            if (type === 'SHIELD') shieldActive = true;
+            else if (type === 'MAGNET') magnetTime = POWER_DURATION;
+            else if (type === 'MULT') multTime = POWER_DURATION;
+            playCollectSound();
+            spawnPillParticles(player.x + player.width / 2, player.y + player.height / 2);
+        }
+
+        // Draw active power-up indicators (screen-fixed, under the HUD bar)
+        function drawPowerHUD() {
+            const items = [];
+            if (shieldActive) items.push({ cfg: POWER_TYPES.SHIELD, frac: 1 });
+            if (magnetTime > 0) items.push({ cfg: POWER_TYPES.MAGNET, frac: magnetTime / POWER_DURATION });
+            if (multTime > 0) items.push({ cfg: POWER_TYPES.MULT, frac: multTime / POWER_DURATION });
+
+            let x = 28;
+            const y = 96;
+            items.forEach(it => {
+                ctx.save();
+                // Dark base disc
+                ctx.beginPath();
+                ctx.arc(x, y, 16, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fill();
+                // Timer ring
+                ctx.beginPath();
+                ctx.arc(x, y, 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * it.frac);
+                ctx.strokeStyle = it.cfg.color;
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                ctx.restore();
+                // Icon
+                it.cfg.icon(x, y, 20);
+                x += 46;
+            });
+        }
+
+        // Draw shield bubble + magnet aura on the player when active
+        function drawPlayerAuras() {
+            const cx = player.x + player.width / 2;
+            const cy = player.y + player.height / 2;
+            const t = Date.now() / 200;
+
+            if (shieldActive) {
+                ctx.save();
+                const rr = player.width * 0.78;
+                // Glowing fill
+                ctx.globalAlpha = 0.14 + 0.06 * Math.sin(t * 2);
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+                ctx.fill();
+                // Bubble ring
+                ctx.globalAlpha = 0.5 + 0.2 * Math.sin(t * 2);
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            if (magnetTime > 0) {
+                // Attraction arcs pulsing outward
+                ctx.save();
+                ctx.globalAlpha = 0.4;
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 2.5;
+                for (let i = 0; i < 3; i++) {
+                    const rr = 34 + i * 14 + ((t * 12) % 14);
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, rr, -0.6, 0.6);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, rr, Math.PI - 0.6, Math.PI + 0.6);
+                    ctx.stroke();
+                }
+                ctx.restore();
+                // Magnet icon bobbing above head
+                const by = player.y - 16 + Math.sin(Date.now() / 150) * 3;
+                drawMagnetIcon(cx, by, 24);
+            }
         }
 
         // Spawn Ansem floating head (drifts through the sky)
@@ -1495,8 +1704,8 @@
 
             if (!gameRunning) return;
 
-            // Update score
-            score += 1;
+            // Update score (2x multiplier while active)
+            score += multTime > 0 ? 2 : 1;
             document.getElementById('score').textContent = Math.floor(score / 10);
 
             // Gradually increase difficulty
@@ -1553,14 +1762,23 @@
             // Update obstacles
             obstacles.forEach((obs, index) => {
                 // BONK, BAGS, and BEAR move at fixed speed, others speed up with game
-                const obstacleSpeed = (obs.type === 'BONK' || obs.type === 'BAGS' || obs.type === 'BEAR') ? 6 : gameSpeed;
-                obs.x -= obstacleSpeed;
+                const baseSpeed = (obs.type === 'BONK' || obs.type === 'BAGS' || obs.type === 'BEAR') ? 6 : gameSpeed;
+                obs.x -= baseSpeed;
 
                 // Check collision with player
                 if (!isDying && player.x < obs.x + obs.width &&
                     player.x + player.width > obs.x &&
                     player.y < obs.y + obs.height &&
                     player.y + player.height > obs.y) {
+                    if (shieldActive) {
+                        // Shield absorbs the hit: pop the obstacle, burst, quick shake
+                        shieldActive = false;
+                        obstacles.splice(index, 1);
+                        shakeTime = 10;
+                        spawnPillParticles(obs.x + obs.width / 2, obs.y + obs.height / 2);
+                        playCollectSound();
+                        return;
+                    }
                     triggerDeath();
                 }
 
@@ -1581,6 +1799,17 @@
             tokens.forEach((token, index) => {
                 token.x -= gameSpeed;
 
+                // Magnet: pull nearby pills toward the player
+                if (magnetTime > 0) {
+                    const dx = (player.x + player.width / 2) - (token.x + token.width / 2);
+                    const dy = (player.y + player.height / 2) - (token.y + token.height / 2);
+                    const dist = Math.hypot(dx, dy) || 1;
+                    if (dist < 260) {
+                        token.x += (dx / dist) * 7;
+                        token.y += (dy / dist) * 7;
+                    }
+                }
+
                 // Check collection
                 if (!token.collected &&
                     player.x < token.x + token.width &&
@@ -1589,7 +1818,7 @@
                     player.y + player.height > token.y) {
                     token.collected = true;
                     tokensCollected++;
-                    score += 50;
+                    score += multTime > 0 ? 100 : 50;
                     playCollectSound();
                     spawnPillParticles(token.x + token.width / 2, token.y + token.height / 2);
                     document.getElementById('tokens').textContent = tokensCollected;
@@ -1631,6 +1860,48 @@
                     ansem.x = -ansem.width;
                 }
             }
+
+            // Spawn power-ups (uncommon)
+            powerupTimer++;
+            if (powerupTimer > 450) {
+                powerups.push(createPowerup());
+                powerupTimer = 0;
+            }
+
+            // Update power-ups
+            powerups.forEach((p, index) => {
+                p.x -= gameSpeed;
+                p.pulse += 0.12;
+
+                // Magnet pulls power-ups too
+                if (magnetTime > 0) {
+                    const dx = (player.x + player.width / 2) - (p.x + p.width / 2);
+                    const dy = (player.y + player.height / 2) - (p.y + p.height / 2);
+                    const dist = Math.hypot(dx, dy) || 1;
+                    if (dist < 260) {
+                        p.x += (dx / dist) * 7;
+                        p.y += (dy / dist) * 7;
+                    }
+                }
+
+                // Collection
+                if (!p.collected &&
+                    player.x < p.x + p.width &&
+                    player.x + player.width > p.x &&
+                    player.y < p.y + p.height &&
+                    player.y + player.height > p.y) {
+                    p.collected = true;
+                    activatePower(p.type);
+                }
+
+                if (p.collected || p.x + p.width < 0) {
+                    powerups.splice(index, 1);
+                }
+            });
+
+            // Decay active power-up timers
+            if (magnetTime > 0) magnetTime--;
+            if (multTime > 0) multTime--;
         }
 
         // Draw PumpFun logo pill
@@ -1714,10 +1985,15 @@
             // Draw game objects
             obstacles.forEach(drawObstacle);
             tokens.forEach(drawToken);
+            powerups.forEach(drawPowerup);
             drawParticles();
             drawPlayer();
+            drawPlayerAuras();
 
             ctx.restore();
+
+            // Active power-up indicators (screen-fixed, above CRT)
+            drawPowerHUD();
 
             // CRT post-processing overlay (screen-fixed, drawn after shake/zoom)
             if (crtEnabled) drawCRT();
@@ -1792,6 +2068,11 @@
             obstacles = [];
             tokens = [];
             particles = [];
+            powerups = [];
+            shieldActive = false;
+            magnetTime = 0;
+            multTime = 0;
+            powerupTimer = 0;
             shakeTime = 0;
             hitStop = 0;
             zoomPunch = 0;
