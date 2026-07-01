@@ -219,6 +219,37 @@
             box-shadow: 0 2px 0 #1a4d3d;
         }
 
+        .gameOverBtns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        #shareBtn {
+            padding: 12px 24px;
+            font-size: clamp(16px, 4.5vw, 22px);
+            background: #111;
+            color: white;
+            border: 3px solid #4ade80;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+            box-shadow: 0 4px 0 #1a4d3d;
+        }
+
+        #shareBtn:active {
+            transform: scale(0.95) translateY(2px);
+            box-shadow: 0 2px 0 #1a4d3d;
+        }
+
+        #newBestBadge {
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+        }
+
         #startScreen {
             position: absolute;
             top: 0;
@@ -331,9 +362,14 @@
 
         <div id="gameOver">
             <h1>Game Over!</h1>
+            <p id="newBestBadge" style="display:none; color:#FFD700;">🏆 NEW BEST!</p>
             <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Best: <span id="bestScore">0</span></p>
             <p><img src="pumpfun-logo.png" alt="Pills" style="height: 24px; vertical-align: middle;"> Pills Collected: <span id="finalTokens">0</span></p>
-            <button id="restartBtn">Play Again</button>
+            <div class="gameOverBtns">
+                <button id="restartBtn">Play Again</button>
+                <button id="shareBtn">Share on 𝕏</button>
+            </div>
         </div>
     </div>
 
@@ -887,6 +923,37 @@
 
         vladSprite.image.src = 'vladsprite.png';
 
+        // Ansem floating head supporter
+        const ansemSprite = {
+            image: new Image(),
+            loaded: false,
+            width: 0,
+            height: 0
+        };
+
+        ansemSprite.image.onload = function() {
+            ansemSprite.loaded = true;
+            ansemSprite.width = ansemSprite.image.width;
+            ansemSprite.height = ansemSprite.image.height;
+            console.log('Ansem sprite loaded:', ansemSprite.width, 'x', ansemSprite.height);
+        };
+
+        ansemSprite.image.onerror = function() {
+            console.error('Failed to load Ansem sprite');
+        };
+
+        ansemSprite.image.src = 'ANSEM.png';
+
+        // Ansem floating head state (drifts + bobs across the sky)
+        const ansem = {
+            x: -200,
+            y: 120,
+            width: 105,
+            height: 140,
+            active: false,
+            bob: 0
+        };
+
         // Ground
         const groundHeight = 500;
 
@@ -894,6 +961,20 @@
         let obstacles = [];
         let tokens = [];
         let clouds = [];
+        let particles = [];
+        let shakeTime = 0;
+        let jumpBufferTime = 0;
+        let coyoteTime = 0;
+        let lastScore = 0;
+        const JUMP_BUFFER_FRAMES = 8;
+        const COYOTE_FRAMES = 8;
+
+        function getBest() {
+            try { return parseInt(localStorage.getItem('alonPumpRunBest') || '0', 10) || 0; } catch (e) { return 0; }
+        }
+        function setBest(v) {
+            try { localStorage.setItem('alonPumpRunBest', String(v)); } catch (e) {}
+        }
         let narcMessages = [
             "You got this ALON!",
             "To the moon! 🚀",
@@ -907,6 +988,7 @@
         let obstacleTimer = 0;
         let tokenTimer = 0;
         let narcTimer = 0;
+        let ansemTimer = 0;
         let vladScrollX = 0;
 
         // Initialize clouds (fallback when no background sprite)
@@ -945,6 +1027,53 @@
                 height: 40,
                 collected: false
             };
+        }
+
+        // Spawn Ansem floating head (drifts through the sky)
+        function spawnAnsem() {
+            ansem.active = true;
+            ansem.x = -ansem.width;
+            ansem.y = 90 + Math.random() * 160;
+            ansem.bob = Math.random() * Math.PI * 2;
+        }
+
+        // Pill collect particle burst
+        function spawnPillParticles(x, y) {
+            for (let i = 0; i < 14; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 1 + Math.random() * 4;
+                particles.push({
+                    x, y,
+                    dx: Math.cos(a) * sp,
+                    dy: Math.sin(a) * sp - 2,
+                    life: 1,
+                    size: 2 + Math.random() * 3,
+                    color: Math.random() < 0.5 ? '#4ade80' : '#f0f0f0'
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.dy += 0.2;
+                p.life -= 0.03;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
         }
 
         // Spawn Narc support (flying through the sky)
@@ -1233,6 +1362,13 @@
             }
         }
 
+        // Draw Ansem floating head (single image, gentle bob)
+        function drawAnsem() {
+            if (!ansem.active || !ansemSprite.loaded) return;
+            const bobOffset = Math.sin(ansem.bob) * 12;
+            ctx.drawImage(ansemSprite.image, ansem.x, ansem.y + bobOffset, ansem.width, ansem.height);
+        }
+
         // Draw obstacle
         function drawObstacle(obs) {
             if (obs.type === 'BONK' && bonkSprite.loaded) {
@@ -1335,6 +1471,10 @@
 
         // Update game
         function update() {
+            // Juice: screen shake decay + particles run regardless of state
+            if (shakeTime > 0) shakeTime--;
+            updateParticles();
+
             // Handle death animation
             if (isDying) {
                 player.dy += gravity;
@@ -1371,9 +1511,17 @@
                 player.grounded = true;
                 player.jumping = false;
                 player.jumpsRemaining = 2; // Reset double jump
+                coyoteTime = COYOTE_FRAMES;
+                // Fire a buffered jump the instant we land
+                if (jumpBufferTime > 0) {
+                    jumpBufferTime = 0;
+                    doJump();
+                }
             } else {
                 player.grounded = false;
+                if (coyoteTime > 0) coyoteTime--;
             }
+            if (jumpBufferTime > 0) jumpBufferTime--;
 
             // Update clouds
             clouds.forEach(cloud => {
@@ -1439,6 +1587,7 @@
                     tokensCollected++;
                     score += 50;
                     playCollectSound();
+                    spawnPillParticles(token.x + token.width / 2, token.y + token.height / 2);
                     document.getElementById('tokens').textContent = tokensCollected;
                 }
 
@@ -1461,6 +1610,21 @@
                 if (narc.x > canvas.width) {
                     narc.active = false;
                     narc.x = -300;
+                }
+            }
+
+            // Spawn + update Ansem floating head (slower, staggered from Narc)
+            ansemTimer++;
+            if (ansemTimer > 650 && !ansem.active) {
+                spawnAnsem();
+                ansemTimer = 0;
+            }
+            if (ansem.active) {
+                ansem.x += 2.5;
+                ansem.bob += 0.06;
+                if (ansem.x > canvas.width) {
+                    ansem.active = false;
+                    ansem.x = -ansem.width;
                 }
             }
         }
@@ -1510,6 +1674,13 @@
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Screen shake (offset everything briefly on death)
+            ctx.save();
+            if (shakeTime > 0) {
+                const s = 6 * (shakeTime / 15);
+                ctx.translate((Math.random() - 0.5) * 2 * s, (Math.random() - 0.5) * 2 * s);
+            }
+
             // Draw background (parallax sprite or fallback gradient)
             drawBackground();
 
@@ -1524,13 +1695,19 @@
             // Draw Narc in background (one layer in front of sky)
             drawNarc();
 
+            // Draw Ansem floating head (sky layer, same depth as Narc)
+            drawAnsem();
+
             // Draw ground
             drawGround();
 
             // Draw game objects
             obstacles.forEach(drawObstacle);
             tokens.forEach(drawToken);
+            drawParticles();
             drawPlayer();
+
+            ctx.restore();
         }
 
         // Game loop
@@ -1540,16 +1717,26 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Jump function - with double jump
+        // Perform an actual jump
+        function doJump() {
+            player.dy = jumpPower;
+            player.jumping = true;
+            player.grounded = false;
+            player.jumpsRemaining--;
+            coyoteTime = 0;
+            playJumpSound();
+        }
+
+        // Jump function - with double jump, coyote time + input buffering
         function jump() {
             if (!gameRunning) return;
-            // Allow jump if we have jumps remaining
-            if (player.jumpsRemaining > 0) {
-                player.dy = jumpPower;
-                player.jumping = true;
-                player.grounded = false;
-                player.jumpsRemaining--;
-                playJumpSound();
+            // Coyote time: allow a ground jump for a few frames after leaving ground
+            if (player.jumpsRemaining > 0 || coyoteTime > 0) {
+                if (player.jumpsRemaining === 0 && coyoteTime > 0) player.jumpsRemaining = 1;
+                doJump();
+            } else {
+                // Buffer the press so it fires the instant we land
+                jumpBufferTime = JUMP_BUFFER_FRAMES;
             }
         }
 
@@ -1563,9 +1750,15 @@
             gameSpeed = 6;
             obstacles = [];
             tokens = [];
+            particles = [];
+            shakeTime = 0;
+            jumpBufferTime = 0;
+            coyoteTime = 0;
             obstacleTimer = 0;
             tokenTimer = 0;
             narcTimer = 0;
+            ansemTimer = 0;
+            ansem.active = false;
             vladScrollX = 0;
             groundSprite.scrollX = 0;
             backgroundSprite.scrollX = 0;
@@ -1589,6 +1782,7 @@
         function triggerDeath() {
             isDying = true;
             gameRunning = false;
+            shakeTime = 15;
             playGameOverSound();
             // Launch player up and back
             player.dy = -18;
@@ -1599,9 +1793,25 @@
         function gameOver() {
             isDying = false;
             playMenuMusic();
-            document.getElementById('finalScore').textContent = Math.floor(score / 10);
+            const displayScore = Math.floor(score / 10);
+            lastScore = displayScore;
+            let best = getBest();
+            const isNewBest = displayScore > best;
+            if (isNewBest) {
+                best = displayScore;
+                setBest(best);
+            }
+            document.getElementById('finalScore').textContent = displayScore;
             document.getElementById('finalTokens').textContent = tokensCollected;
+            document.getElementById('bestScore').textContent = best;
+            document.getElementById('newBestBadge').style.display = isNewBest ? 'block' : 'none';
             document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Share score to X / Twitter
+        function shareScore() {
+            const text = `I scored ${lastScore} in ALON's PumpRun! 💊 Can you beat me? Play at https://alonpump.run $ALON`;
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
         }
 
         // Event listeners - multiple events for best responsiveness
@@ -1619,6 +1829,10 @@
 
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn').addEventListener('click', startGame);
+        document.getElementById('shareBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            shareScore();
+        });
         document.getElementById('muteBtn').addEventListener('click', (e) => {
             e.stopPropagation();
             initAudio();
