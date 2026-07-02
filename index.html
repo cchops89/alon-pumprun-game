@@ -357,6 +357,7 @@
             <p>Collect pills, avoid enemies, and help ALON pump $ALON to the moon!</p>
             <p><strong>TAP/CLICK to jump</strong></p>
             <p><strong>TAP/CLICK TWICE to double jump!</strong></p>
+            <p>Grab the purple booster for 10 TRIPLE JUMPS!</p>
             <button id="startBtn">START GAME</button>
         </div>
 
@@ -512,6 +513,12 @@
             sfxTone(0.07, 659, 0, 0.07, 'square', 0.26);
             sfxTone(0.14, 784, 0, 0.07, 'square', 0.26);
             sfxTone(0.21, 1047, 0, 0.14, 'square', 0.28);
+        }
+
+        function playTripleSound() {
+            // Double rising blip, brighter than a normal jump
+            sfxTone(0, 500, 900, 0.09, 'square', 0.28);
+            sfxTone(0.05, 700, 1250, 0.12, 'square', 0.26);
         }
 
         function playShieldSound() {
@@ -755,6 +762,7 @@
             jumping: false,
             grounded: false,
             jumpsRemaining: 2,
+            maxJumps: 2,
             spriteSheet: new Image(),
             spriteLoaded: false,
             frameIndex: 0,
@@ -1018,6 +1026,7 @@
 
         // Spawn timers
         let obstacleTimer = 0;
+        let nextObstacleGap = 110;
         let tokenTimer = 0;
         let narcTimer = 0;
         let ansemTimer = 0;
@@ -1029,18 +1038,42 @@
         let magnetTime = 0;         // frames remaining, pulls pills
         let multTime = 0;           // frames remaining, 2x score
         const POWER_DURATION = 480; // ~8s at 60fps
+        const BOOST_CHARGES = 10;   // triple jumps granted per booster
+        let tripleCharges = 0;      // remaining triple jumps
         const POWER_TYPES = {
-            SHIELD: { color: '#22d3ee', icon: (x, y, s) => drawShieldIcon(x, y, s) },
-            MAGNET: { color: '#f43f5e', icon: (x, y, s) => drawMagnetIcon(x, y, s) },
-            MULT:   { color: '#fbbf24', icon: (x, y, s) => draw2xIcon(x, y, s) }
+            SHIELD: { color: '#22d3ee', light: '#a5f3fc', dark: '#0e7490', icon: (x, y, s) => drawShieldIcon(x, y, s) },
+            MAGNET: { color: '#f43f5e', light: '#fda4af', dark: '#9f1239', icon: (x, y, s) => drawMagnetIcon(x, y, s) },
+            MULT:   { color: '#fbbf24', light: '#fde68a', dark: '#b45309', icon: (x, y, s) => draw2xIcon(x, y, s) },
+            BOOST:  { color: '#a78bfa', light: '#ddd6fe', dark: '#6d28d9', icon: (x, y, s) => drawBoostIcon(x, y, s) }
         };
         const POWER_KEYS = Object.keys(POWER_TYPES);
 
         // --- Power-up vector icons (canvas-drawn, no assets) ---
+        // 4-point star sparkle (draws in current transform)
+        function drawSparkle(x, y, s, color) {
+            ctx.save();
+            ctx.fillStyle = color || '#fff';
+            ctx.beginPath();
+            ctx.moveTo(x, y - s);
+            ctx.quadraticCurveTo(x, y, x + s, y);
+            ctx.quadraticCurveTo(x, y, x, y + s);
+            ctx.quadraticCurveTo(x, y, x - s, y);
+            ctx.quadraticCurveTo(x, y, x, y - s);
+            ctx.fill();
+            ctx.restore();
+        }
+
         function drawShieldIcon(cx, cy, s) {
             const w = s * 0.82, h = s;
             ctx.save();
             ctx.translate(cx, cy);
+            // Gradient-filled crest with glow
+            const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+            g.addColorStop(0, '#a5f3fc');
+            g.addColorStop(0.5, '#22d3ee');
+            g.addColorStop(1, '#0e7490');
+            ctx.shadowColor = '#22d3ee';
+            ctx.shadowBlur = 8;
             ctx.beginPath();
             ctx.moveTo(0, -h / 2);
             ctx.lineTo(w / 2, -h / 2 + h * 0.18);
@@ -1049,17 +1082,23 @@
             ctx.quadraticCurveTo(-w / 2, h * 0.42, -w / 2, h * 0.06);
             ctx.lineTo(-w / 2, -h / 2 + h * 0.18);
             ctx.closePath();
-            ctx.fillStyle = '#22d3ee';
+            ctx.fillStyle = g;
             ctx.fill();
-            ctx.lineWidth = Math.max(2, s * 0.08);
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = Math.max(1.5, s * 0.07);
             ctx.strokeStyle = '#fff';
             ctx.stroke();
-            // cross emblem
-            ctx.lineWidth = Math.max(2, s * 0.1);
+            // Lightning bolt emblem
+            ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, h * 0.24);
-            ctx.moveTo(-w * 0.28, -h * 0.02); ctx.lineTo(w * 0.28, -h * 0.02);
-            ctx.stroke();
+            ctx.moveTo(w * 0.10, -h * 0.30);
+            ctx.lineTo(-w * 0.16, h * 0.04);
+            ctx.lineTo(0, h * 0.04);
+            ctx.lineTo(-w * 0.10, h * 0.32);
+            ctx.lineTo(w * 0.18, -h * 0.04);
+            ctx.lineTo(w * 0.02, -h * 0.04);
+            ctx.closePath();
+            ctx.fill();
             ctx.restore();
         }
 
@@ -1069,37 +1108,103 @@
             const thick = s * 0.26;
             ctx.save();
             ctx.translate(cx, cy - s * 0.1);
-            ctx.lineWidth = thick;
             ctx.lineCap = 'butt';
-            // Red horseshoe body (legs + top arc)
-            ctx.strokeStyle = '#e0245e';
+            // Gradient horseshoe body with glow
+            const g = ctx.createLinearGradient(-bandR, 0, bandR, 0);
+            g.addColorStop(0, '#fb7185');
+            g.addColorStop(0.5, '#e11d48');
+            g.addColorStop(1, '#fb7185');
+            ctx.shadowColor = '#f43f5e';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = g;
+            ctx.lineWidth = thick;
             ctx.beginPath();
             ctx.moveTo(-bandR, legLen);
             ctx.lineTo(-bandR, 0);
             ctx.arc(0, 0, bandR, Math.PI, 0, false);
             ctx.lineTo(bandR, legLen);
             ctx.stroke();
-            // Silver pole tips
-            ctx.strokeStyle = '#e2e8f0';
+            ctx.shadowBlur = 0;
+            // Gloss highlight along the top arc
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = thick * 0.28;
+            ctx.beginPath();
+            ctx.arc(0, 0, bandR + thick * 0.2, Math.PI * 1.15, Math.PI * 1.85);
+            ctx.stroke();
+            // Chrome pole tips
+            const tip = ctx.createLinearGradient(0, legLen, 0, legLen + thick * 0.8);
+            tip.addColorStop(0, '#f8fafc');
+            tip.addColorStop(1, '#94a3b8');
+            ctx.strokeStyle = tip;
+            ctx.lineWidth = thick;
             ctx.beginPath();
             ctx.moveTo(-bandR, legLen);
             ctx.lineTo(-bandR, legLen + thick * 0.7);
             ctx.moveTo(bandR, legLen);
             ctx.lineTo(bandR, legLen + thick * 0.7);
             ctx.stroke();
+            // Energy sparks at the poles
+            drawSparkle(-bandR, legLen + thick * 1.1, s * 0.12, '#fff');
+            drawSparkle(bandR, legLen + thick * 1.1, s * 0.12, '#fff');
             ctx.restore();
         }
 
         function draw2xIcon(cx, cy, s) {
             ctx.save();
-            ctx.fillStyle = '#7c2d12';
-            ctx.font = `bold ${Math.round(s * 0.7)}px Arial`;
+            ctx.font = `bold ${Math.round(s * 0.75)}px 'Arial Black', Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
+            // Dark outline
+            ctx.lineWidth = Math.max(2, s * 0.12);
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#78350f';
+            ctx.strokeText('2×', cx, cy + 1);
+            // Gold gradient face with glow
+            const g = ctx.createLinearGradient(cx, cy - s * 0.4, cx, cy + s * 0.4);
+            g.addColorStop(0, '#fef3c7');
+            g.addColorStop(0.45, '#fbbf24');
+            g.addColorStop(0.55, '#d97706');
+            g.addColorStop(1, '#fbbf24');
+            ctx.shadowColor = '#fbbf24';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = g;
             ctx.fillText('2×', cx, cy + 1);
+            ctx.shadowBlur = 0;
+            drawSparkle(cx + s * 0.34, cy - s * 0.3, s * 0.11, '#fff');
             ctx.restore();
             ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
+        }
+
+        function drawBoostIcon(cx, cy, s) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            const g = ctx.createLinearGradient(0, -s * 0.5, 0, s * 0.5);
+            g.addColorStop(0, '#ede9fe');
+            g.addColorStop(0.5, '#a78bfa');
+            g.addColorStop(1, '#7c3aed');
+            ctx.fillStyle = g;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(1.2, s * 0.05);
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = '#a78bfa';
+            // Two stacked up-chevrons (rocket boost)
+            for (let i = 0; i < 2; i++) {
+                const oy = -s * 0.06 + i * s * 0.36;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.moveTo(0, oy - s * 0.36);
+                ctx.lineTo(s * 0.32, oy);
+                ctx.lineTo(s * 0.14, oy);
+                ctx.lineTo(0, oy - s * 0.16);
+                ctx.lineTo(-s * 0.14, oy);
+                ctx.lineTo(-s * 0.32, oy);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.stroke();
+            }
+            ctx.restore();
         }
         let vladScrollX = 0;
 
@@ -1114,12 +1219,12 @@
             });
         }
 
-        // Create obstacle
-        function createObstacle() {
+        // Create obstacle (xOffset spawns it further off-screen for patterns)
+        function createObstacle(xOffset = 0, forcedType = null) {
             const types = ['BEAR', 'BONK', 'BAGS'];
-            const type = types[Math.floor(Math.random() * types.length)];
+            const type = forcedType || types[Math.floor(Math.random() * types.length)];
             return {
-                x: canvas.width,
+                x: canvas.width + xOffset,
                 y: groundHeight - 60,
                 width: 60,
                 height: 60,
@@ -1128,6 +1233,34 @@
                 frameIndex: 0,
                 lastFrameTime: Date.now()
             };
+        }
+
+        // Spawn an obstacle pattern (variety > metronome). Returns extra recovery
+        // frames so the next spawn waits for the pattern to clear. Obstacles move
+        // at fixed speed 6, so px-to-frames conversion divides by 6.
+        function spawnObstaclePattern() {
+            const s = Math.floor(score / 10); // displayed score gates harder patterns
+            const r = Math.random();
+            if (s > 150 && r < 0.12) {
+                // Triple gauntlet: three spaced hops
+                const gap = 270 + Math.random() * 60;
+                for (let i = 0; i < 3; i++) obstacles.push(createObstacle(i * gap));
+                return (gap * 2) / 6 + 30;
+            } else if (s > 60 && r < 0.30) {
+                // Close pair: clear both with a quick double jump
+                const type = Math.random() < 0.5 ? 'BONK' : 'BAGS';
+                obstacles.push(createObstacle(0, type));
+                obstacles.push(createObstacle(130, type));
+                return 130 / 6 + 20;
+            } else if (r < 0.55) {
+                // Spread pair: two distinct hops with room to land between
+                const gap = 280 + Math.random() * 70;
+                obstacles.push(createObstacle(0));
+                obstacles.push(createObstacle(gap));
+                return gap / 6 + 25;
+            }
+            obstacles.push(createObstacle());
+            return 0;
         }
 
         // Create token
@@ -1155,34 +1288,68 @@
             };
         }
 
-        // Draw a power-up as a glowing orb with its icon on a white base
+        // Draw a power-up as a premium glassy orb: gradient sphere, dark icon
+        // plate, rotating dashed energy ring, specular gloss + orbiting sparkle
         function drawPowerup(p) {
             if (p.collected) return;
             const cfg = POWER_TYPES[p.type];
             const cx = p.x + p.width / 2;
-            const cy = p.y + p.height / 2;
+            const cy = p.y + p.height / 2 + Math.sin(p.pulse * 0.7) * 4; // float bob
             const r = p.width / 2;
             const glow = 0.5 + 0.5 * Math.sin(p.pulse);
 
             ctx.save();
-            // Outer glow
-            ctx.globalAlpha = 0.35 + 0.25 * glow;
-            ctx.fillStyle = cfg.color;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r + 6 + 3 * glow, 0, Math.PI * 2);
-            ctx.fill();
-            // White base for icon contrast
-            ctx.globalAlpha = 1;
-            ctx.fillStyle = '#fff';
+            // Bloom
+            ctx.shadowColor = cfg.color;
+            ctx.shadowBlur = 16 + 10 * glow;
+
+            // Glassy sphere (off-center radial gradient = 3D shading)
+            const orb = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+            orb.addColorStop(0, '#ffffff');
+            orb.addColorStop(0.25, cfg.light);
+            orb.addColorStop(0.75, cfg.color);
+            orb.addColorStop(1, cfg.dark);
+            ctx.fillStyle = orb;
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = cfg.color;
+            ctx.shadowBlur = 0;
+
+            // Dark inner plate for icon contrast
+            ctx.fillStyle = 'rgba(8, 12, 24, 0.72)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.74, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Rotating dashed energy ring
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(p.pulse * 0.5);
+            ctx.strokeStyle = cfg.light;
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 8]);
+            ctx.globalAlpha = 0.5 + 0.35 * glow;
+            ctx.beginPath();
+            ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
-            // Icon (natural colors)
-            cfg.icon(cx, cy, r * 1.25);
+
+            // Specular gloss (top-left)
+            const spec = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.45, 0, cx - r * 0.3, cy - r * 0.45, r * 0.5);
+            spec.addColorStop(0, 'rgba(255,255,255,0.7)');
+            spec.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = spec;
+            ctx.beginPath();
+            ctx.arc(cx - r * 0.3, cy - r * 0.45, r * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Orbiting sparkle
+            const sa = p.pulse * 1.6;
+            drawSparkle(cx + Math.cos(sa) * (r + 5), cy + Math.sin(sa) * (r + 5), 3.5, '#fff');
+            ctx.restore();
+
+            // Icon on top
+            cfg.icon(cx, cy, r * 1.05);
         }
 
         // Activate a collected power-up's effect
@@ -1191,6 +1358,15 @@
             if (type === 'SHIELD') { shieldActive = true; label = 'SHIELD!'; }
             else if (type === 'MAGNET') { magnetTime = POWER_DURATION; label = 'MAGNET!'; }
             else if (type === 'MULT') { multTime = POWER_DURATION; label = '2× PUMP!'; }
+            else if (type === 'BOOST') {
+                tripleCharges = BOOST_CHARGES;
+                label = 'TRIPLE JUMP ×' + BOOST_CHARGES + '!';
+                // Grabbed mid-air: grant the extra jump immediately
+                if (!player.grounded && player.maxJumps < 3) {
+                    player.maxJumps = 3;
+                    player.jumpsRemaining++;
+                }
+            }
             playPowerSound();
             spawnPillParticles(player.x + player.width / 2, player.y + player.height / 2);
             spawnPopup(player.x + player.width / 2, player.y - 10, label, POWER_TYPES[type].color);
@@ -1202,6 +1378,7 @@
             if (shieldActive) items.push({ cfg: POWER_TYPES.SHIELD, frac: 1 });
             if (magnetTime > 0) items.push({ cfg: POWER_TYPES.MAGNET, frac: magnetTime / POWER_DURATION });
             if (multTime > 0) items.push({ cfg: POWER_TYPES.MULT, frac: multTime / POWER_DURATION });
+            if (tripleCharges > 0) items.push({ cfg: POWER_TYPES.BOOST, frac: tripleCharges / BOOST_CHARGES, count: tripleCharges });
 
             let x = 28;
             const y = 96;
@@ -1221,6 +1398,19 @@
                 ctx.restore();
                 // Icon
                 it.cfg.icon(x, y, 20);
+                // Charge count badge (triple jump)
+                if (it.count) {
+                    ctx.save();
+                    ctx.font = 'bold 13px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeText(it.count, x + 13, y + 16);
+                    ctx.fillText(it.count, x + 13, y + 16);
+                    ctx.restore();
+                    ctx.textAlign = 'left';
+                }
                 x += 46;
             });
         }
@@ -1280,8 +1470,9 @@
             ansem.bob = Math.random() * Math.PI * 2;
         }
 
-        // Pill collect particle burst
-        function spawnPillParticles(x, y) {
+        // Pill collect particle burst (colors overridable, e.g. purple triple-jump)
+        function spawnPillParticles(x, y, colors) {
+            const palette = colors || ['#4ade80', '#f0f0f0'];
             for (let i = 0; i < 14; i++) {
                 const a = Math.random() * Math.PI * 2;
                 const sp = 1 + Math.random() * 4;
@@ -1291,7 +1482,7 @@
                     dy: Math.sin(a) * sp - 2,
                     life: 1,
                     size: 2 + Math.random() * 3,
-                    color: Math.random() < 0.5 ? '#4ade80' : '#f0f0f0'
+                    color: palette[Math.floor(Math.random() * palette.length)]
                 });
             }
         }
@@ -1824,7 +2015,9 @@
                 player.dy = 0;
                 player.grounded = true;
                 player.jumping = false;
-                player.jumpsRemaining = 2; // Reset double jump
+                // Reset jumps: triple while booster charges remain, else double
+                player.maxJumps = tripleCharges > 0 ? 3 : 2;
+                player.jumpsRemaining = player.maxJumps;
                 coyoteTime = COYOTE_FRAMES;
                 // Fire a buffered jump the instant we land
                 if (jumpBufferTime > 0) {
@@ -1855,9 +2048,12 @@
             // Spawn obstacles (pause during transition safe zone: 690-750 points)
             const inSafeZone = score >= STORM_TRIGGER_SCORE && score < STORM_SAFE_ZONE_END;
             obstacleTimer++;
-            if (!inSafeZone && obstacleTimer > 120 - gameSpeed * 5) {
-                obstacles.push(createObstacle());
+            if (!inSafeZone && obstacleTimer > nextObstacleGap) {
+                const recovery = spawnObstaclePattern();
                 obstacleTimer = 0;
+                // Randomized gap: 72-157 frames at base speed, tighter as speed climbs,
+                // plus recovery time after multi-obstacle patterns
+                nextObstacleGap = Math.max(70, 90 + Math.random() * 85 - gameSpeed * 3 + recovery);
             }
 
             // Update obstacles
@@ -2145,12 +2341,21 @@
 
         // Perform an actual jump
         function doJump() {
+            // The 3rd jump of a triple-jump chain consumes a booster charge
+            const isTriple = !player.grounded && player.maxJumps === 3 && player.jumpsRemaining === 1;
             player.dy = jumpPower;
             player.jumping = true;
             player.grounded = false;
             player.jumpsRemaining--;
             coyoteTime = 0;
-            playJumpSound();
+            if (isTriple) {
+                tripleCharges--;
+                spawnPillParticles(player.x + player.width / 2, player.y + player.height, ['#a78bfa', '#ddd6fe']);
+                spawnPopup(player.x + player.width / 2, player.y - 10, 'TRIPLE!', '#a78bfa');
+                playTripleSound();
+            } else {
+                playJumpSound();
+            }
         }
 
         // Jump function - with double jump, coyote time + input buffering
@@ -2158,7 +2363,10 @@
             if (!gameRunning) return;
             // Coyote time: allow a ground jump for a few frames after leaving ground
             if (player.jumpsRemaining > 0 || coyoteTime > 0) {
-                if (player.jumpsRemaining === 0 && coyoteTime > 0) player.jumpsRemaining = 1;
+                if (player.jumpsRemaining === 0 && coyoteTime > 0) {
+                    player.jumpsRemaining = 1;
+                    player.maxJumps = 2; // coyote grants a plain jump, never a charged triple
+                }
                 doJump();
             } else {
                 // Buffer the press so it fires the instant we land
@@ -2184,6 +2392,7 @@
             shieldActive = false;
             magnetTime = 0;
             multTime = 0;
+            tripleCharges = 0;
             powerupTimer = 0;
             shakeTime = 0;
             hitStop = 0;
@@ -2191,6 +2400,7 @@
             jumpBufferTime = 0;
             coyoteTime = 0;
             obstacleTimer = 0;
+            nextObstacleGap = 110;
             tokenTimer = 0;
             narcTimer = 0;
             ansemTimer = 0;
@@ -2207,6 +2417,7 @@
             player.dy = 0;
             player.dx = 0;
             player.rotation = 0;
+            player.maxJumps = 2;
             player.jumpsRemaining = 2;
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('gameOver').style.display = 'none';
