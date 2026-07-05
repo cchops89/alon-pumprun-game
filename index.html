@@ -41,17 +41,10 @@
                 background:#081810; border:2px solid #14532d; display:flex; flex-direction:column;
                 transition:transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
         .card:hover { transform:translateY(-6px); border-color:#4ade80; box-shadow:0 14px 40px rgba(74,222,128,0.22); }
-        .art { height:170px; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-        .art .big { font-size:74px; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
-        .art-run { background:linear-gradient(180deg, #7ec8f5 0%, #b7e3ff 55%, #58b368 56%, #3d8b4f 100%); }
-        .art-run .sun { position:absolute; top:16px; right:22px; width:52px; height:52px; border-radius:50%;
-                        background:radial-gradient(circle, #fff7ae 30%, #ffd75e 70%, rgba(255,215,94,0) 100%); }
-        .candle { position:absolute; bottom:44%; width:16px; border-radius:3px; }
-        .art-castle { background:linear-gradient(180deg, #03070a 0%, #0a1f14 60%, #123822 100%); }
-        .art-castle .halo { position:absolute; bottom:-40px; left:50%; transform:translateX(-50%);
-                            width:260px; height:170px; border-radius:50%;
-                            background:radial-gradient(ellipse, rgba(83,255,160,0.5) 0%, rgba(83,255,160,0) 70%); }
-        .art-castle .big { position:relative; }
+        .art { aspect-ratio:2/1; position:relative; overflow:hidden;
+               background-size:cover; background-position:center; }
+        .art-run { background-image:url('run-card.jpg?v=1'); }
+        .art-castle { background-image:url('castle-card.jpg?v=1'); }
         .info { padding:18px 20px 22px; display:flex; flex-direction:column; gap:8px; flex:1; }
         .info h2 { font-size:clamp(18px,4vw,23px); color:#e8fff0; }
         .info p { font-family:Arial, sans-serif; color:#8fb89e; font-size:14px; line-height:1.45; flex:1; }
@@ -77,13 +70,6 @@
         <a class="card" href="run.html">
             <div class="art art-run">
                 <span class="badge">THE ORIGINAL</span>
-                <div class="sun"></div>
-                <div class="candle" style="left:14%; height:34px; background:#2f9e4f;"></div>
-                <div class="candle" style="left:24%; height:52px; background:#2f9e4f;"></div>
-                <div class="candle" style="left:34%; height:26px; background:#d94a3d;"></div>
-                <div class="candle" style="right:30%; height:60px; background:#2f9e4f;"></div>
-                <div class="candle" style="right:18%; height:80px; background:#2f9e4f;"></div>
-                <span class="big">🏃💊</span>
             </div>
             <div class="info">
                 <h2>ALON's PUMP RUN</h2>
@@ -94,8 +80,6 @@
         <a class="card" href="castle.html">
             <div class="art art-castle">
                 <span class="badge">NEW</span>
-                <div class="halo"></div>
-                <span class="big">🏰🛹</span>
             </div>
             <div class="info">
                 <h2>ALON's PUMP CASTLE</h2>
