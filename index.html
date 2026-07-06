@@ -2,19 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="The ALON arcade — play Alon's Pump Run and Alon's Pump Castle. To the moon.">
+    <meta name="theme-color" content="#050d08">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+    <link rel="apple-touch-icon" href="pumpfun-logo.png?v=2">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://alonpump.run/">
     <meta property="og:title" content="ALON'S ARCADE — alonpump.run">
     <meta property="og:description" content="Two games, one bull run. Play Alon's Pump Run and Alon's Pump Castle.">
     <meta property="og:image" content="https://alonpump.run/og-arcade.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="600">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="ALON'S ARCADE — alonpump.run">
     <meta name="twitter:description" content="Two games, one bull run. Play Alon's Pump Run and Alon's Pump Castle.">
+    <meta name="twitter:image" content="https://alonpump.run/og-arcade.jpg">
     <title>ALONPUMP.RUN — the ALON arcade</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
+        :root { --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace; }
         body {
             min-height:100vh; font-family:'Arial Black', Arial, sans-serif; color:#e8fff0;
             background:#050d08;
@@ -23,68 +30,102 @@
             display:flex; flex-direction:column; align-items:center;
             padding:clamp(18px,4vw,48px) 16px 40px;
         }
-        .stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
-        .stars span { position:absolute; width:3px; height:3px; border-radius:50%; background:#7dffa8;
-                      opacity:0.35; animation:tw 3s ease-in-out infinite; }
-        @keyframes tw { 50% { opacity:0.9; transform:scale(1.4); } }
-        header { text-align:center; z-index:1; }
-        h1 { font-size:clamp(30px,7vw,54px); letter-spacing:2px; color:#4ade80;
-             text-shadow:0 0 30px rgba(74,222,128,0.55), 3px 3px 0 #052e16; }
-        h1 .dim { color:#a7f3d0; }
-        .tag { margin-top:6px; color:#a7f3d0; font-size:clamp(15px,3.4vw,20px); letter-spacing:1px;
+
+        /* CRT glass: scanlines + vignette over the whole arcade — same filter language as run.html in-game */
+        .crt {
+            position:fixed; inset:0; pointer-events:none; z-index:5;
+            background:
+              repeating-linear-gradient(0deg, rgba(0,0,0,0.11) 0 1px, transparent 1px 3px),
+              radial-gradient(ellipse 82% 74% at 50% 42%, transparent 52%, rgba(0,0,0,0.55) 100%);
+        }
+
+        header { text-align:center; z-index:1; width:100%; max-width:720px; }
+
+        /* Neon marquee — arced wordmark matching the card art lettering */
+        .marquee { width:100%; height:auto; display:block; margin:0 auto; overflow:visible; }
+        .marquee text {
+            font-family:'Arial Black', sans-serif; font-weight:900; font-size:60px;
+            fill:#b7ffd0; stroke:#052e16; stroke-width:6; paint-order:stroke;
+            letter-spacing:1px;
+        }
+        .marquee { filter:drop-shadow(0 0 16px rgba(74,222,128,0.55)); }
+        .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+        .tag { margin-top:2px; color:#a7f3d0; font-size:clamp(14px,3.2vw,19px); letter-spacing:1px;
                text-shadow:0 0 18px rgba(74,222,128,0.35); }
-        footer a { color:#7dffa8; text-decoration:none; }
-        footer a:hover { text-decoration:underline; }
-        #mc { display:inline-block; margin-top:14px; padding:8px 22px; border-radius:999px;
-              background:rgba(6,20,12,0.8); border:2px solid #14532d; color:#4ade80;
-              font-size:clamp(13px,3vw,17px); box-shadow:0 0 18px rgba(74,222,128,0.25); }
+
+        /* Live MC — the hero stat, monospace ticker voice */
+        #mc { display:inline-flex; align-items:center; gap:8px; margin-top:16px; padding:9px 24px;
+              border-radius:999px; background:rgba(6,20,12,0.85); border:2px solid #14532d; color:#4ade80;
+              font-family:var(--mono); font-size:clamp(14px,3.2vw,19px); letter-spacing:0.5px;
+              box-shadow:0 0 18px rgba(74,222,128,0.22); }
+        #mc .lbl { color:#5f8f72; }
+        #mc .arrow { font-size:0.85em; }
+        #mc .up { color:#4ade80; } #mc .down { color:#f87171; }
+        #mc.tick { animation:mcpulse 0.6s ease-out; }
+        @keyframes mcpulse { 30% { box-shadow:0 0 30px rgba(74,222,128,0.7); transform:scale(1.045); } }
+
         .games { display:grid; grid-template-columns:repeat(auto-fit, minmax(290px, 1fr)); gap:26px;
                  width:100%; max-width:880px; margin-top:clamp(24px,5vw,44px); z-index:1; }
-        .card { border-radius:18px; overflow:hidden; text-decoration:none; color:inherit;
-                background:#081810; border:2px solid #14532d; display:flex; flex-direction:column;
+
+        /* Cabinet cards: bezel frame + nameplate strip */
+        .card { border-radius:16px; overflow:hidden; text-decoration:none; color:inherit;
+                background:#081810; border:5px solid #0e2a1a; outline:2px solid #14532d; outline-offset:-7px;
+                display:flex; flex-direction:column;
                 transition:transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
-        .card:hover { transform:translateY(-6px); border-color:#4ade80; box-shadow:0 14px 40px rgba(74,222,128,0.22); }
+        .card:hover { transform:translateY(-6px); border-color:#1f5c3a;
+                      box-shadow:0 16px 44px rgba(74,222,128,0.22); }
+        .nameplate { font-family:var(--mono); text-align:center; padding:8px 6px; letter-spacing:4px;
+                     font-size:13px; color:#7dffa8; background:#061410; border-bottom:2px solid #14532d;
+                     text-shadow:0 0 12px rgba(74,222,128,0.6); }
         .art { aspect-ratio:2/1; position:relative; overflow:hidden;
                background-size:cover; background-position:center; }
         .art-run { background-image:url('run-card.jpg?v=1'); }
         .art-castle { background-image:url('castle-card.jpg?v=1'); }
-        .info { padding:18px 20px 22px; display:flex; flex-direction:column; gap:8px; flex:1; }
-        .info h2 { font-size:clamp(18px,4vw,23px); color:#e8fff0; }
+        .info { padding:16px 20px 22px; display:flex; flex-direction:column; gap:10px; flex:1; }
         .info p { font-family:Arial, sans-serif; color:#8fb89e; font-size:14px; line-height:1.45; flex:1; }
-        .play { align-self:flex-start; margin-top:6px; padding:11px 34px; border-radius:24px; font-weight:bold;
+        .play { align-self:flex-start; margin-top:4px; padding:11px 34px; border-radius:24px; font-weight:bold;
                 font-size:16px; background:#4ade80; color:#062012; border:3px solid #14532d;
                 box-shadow:0 5px 0 #14532d; font-family:inherit; }
         .card:hover .play { background:#6ee7a0; }
-        .badge { position:absolute; top:12px; left:12px; padding:4px 12px; border-radius:999px; font-size:11px;
-                 background:rgba(4,10,6,0.7); color:#7dffa8; border:1px solid #1e5c38; letter-spacing:1px; }
-        footer { margin-top:clamp(28px,6vw,52px); color:#4b6355; font-size:12px; font-family:Arial, sans-serif;
-                 text-align:center; z-index:1; }
+        .badge { position:absolute; top:12px; right:12px; padding:4px 12px; border-radius:999px; font-size:11px;
+                 font-family:var(--mono); background:rgba(4,10,6,0.72); color:#7dffa8; border:1px solid #1e5c38;
+                 letter-spacing:1px; }
+        footer { margin-top:clamp(28px,6vw,52px); color:#4b6355; font-size:12px; font-family:var(--mono);
+                 text-align:center; z-index:1; letter-spacing:0.5px; }
+        footer a { color:#7dffa8; text-decoration:none; }
+        footer a:hover { text-decoration:underline; }
     </style>
 </head>
 <body>
-    <div class="stars" id="stars"></div>
+    <div class="crt"></div>
     <header>
-        <div class="tag">the ALON arcade — pick your grind.</div>
-        <div id="mc">$ALON MC: <span id="mcValue">...</span></div>
+        <h1 class="sr-only">ALON'S ARCADE</h1>
+        <svg class="marquee" viewBox="0 0 700 132" role="img" aria-hidden="true">
+            <defs><path id="arc" d="M42,112 Q350,6 658,112" fill="none"/></defs>
+            <text><textPath href="#arc" startOffset="50%" text-anchor="middle">ALON'S ARCADE</textPath></text>
+        </svg>
+        <div class="tag">pick your grind.</div>
+        <div id="mc"><span class="lbl">$ALON</span> <span id="mcValue">…</span></div>
     </header>
 
     <div class="games">
         <a class="card" href="run.html">
+            <div class="nameplate">PUMP RUN</div>
             <div class="art art-run">
                 <span class="badge">THE ORIGINAL</span>
             </div>
             <div class="info">
-                <h2>ALON's PUMP RUN</h2>
                 <p>the endless runner that started it — dodge bears, stack pills, ride the candles to the moon.</p>
                 <span class="play">PLAY ▸</span>
             </div>
         </a>
         <a class="card" href="castle.html">
+            <div class="nameplate">PUMP CASTLE</div>
             <div class="art art-castle">
                 <span class="badge">NEW</span>
             </div>
             <div class="info">
-                <h2>ALON's PUMP CASTLE</h2>
                 <p>the jeets rose from the rugs. pump sword, bull quakes, shred mode on the skateboard — survive the horde.</p>
                 <span class="play">PLAY ▸</span>
             </div>
@@ -95,23 +136,32 @@
 
     <script>
         const ALON_CONTRACT = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
+        let lastMC = null;
         function fmtMC(v){ if(v>=1e9)return '$'+(v/1e9).toFixed(2)+'B'; if(v>=1e6)return '$'+(v/1e6).toFixed(2)+'M'; if(v>=1e3)return '$'+(v/1e3).toFixed(2)+'K'; return '$'+v.toFixed(2); }
         async function fetchMC(){
+            if (document.hidden) return;
             try {
-                const d = await (await fetch('https://api.dexscreener.com/latest/dex/tokens/'+ALON_CONTRACT)).json();
+                const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/'+ALON_CONTRACT);
+                if (!r.ok) throw new Error(r.status);
+                const d = await r.json();
                 const p = (d.pairs||[]).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
-                document.getElementById('mcValue').textContent = fmtMC(p?.marketCap || p?.fdv || 0);
+                const mc = p?.marketCap || p?.fdv || 0;
+                if (!mc) { document.getElementById('mcValue').textContent = 'N/A'; return; }
+                let arrow = '';
+                if (lastMC !== null && mc !== lastMC) {
+                    const up = mc > lastMC;
+                    arrow = ' <span class="arrow ' + (up?'up':'down') + '">' + (up?'▲':'▼') + '</span>';
+                }
+                document.getElementById('mcValue').innerHTML = fmtMC(mc) + arrow;
+                if (lastMC !== null && mc !== lastMC) {
+                    const el = document.getElementById('mc');
+                    el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+                }
+                lastMC = mc;
             } catch(e){ document.getElementById('mcValue').textContent = 'N/A'; }
         }
         fetchMC(); setInterval(fetchMC, 30000);
-        const st = document.getElementById('stars');
-        for (let i = 0; i < 40; i++){
-            const s = document.createElement('span');
-            s.style.left = Math.random()*100 + '%';
-            s.style.top = Math.random()*100 + '%';
-            s.style.animationDelay = (Math.random()*3) + 's';
-            st.appendChild(s);
-        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchMC(); });
     </script>
 </body>
 </html>

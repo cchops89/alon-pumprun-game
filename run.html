@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="Help ALON dodge the bears and collect pills in this endless runner! Can you make it to the moon?">
+    <meta name="theme-color" content="#050d08">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <link rel="apple-touch-icon" href="pumpfun-logo.png?v=2">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -11,13 +14,15 @@
     <meta property="og:title" content="ALON's PumpRun - To The Moon!">
     <meta property="og:description" content="Help ALON dodge the bears and collect pills in this endless runner! Can you make it to the moon?">
     <meta property="og:image" content="https://alonpump.run/run-card.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="600">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://alonpump.run/">
+    <meta name="twitter:url" content="https://alonpump.run/run.html">
     <meta name="twitter:title" content="ALON's PumpRun - To The Moon!">
     <meta name="twitter:description" content="Help ALON dodge the bears and collect pills in this endless runner! Can you make it to the moon?">
-    <meta name="twitter:image" content="https://alonpump.run/og-image.png">
+    <meta name="twitter:image" content="https://alonpump.run/run-card.jpg">
 
     <title>ALON's PumpRun - To The Moon!</title>
     <style>
@@ -31,10 +36,13 @@
         }
 
         body {
-            background: linear-gradient(135deg, #1a4d3d 0%, #2d7a5e 50%, #4ade80 100%);
+            background: #050d08;
+            background-image: radial-gradient(ellipse 90% 60% at 50% -10%, #123822 0%, rgba(18,56,34,0) 60%),
+                              radial-gradient(ellipse 60% 40% at 50% 110%, #0b2415 0%, rgba(11,36,21,0) 70%);
             font-family: 'Arial Black', sans-serif;
             overflow: hidden;
-            height: 100vh;
+            min-height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -54,7 +62,7 @@
 
         #bgPills img {
             position: absolute;
-            opacity: 0.15;
+            opacity: 0.07;
         }
 
         #gameContainer {
@@ -308,10 +316,10 @@
 
         #muteBtn {
             position: absolute;
-            bottom: 10px;
+            top: 52px;
             right: 10px;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             background: rgba(0, 0, 0, 0.6);
             border: 2px solid #4ade80;
             border-radius: 50%;
@@ -353,24 +361,26 @@
         </div>
 
         <div id="startScreen">
-            <h1><img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"> ALON's PumpRun <img src="pumpfun-logo.png" alt="PumpFun" style="height: 48px; vertical-align: middle;"></h1>
-            <p>Collect pills, avoid enemies, and help ALON pump $ALON to the moon!</p>
-            <p><strong>TAP/CLICK to jump</strong></p>
-            <p><strong>TAP/CLICK TWICE to double jump!</strong></p>
-            <p>Grab the purple booster for 10 TRIPLE JUMPS!</p>
+            <h1>ALON's PumpRun</h1>
+            <p id="menuBest" style="color:#FFD700; display:none;">🏆 BEST: <span id="menuBestVal">0</span></p>
+            <p>dodge the bears, stack pills, ride to the moon.</p>
+            <p><strong>TAP</strong> to jump · <strong>TAP TWICE</strong> to double jump</p>
+            <p style="opacity:.65; font-size:0.82em;">grab the purple booster for triple jumps · survive to 690 for the storm</p>
             <button id="startBtn">START GAME</button>
+            <p style="margin-top:16px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alonpump.run arcade</a></p>
         </div>
 
         <div id="gameOver">
             <h1>Game Over!</h1>
             <p id="newBestBadge" style="display:none; color:#FFD700;">🏆 NEW BEST!</p>
             <p>Final Score: <span id="finalScore">0</span></p>
-            <p>Best: <span id="bestScore">0</span></p>
-            <p><img src="pumpfun-logo.png" alt="Pills" style="height: 24px; vertical-align: middle;"> Pills Collected: <span id="finalTokens">0</span></p>
+            <p>Best: <span id="bestScore">0</span><span id="bestAway" style="color:#8fb89e;"></span></p>
+            <p><img src="pumpfun-logo.png?v=2" alt="Pills" style="height: 24px; vertical-align: middle;"> Pills Collected: <span id="finalTokens">0</span></p>
             <div class="gameOverBtns">
                 <button id="restartBtn">Play Again</button>
                 <button id="shareBtn">Share on 𝕏</button>
             </div>
+            <p style="margin-top:14px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alonpump.run arcade</a></p>
         </div>
     </div>
 
@@ -386,7 +396,7 @@
             const numPills = 50;
             for (let i = 0; i < numPills; i++) {
                 const img = document.createElement('img');
-                img.src = 'pumpfun-logo.png';
+                img.src = 'pumpfun-logo.png?v=2';
                 const size = 30 + Math.random() * 70; // Random size between 30px and 100px
                 img.style.width = size + 'px';
                 img.style.height = size + 'px';
@@ -414,8 +424,10 @@
         }
 
         async function fetchMarketCap() {
+            if (document.hidden) return; // don't poll backgrounded tabs
             try {
                 const response = await fetch(DEXSCREENER_API);
+                if (!response.ok) throw new Error(response.status);
                 const data = await response.json();
 
                 if (data.pairs && data.pairs.length > 0) {
@@ -442,7 +454,15 @@
         setInterval(fetchMarketCap, 30000);
 
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        // Logical game resolution stays 800x600; the backing store is scaled by
+        // devicePixelRatio (capped at 2) so sprites/text are crisp on retina + phones.
+        const W = 800, H = 600;
+        const DPR = Math.min(window.devicePixelRatio || 1, 2);
+        canvas['width'] = W * DPR;
+        canvas['height'] = H * DPR;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
         // Sound system using Web Audio API
         let audioCtx = null;
@@ -459,7 +479,7 @@
         // --- SFX helpers (oscillators + noise through the music's audio context) ---
         // Schedule a tone at an offset from now; endF gives a pitch slide.
         function sfxTone(offset, startF, endF, dur, type, vol) {
-            if (!audioCtx) return;
+            if (!audioCtx || !musicEnabled) return;
             const t = audioCtx.currentTime + offset;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -476,7 +496,7 @@
 
         // Filtered noise burst (impacts / explosions)
         function sfxNoise(dur, vol, filterFreq) {
-            if (!audioCtx) return;
+            if (!audioCtx || !musicEnabled) return;
             const t = audioCtx.currentTime;
             const buf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * dur), audioCtx.sampleRate);
             const data = buf.getChannelData(0);
@@ -533,8 +553,8 @@
             sfxNoise(0.4, 0.22, 900);
         }
 
-        // Music system
-        let musicEnabled = true;
+        // Music system (mute state persists across visits)
+        let musicEnabled = (() => { try { return localStorage.getItem('alonRunMute') !== '1'; } catch (e) { return true; } })();
         let currentMusic = null;
         let musicGain = null;
         let musicInterval = null;
@@ -726,6 +746,7 @@
         // Toggle music
         function toggleMusic() {
             musicEnabled = !musicEnabled;
+            try { localStorage.setItem('alonRunMute', musicEnabled ? '0' : '1'); } catch (e) {}
             const btn = document.getElementById('muteBtn');
             if (musicEnabled) {
                 btn.textContent = '🔊';
@@ -748,6 +769,7 @@
         let score = 0;
         let tokensCollected = 0;
         let gameSpeed = 6;
+        let nextSpeedup = 500;  // score threshold for the next difficulty step
         let gravity = 0.8;
         let jumpPower = -15;
 
@@ -842,7 +864,7 @@
             console.error('Failed to load background sprite');
         };
 
-        backgroundSprite.image.src = 'background-sprite.png';
+        backgroundSprite.image.src = 'background-sprite.jpg?v=2';
 
         // Storm background sprite (unlocked at 690 points)
         const stormBackgroundSprite = {
@@ -860,7 +882,7 @@
             console.error('Failed to load storm background sprite');
         };
 
-        stormBackgroundSprite.image.src = 'narc-background-sprite.png';
+        stormBackgroundSprite.image.src = 'narc-background-sprite.jpg?v=2';
 
         // Background transition state
         let currentBackground = 'normal'; // 'normal' or 'storm'
@@ -955,7 +977,7 @@
             console.error('Failed to load Vlad sprite');
         };
 
-        vladSprite.image.src = 'vladsprite.png';
+        vladSprite.image.src = 'vladsprite.png?v=2';
 
         // Ansem floating head supporter
         const ansemSprite = {
@@ -976,7 +998,7 @@
             console.error('Failed to load Ansem sprite');
         };
 
-        ansemSprite.image.src = 'ANSEM.png';
+        ansemSprite.image.src = 'ANSEM.png?v=2';
 
         // Ansem floating head state (drifts + bobs across the sky)
         const ansem = {
@@ -1026,6 +1048,7 @@
 
         // Spawn timers
         let obstacleTimer = 0;
+        let wasInSafeZone = false;
         let nextObstacleGap = 110;
         let tokenTimer = 0;
         let narcTimer = 0;
@@ -1211,7 +1234,7 @@
         // Initialize clouds (fallback when no background sprite)
         for (let i = 0; i < 3; i++) {
             clouds.push({
-                x: Math.random() * canvas.width,
+                x: Math.random() * W,
                 y: Math.random() * 200 + 50,
                 width: 100 + Math.random() * 50,
                 height: 60,
@@ -1224,7 +1247,7 @@
             const types = ['BEAR', 'BONK', 'BAGS'];
             const type = forcedType || types[Math.floor(Math.random() * types.length)];
             return {
-                x: canvas.width + xOffset,
+                x: W + xOffset,
                 y: groundHeight - 60,
                 width: 60,
                 height: 60,
@@ -1237,7 +1260,7 @@
 
         // Spawn an obstacle pattern (variety > metronome). Returns extra recovery
         // frames so the next spawn waits for the pattern to clear. Obstacles move
-        // at fixed speed 6, so px-to-frames conversion divides by 6.
+        // at the current gameSpeed, so px-to-frames conversion divides by gameSpeed.
         function spawnObstaclePattern() {
             const s = Math.floor(score / 10); // displayed score gates harder patterns
             const r = Math.random();
@@ -1245,19 +1268,19 @@
                 // Triple gauntlet: three spaced hops
                 const gap = 270 + Math.random() * 60;
                 for (let i = 0; i < 3; i++) obstacles.push(createObstacle(i * gap));
-                return (gap * 2) / 6 + 30;
+                return (gap * 2) / gameSpeed + 30;
             } else if (s > 60 && r < 0.30) {
                 // Close pair: clear both with a quick double jump
                 const type = Math.random() < 0.5 ? 'BONK' : 'BAGS';
                 obstacles.push(createObstacle(0, type));
                 obstacles.push(createObstacle(130, type));
-                return 130 / 6 + 20;
+                return 130 / gameSpeed + 20;
             } else if (r < 0.55) {
                 // Spread pair: two distinct hops with room to land between
                 const gap = 280 + Math.random() * 70;
                 obstacles.push(createObstacle(0));
                 obstacles.push(createObstacle(gap));
-                return gap / 6 + 25;
+                return gap / gameSpeed + 25;
             }
             obstacles.push(createObstacle());
             return 0;
@@ -1266,7 +1289,7 @@
         // Create token
         function createToken() {
             return {
-                x: canvas.width,
+                x: W,
                 y: groundHeight - 150 - Math.random() * 100,
                 width: 40,
                 height: 40,
@@ -1278,7 +1301,7 @@
         function createPowerup() {
             const type = POWER_KEYS[Math.floor(Math.random() * POWER_KEYS.length)];
             return {
-                x: canvas.width,
+                x: W,
                 y: groundHeight - 160 - Math.random() * 110,
                 width: 46,
                 height: 46,
@@ -1530,7 +1553,7 @@
             const mult = comboMultiplier();
             const pulse = 1 + 0.08 * Math.sin(Date.now() / 100);
             ctx.save();
-            ctx.translate(canvas.width / 2, 120);
+            ctx.translate(W / 2, 120);
             ctx.scale(pulse, pulse);
             ctx.textAlign = 'center';
             ctx.fillStyle = mult > 1 ? '#fbbf24' : '#fff';
@@ -1600,7 +1623,7 @@
             const sourceHeight = spriteHeight / 3;
 
             // Draw tiled background with mirroring for seamless loop
-            const tilesNeeded = Math.ceil(canvas.width / spriteWidth) + 3;
+            const tilesNeeded = Math.ceil(W / spriteWidth) + 3;
             for (let i = 0; i < tilesNeeded; i++) {
                 const xPos = (i * spriteWidth) - bgSprite.scrollX;
                 const shouldMirror = i % 2 === 1; // Mirror every other tile
@@ -1671,11 +1694,11 @@
                 }
             } else {
                 // Fallback: original sky gradient
-                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                const gradient = ctx.createLinearGradient(0, 0, 0, H);
                 gradient.addColorStop(0, '#87CEEB');
                 gradient.addColorStop(1, '#E0F6FF');
                 ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, W, H);
             }
         }
 
@@ -1703,11 +1726,11 @@
             const scrollOffset = vladScrollX % vladSpacing;
 
             // Draw Vlads at fixed intervals
-            for (let i = -1; i < Math.ceil(canvas.width / vladSpacing) + 2; i++) {
+            for (let i = -1; i < Math.ceil(W / vladSpacing) + 2; i++) {
                 const vladX = (i * vladSpacing) - scrollOffset;
 
                 // Only draw if on screen
-                if (vladX > -vladWidth && vladX < canvas.width + vladWidth) {
+                if (vladX > -vladWidth && vladX < W + vladWidth) {
                     ctx.drawImage(
                         vladSprite.image,
                         vladX - vladWidth / 2, // Center on position
@@ -1723,7 +1746,7 @@
         function drawGround() {
             if (groundSprite.loaded) {
                 // Use sprite sheet for ground
-                const groundArea = canvas.height - groundHeight; // 100 pixels
+                const groundArea = H - groundHeight; // 100 pixels
                 const spriteWidth = groundSprite.image.width;
                 const spriteHeight = groundSprite.image.height;
 
@@ -1737,7 +1760,7 @@
                 }
 
                 // Draw tiled ground with mirroring for seamless loop
-                const tilesNeeded = Math.ceil(canvas.width / spriteWidth) + 3;
+                const tilesNeeded = Math.ceil(W / spriteWidth) + 3;
                 for (let i = 0; i < tilesNeeded; i++) {
                     const xPos = (i * spriteWidth) - groundSprite.scrollX;
                     const shouldMirror = i % 2 === 1; // Mirror every other tile
@@ -1765,16 +1788,16 @@
             } else {
                 // Fallback: original procedural ground
                 ctx.fillStyle = '#4ade80';
-                ctx.fillRect(0, groundHeight, canvas.width, canvas.height - groundHeight);
+                ctx.fillRect(0, groundHeight, W, H - groundHeight);
 
                 ctx.fillStyle = '#22c55e';
-                for (let i = 0; i < canvas.width; i += 40) {
+                for (let i = 0; i < W; i += 40) {
                     let offset = (Date.now() / 50 + i) % 40;
-                    ctx.fillRect(i - offset, groundHeight, 20, canvas.height - groundHeight);
+                    ctx.fillRect(i - offset, groundHeight, 20, H - groundHeight);
                 }
 
                 ctx.fillStyle = '#1a4d3d';
-                ctx.fillRect(0, groundHeight, canvas.width, 3);
+                ctx.fillRect(0, groundHeight, W, 3);
             }
         }
 
@@ -1982,7 +2005,7 @@
                 player.rotation += 0.15;
 
                 // Check if player has fallen off screen
-                if (player.y > canvas.height + 100) {
+                if (player.y > H + 100) {
                     gameOver();
                 }
                 return;
@@ -2000,9 +2023,10 @@
                 if (comboTimer === 0) combo = 0;
             }
 
-            // Gradually increase difficulty
-            if (score % 500 === 0) {
+            // Gradually increase difficulty — threshold, not modulo (pills jump the score past %500 boundaries)
+            while (score >= nextSpeedup) {
                 gameSpeed += 0.5;
+                nextSpeedup += 500;
             }
 
             // Player physics
@@ -2034,7 +2058,7 @@
             clouds.forEach(cloud => {
                 cloud.x -= cloud.speed;
                 if (cloud.x + cloud.width < 0) {
-                    cloud.x = canvas.width;
+                    cloud.x = W;
                     cloud.y = Math.random() * 200 + 50;
                 }
             });
@@ -2047,6 +2071,9 @@
 
             // Spawn obstacles (pause during transition safe zone: 690-750 points)
             const inSafeZone = score >= STORM_TRIGGER_SCORE && score < STORM_SAFE_ZONE_END;
+            // Leaving the safe zone: give a grace beat instead of an instant spawn
+            if (wasInSafeZone && !inSafeZone) obstacleTimer = -60;
+            wasInSafeZone = inSafeZone;
             obstacleTimer++;
             if (!inSafeZone && obstacleTimer > nextObstacleGap) {
                 const recovery = spawnObstaclePattern();
@@ -2056,11 +2083,11 @@
                 nextObstacleGap = Math.max(70, 90 + Math.random() * 85 - gameSpeed * 3 + recovery);
             }
 
-            // Update obstacles
-            obstacles.forEach((obs, index) => {
-                // BONK, BAGS, and BEAR move at fixed speed, others speed up with game
-                const baseSpeed = (obs.type === 'BONK' || obs.type === 'BAGS' || obs.type === 'BEAR') ? 6 : gameSpeed;
-                obs.x -= baseSpeed;
+            // Update obstacles (iterate backwards so splice() never skips the next element)
+            for (let index = obstacles.length - 1; index >= 0; index--) {
+                const obs = obstacles[index];
+                // Move at ground speed so obstacles never slide backward relative to the terrain
+                obs.x -= gameSpeed;
 
                 // Check collision with player
                 if (!isDying && player.x < obs.x + obs.width &&
@@ -2074,7 +2101,7 @@
                         shakeTime = 10;
                         spawnPillParticles(obs.x + obs.width / 2, obs.y + obs.height / 2);
                         playShieldSound();
-                        return;
+                        continue;
                     }
                     triggerDeath();
                 }
@@ -2083,7 +2110,7 @@
                 if (obs.x + obs.width < 0) {
                     obstacles.splice(index, 1);
                 }
-            });
+            }
 
             // Spawn tokens
             tokenTimer++;
@@ -2092,8 +2119,9 @@
                 tokenTimer = 0;
             }
 
-            // Update tokens
-            tokens.forEach((token, index) => {
+            // Update tokens (backwards so splice() never skips the next element)
+            for (let index = tokens.length - 1; index >= 0; index--) {
+                const token = tokens[index];
                 token.x -= gameSpeed;
 
                 // Magnet: pull nearby pills toward the player
@@ -2131,7 +2159,7 @@
                 if (token.x + token.width < 0) {
                     tokens.splice(index, 1);
                 }
-            });
+            }
 
             // Spawn Narc support
             narcTimer++;
@@ -2143,7 +2171,7 @@
             // Update Narc (flying through)
             if (narc.active) {
                 narc.x += 10; // Faster since flying with jetpack
-                if (narc.x > canvas.width) {
+                if (narc.x > W) {
                     narc.active = false;
                     narc.x = -300;
                 }
@@ -2158,7 +2186,7 @@
             if (ansem.active) {
                 ansem.x += 2.5;
                 ansem.bob += 0.06;
-                if (ansem.x > canvas.width) {
+                if (ansem.x > W) {
                     ansem.active = false;
                     ansem.x = -ansem.width;
                 }
@@ -2171,8 +2199,9 @@
                 powerupTimer = 0;
             }
 
-            // Update power-ups
-            powerups.forEach((p, index) => {
+            // Update power-ups (backwards so splice() never skips the next element)
+            for (let index = powerups.length - 1; index >= 0; index--) {
+                const p = powerups[index];
                 p.x -= gameSpeed;
                 p.pulse += 0.12;
 
@@ -2200,7 +2229,7 @@
                 if (p.collected || p.x + p.width < 0) {
                     powerups.splice(index, 1);
                 }
-            });
+            }
 
             // Decay active power-up timers
             if (magnetTime > 0) magnetTime--;
@@ -2209,7 +2238,7 @@
 
         // Draw PumpFun logo pill
         function drawPumpFunLogo() {
-            const x = canvas.width - 100;
+            const x = W - 100;
             const y = 70;
             const pillWidth = 60;
             const pillHeight = 30;
@@ -2250,7 +2279,7 @@
         // Draw everything
         function draw() {
             // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, W, H);
 
             // Screen shake + zoom punch (offset/scale everything briefly on death)
             ctx.save();
@@ -2260,9 +2289,9 @@
             }
             if (zoomPunch > 0) {
                 const z = 1 + zoomPunch * 0.06;
-                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.translate(W / 2, H / 2);
                 ctx.scale(z, z);
-                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+                ctx.translate(-W / 2, -H / 2);
             }
 
             // Draw background (parallax sprite or fallback gradient)
@@ -2306,7 +2335,7 @@
 
         // CRT filter: scanlines + vignette for a retro arcade-cabinet look
         function drawCRT() {
-            const w = canvas.width, h = canvas.height;
+            const w = W, h = H;
 
             // Scanlines
             ctx.save();
@@ -2325,16 +2354,24 @@
             ctx.fillRect(0, 0, w, h);
         }
 
-        // Game loop
-        function gameLoop() {
-            // Hit-stop: freeze the world for a few frames on impact (game feel)
-            if (hitStop > 0) {
-                hitStop--;
-                draw();
-                requestAnimationFrame(gameLoop);
-                return;
+        // Game loop — fixed-timestep so speed/score are identical on 60/120/144Hz displays
+        const FIXED_DT = 1000 / 60;
+        let loopLastTime = 0;
+        let loopAccumulator = 0;
+        function gameLoop(now) {
+            if (!loopLastTime) loopLastTime = now;
+            let elapsed = now - loopLastTime;
+            loopLastTime = now;
+            if (elapsed > 250) elapsed = 250; // guard against tab-switch spiral
+            loopAccumulator += elapsed;
+            let steps = 0;
+            while (loopAccumulator >= FIXED_DT && steps < 5) {
+                // Hit-stop: freeze the world for a few frames on impact (game feel)
+                if (hitStop > 0) hitStop--;
+                else update();
+                loopAccumulator -= FIXED_DT;
+                steps++;
             }
-            update();
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -2382,6 +2419,7 @@
             score = 0;
             tokensCollected = 0;
             gameSpeed = 6;
+            nextSpeedup = 500;
             obstacles = [];
             tokens = [];
             particles = [];
@@ -2400,6 +2438,7 @@
             jumpBufferTime = 0;
             coyoteTime = 0;
             obstacleTimer = 0;
+            wasInSafeZone = false;
             nextObstacleGap = 110;
             tokenTimer = 0;
             narcTimer = 0;
@@ -2455,25 +2494,46 @@
             document.getElementById('finalScore').textContent = displayScore;
             document.getElementById('finalTokens').textContent = tokensCollected;
             document.getElementById('bestScore').textContent = best;
+            document.getElementById('bestAway').textContent = (!isNewBest && best - displayScore > 0) ? ` — ${best - displayScore} away` : '';
             document.getElementById('newBestBadge').style.display = isNewBest ? 'block' : 'none';
             document.getElementById('gameOver').style.display = 'block';
         }
 
-        // Share score to X / Twitter
+        // Share score to X / Twitter — proper card via url param so it renders the run.html card
         function shareScore() {
-            const text = `hey @a1lon9, can you beat my score of ${lastScore} on alonpump.run ?? $ALON`;
-            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank');
+            const text = `hey @a1lon9, can you beat my score of ${lastScore} (${tokensCollected} pills) on ALON's PumpRun?? 🚀 $ALON`;
+            const url = 'https://alonpump.run/run.html';
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url), '_blank');
         }
 
-        // Event listeners - multiple events for best responsiveness
-        canvas.addEventListener('mousedown', jump);
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+        // Event listeners — whole screen is the tap zone (a portrait phone's canvas is
+        // only the middle strip; taps above/below it used to do nothing).
+        function handlePress(e) {
+            // let real chrome (buttons, links, mute) handle their own taps
+            if (e.target.closest && e.target.closest('button, a, #bottomBar')) return;
+            if (e.cancelable) e.preventDefault();
+            if (!gameRunning && !isDying) { startGame(); return; } // tap anywhere to start / retry
             jump();
-        }, { passive: false });
-        canvas.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
+        }
+        document.addEventListener('mousedown', handlePress);
+        document.addEventListener('touchstart', handlePress, { passive: false });
+        // Suspend audio when the tab is hidden so music doesn't play over a frozen game;
+        // refresh the market cap the moment we come back.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (audioCtx) audioCtx.suspend();
+            } else {
+                if (audioCtx && musicEnabled) audioCtx.resume();
+                fetchMarketCap();
+            }
+        });
+
+        // Keyboard on window (canvas isn't focusable, so a canvas keydown never fired)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
                 e.preventDefault();
+                if (e.repeat) return;
+                if (!gameRunning && !isDying) { startGame(); return; }
                 jump();
             }
         });
@@ -2489,9 +2549,23 @@
             initAudio();
             toggleMusic();
         });
+        // Reflect persisted mute state on the button at load
+        if (!musicEnabled) {
+            const mb = document.getElementById('muteBtn');
+            mb.textContent = '🔇';
+            mb.classList.add('muted');
+        }
+        // Show best score on the start screen so returning players have a number to beat
+        (function showMenuBest() {
+            const b = getBest();
+            if (b > 0) {
+                document.getElementById('menuBestVal').textContent = b;
+                document.getElementById('menuBest').style.display = 'block';
+            }
+        })();
 
         // Start game loop
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
