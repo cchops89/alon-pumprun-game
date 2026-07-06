@@ -94,7 +94,7 @@
     <div id="hpwrap"><div id="hpfill"></div></div>
     <div id="power"></div>
     <div id="muteBtn">🔊</div>
-    <div style="position:absolute; right:8px; bottom:calc(6% + 4px); color:#3a5245; font-size:10px; z-index:15; pointer-events:none; font-family:monospace;">gfx-6</div>
+    <div style="position:absolute; right:8px; bottom:calc(6% + 4px); color:#3a5245; font-size:10px; z-index:15; pointer-events:none; font-family:monospace;">gfx-7</div>
     <div id="banner"></div>
     <div id="joyZone"><div id="joyBase"></div><div id="joyKnob"></div></div>
     <div id="btnAttack">SWIPE</div>
@@ -1393,13 +1393,69 @@ if (window.GLB_BULL){
             o.frustumCulled = false;
             const mat = o.material;
             if (!mat) return;
-            if (mat.name && mat.name.indexOf('Eye') === 0){
-                mat.emissive = new THREE.Color(0xff3c1e);
-                mat.emissiveIntensity = 2.0;
+            if (mat.name === 'Horns' || (mat.name && mat.name.indexOf('Eye') === 0)){
+                mat.visible = false;                // stock cartoon horns/eyes off — the graft replaces them
             } else if (mat.color){
-                mat.color.multiplyScalar(0.6);      // dark kaiju hide (rim light needs something to catch)
+                mat.color.multiplyScalar(0.55);     // near-black hide (ref); rim light carves the form
             }
         });
+        // ANSEM face graft on the Head bone: human face, curly crown, WIDE horns (the meme, per chris's ref)
+        const hb = m.getObjectByName('Head');
+        if (hb){
+            const fg = new THREE.Group();
+            fg.name = 'ansemFace';
+            const face = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.72,
+                emissive: 0x2a1a10, emissiveIntensity: 1 });        // self-lift: dark face must read at night
+            const darkHair = stdB(0x14100c, 0.98, hairTex, 0.02, 3, 3);
+            sph(0.13, face, 0, 0.02, 0.10, fg, 0.82, 1.2, 0.62, 24);           // face plate
+            for (const sxx of [-0.048, 0.048]){
+                sph(0.021, new THREE.MeshStandardMaterial({ color: 0xd8cfc0, roughness: 0.45,
+                    emissive: 0x4a463e, emissiveIntensity: 1 }), sxx, 0.065, 0.155, fg, 1, 0.72, 0.5);   // eye whites (lifted)
+                sph(0.011, std(0x241a12, 0.35), sxx, 0.063, 0.170, fg);                 // iris
+                sph(0.024, std(0x1a1210, 0.9), sxx, 0.088, 0.152, fg, 1.35, 0.4, 0.5);  // heavy brow
+            }
+            sph(0.028, face, 0, 0.015, 0.175, fg, 0.8, 1.3, 0.7);              // nose
+            sph(0.008, std(0x120c08, 0.6), -0.013, -0.01, 0.19, fg);
+            sph(0.008, std(0x120c08, 0.6), 0.013, -0.01, 0.19, fg);
+            // facial hair a shade lighter than the crown so it separates from the black bull at night
+            const faceHair = new THREE.MeshStandardMaterial({ color: 0x33261a, roughness: 0.92,
+                emissive: 0x120c07, emissiveIntensity: 1 });
+            sph(0.03, faceHair, 0, -0.035, 0.168, fg, 1.5, 0.38, 0.5);         // mustache
+            sph(0.018, std(0x2a1c14, 0.6), 0, -0.058, 0.168, fg, 1.1, 0.22, 0.4);  // mouth line
+            sph(0.034, faceHair, 0, -0.095, 0.14, fg, 0.85, 1.05, 0.7);        // goatee
+            sph(0.11, darkHair, 0, 0.135, 0.02, fg, 1.3, 0.72, 1.05, 20);      // curly crown
+            // bone-pale horns with a night lift — dark horns vanish into the hair silhouette
+            const hornMat = new THREE.MeshStandardMaterial({ color: 0x9c8e74, roughness: 0.55,
+                emissive: 0x33291c, emissiveIntensity: 1 });
+            const tipMat = new THREE.MeshStandardMaterial({ color: 0xc4b394, roughness: 0.45,
+                emissive: 0x453a28, emissiveIntensity: 1 });
+            for (const s2 of [-1, 1]){                                          // wide-sweep horns
+                const horn = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.045, 10, 24, 1.9), hornMat);
+                horn.position.set(s2 * 0.12, 0.16, 0.03);
+                horn.rotation.y = s2 * Math.PI / 2;
+                horn.rotation.x = s2 * -0.55;
+                horn.scale.x = s2;
+                fg.add(horn);
+                const tip = new THREE.Mesh(new THREE.ConeGeometry(0.030, 0.13, 10), tipMat);
+                tip.position.set(s2 * 0.315, 0.29, 0.05);
+                tip.rotation.z = s2 * -0.85;
+                fg.add(tip);
+            }
+            // quaternius armature carries ~x100 bone scale (blender export) AND the head
+            // bone's local axes aren't world-aligned — anchor cancels the bone's load-pose
+            // rotation so the graft is authored in plain world axes (+y up, +z bull-front)
+            // at x16 world scale, and still rides the head through yaw + gallop bob
+            m.updateMatrixWorld(true);
+            const ws = new THREE.Vector3(), bq = new THREE.Quaternion();
+            hb.getWorldScale(ws);
+            hb.getWorldQuaternion(bq);
+            const anchor = new THREE.Group();
+            anchor.quaternion.copy(bq.invert());
+            anchor.scale.setScalar(16 / ws.y);
+            hb.add(anchor);
+            fg.position.set(0, -0.07, 0.16);     // authored units: down to the muzzle, clear of the head mesh (~z 5.4 world)
+            anchor.add(fg);
+        }
         ansemMixer = new THREE.AnimationMixer(m);
         rigClip(g, ansemMixer, 'Gallop', 0);
         scene.remove(ansem);
