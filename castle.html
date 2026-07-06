@@ -109,6 +109,7 @@
         <button id="startBtn">SURVIVE</button>
         <div id="loadNote">loading three.js from CDN...</div>
         <p style="margin-top:10px"><a href="/" style="color:#4b6355;font-size:12px;text-decoration:none">&larr; alonpump.run arcade</a></p>
+        <p style="font-style:italic; font-weight:bold; font-size:9px; color:#5a7263; max-width:90%; margin-top:12px;">"MENSA" (https://skfb.ly/pLFCL) by yungcloud is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)</p>
     </div>
     <div class="overlay" id="gameOver">
         <h1 style="color:#f87171">OVERRUN</h1>
@@ -200,8 +201,24 @@ window.sDeath = () => { sfxTone(0,240,40,0.7,'sawtooth',0.3); };
 window.sJump  = () => { sfxTone(0,340,620,0.11,'square',0.16); };
 window.sVent  = () => { sfxTone(0,180,720,0.28,'sine',0.28); sfxTone(0,90,320,0.3,'triangle',0.18); };
 window.sThunder = (d) => { sfxTone(d,64,22,2.4,'sawtooth',0.3); sfxTone(d+0.03,150,35,0.4,'square',0.16); sfxTone(d+0.5,44,18,3.0,'triangle',0.26); };
+// wheel-roll loop: filtered noise, gain rides speed
+let rollG = null;
+window.setRoll = v => {
+    if (!audioCtx || !masterGain){ return; }
+    if (!rollG){
+        const len = audioCtx.sampleRate * 2;
+        const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const ch = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+        const s2 = audioCtx.createBufferSource(); s2.buffer = buf; s2.loop = true;
+        const bp = audioCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 260; bp.Q.value = 0.8;
+        rollG = audioCtx.createGain(); rollG.gain.value = 0;
+        s2.connect(bp); bp.connect(rollG); rollG.connect(masterGain); s2.start();
+    }
+    rollG.gain.value = v;
+};
 </script>
-<script src="horde-rigs.js?v=1"></script>
+<script src="horde-rigs.js?v=2"></script>
 
 <script type="module">
 import * as THREE from 'three';
@@ -1009,6 +1026,71 @@ const vents = [];
     }
 }
 
+// ---------- THE BLACK TABLE (MENSA by yungcloud, CC-BY) — obstacles in many sizes; bigs are surfable ----------
+let TABLE_PROTO = null, TABLE_DIMS = null;
+function buildTableFallback(){
+    const g = new THREE.Group();
+    const wood = std(0xb98a5a, 0.82);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 0.9), wood);
+    top.position.y = 0.94; g.add(top);
+    for (const [lx, lz] of [[-0.62, -0.34], [0.62, -0.34], [-0.62, 0.34], [0.62, 0.34]])
+        cyl(0.06, 0.07, 0.9, wood, lx, 0.45, lz, g, 8);
+    TABLE_DIMS = { w: 1.5, d: 0.9 };
+    return g;
+}
+function spawnTables(){
+    const sizes = IS_TOUCH
+        ? [[0.95, 4, false], [1.8, 3, false], [2.8, 3, true]]
+        : [[0.95, 7, false], [1.9, 5, false], [2.9, 4, true]];   // [target height, count, surfable]
+    for (const [h, n, surfable] of sizes){
+        for (let i = 0; i < n; i++){
+            let x, z, ok = false, tries = 0;
+            while (!ok && tries++ < 50){
+                const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 66;
+                x = Math.cos(a) * r; z = Math.sin(a) * r;
+                ok = Math.hypot(x - PX, z - PZ) > 32 && Math.hypot(x, z) > 7;
+                if (ok) for (const o of obstacles)
+                    if (Math.abs(x - o.x) < o.hw + 4 && Math.abs(z - o.z) < o.hd + 4){ ok = false; break; }
+            }
+            if (!ok) continue;
+            const m = TABLE_PROTO.clone();
+            const k = Math.floor(Math.random() * 4);              // axis-aligned quarter turns only (AABB stays honest)
+            m.rotation.y = k * Math.PI / 2;
+            m.scale.setScalar(h);
+            const gy = groundH(x, z);
+            m.position.set(x, gy, z);
+            scene.add(m);
+            const w2 = (k % 2 ? TABLE_DIMS.d : TABLE_DIMS.w) * h, d2 = (k % 2 ? TABLE_DIMS.w : TABLE_DIMS.d) * h;
+            obstacles.push({ x, z, hw: Math.max(0.8, w2 * 0.45), hd: Math.max(0.8, d2 * 0.45), topY: gy + h,
+                             mesh: m, baseH: h, surf: surfable, surfCd: 0 });
+        }
+    }
+    window.__tablesN = obstacles.filter(o => o.mesh).length;
+    spawnWalkers();
+}
+// some tables are ALIVE: reared up on the back legs, wandering the waste
+const walkers = [];
+function spawnWalkers(){
+    const n = IS_TOUCH ? 3 : 5;
+    for (let i = 0; i < n; i++){
+        const g = new THREE.Group();
+        const m = TABLE_PROTO.clone();
+        m.rotation.x = -1.25;                                     // rear up (head skyward)
+        g.add(m);
+        const bb2 = new THREE.Box3().setFromObject(m);
+        m.position.y -= bb2.min.y;                                // back feet on the ground
+        g.scale.setScalar(1.4 + Math.random() * 0.8);
+        let x, z, tries = 0;
+        do {
+            const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 66;
+            x = Math.cos(a) * r; z = Math.sin(a) * r;
+        } while (Math.hypot(x - PX, z - PZ) < 32 && tries++ < 30);
+        g.position.set(x, groundH(x, z), z);
+        scene.add(g);
+        walkers.push({ g, wx: x, wz: z, sp: 1.1 + Math.random() * 0.9, ph: Math.random() * 6.28 });
+    }
+}
+
 // unified walkable height: ground + park + obstacle tops (tops only count once you're up there)
 function terrainY(x, z, curY){
     let t;
@@ -1328,6 +1410,23 @@ if (window.GLB_BULL){
         window.__bullOk = true;
     }, undefined, e => console.warn('bull GLB failed — procedural ansem stays', e));   // never fail silently
 }
+if (window.GLB_TABLE){
+    _gltf.load('data:model/gltf-binary;base64,' + window.GLB_TABLE, g => {
+        const src = g.scene;
+        const bb = new THREE.Box3().setFromObject(src);
+        const size = bb.getSize(new THREE.Vector3());
+        const ctr = bb.getCenter(new THREE.Vector3());
+        const wrap = new THREE.Group();
+        src.position.set(-ctr.x, -bb.min.y, -ctr.z);               // feet on y0, centered
+        wrap.add(src);
+        wrap.scale.setScalar(1 / size.y);                           // height-1 prototype, scaled per instance
+        src.traverse(o => { if (o.isMesh){ o.castShadow = !IS_TOUCH; o.receiveShadow = true; } });
+        TABLE_DIMS = { w: size.x / size.y, d: size.z / size.y };
+        TABLE_PROTO = wrap;
+        spawnTables();
+        window.__tableOk = true;
+    }, undefined, e => { console.warn('table GLB failed — wooden fallback', e); TABLE_PROTO = buildTableFallback(); spawnTables(); });
+} else { TABLE_PROTO = buildTableFallback(); spawnTables(); }
 
 // ---------- meta ----------
 function loadMeta(k){ try { return parseInt(localStorage.getItem(k)||'0',10)||0; } catch(e){ return 0; } }
@@ -1374,9 +1473,11 @@ let heading = 0, speed = 0;
 const MAXS = 9.5;
 // vertical: jump physics (constants proven in three.html)
 const JUMP_V = 9.5, GRAV = 22, BOARD_MAX = 16;
-let py = 0, vy = 0, grounded = true, coyoteT = 0, jbufT = 0, gvy = 0, camGroundY = 0;
+let py = 0, vy = 0, grounded = true, coyoteT = 0, jbufT = 0, gvy = 0, camGroundY = 0, airJumps = 0;
 // skateboard: invincible shred mode (rack at the park + rare drop)
 let boardT = 0, rackCd = 0;
+let surf = null, bSlope = 0;                 // table-surf ride + board slope (for physics/tilt)
+let jumpHeld = false, ollieCharge = 0, olliePop = 1;
 function giveBoard(){
     boardT = 15;
     banner('🛹 SHRED MODE');
@@ -1569,8 +1670,11 @@ function startGame(){
     drops.forEach(d => scene.remove(d.mesh)); drops = [];
     state = 'playing';
     pos.set(0, 0, 0); heading = 0; speed = 0;
-    py = terrainY(0, 0, 0); vy = 0; grounded = true; coyoteT = 0; jbufT = 0; camGroundY = py;
+    py = terrainY(0, 0, 0); vy = 0; grounded = true; coyoteT = 0; jbufT = 0; camGroundY = py; airJumps = 0;
     boardT = 0; rackCd = 0; rackBoard.visible = true; rideBoard.visible = false;
+    surf = null; ollieCharge = 0; olliePop = 1; jumpHeld = false;
+    for (const o of obstacles) if (o.surf) o.surfCd = 0;
+    window.setRoll(0);
     hp = 100; invulnT = 0; hurtT = 0; round = 1; kills = 0; roundBreakT = 0;
     swingCd = 0; swingT = 0; hitStop = 0;
     AN.active = false; AN.warnT = 0; AN.timer = 42;
@@ -1595,6 +1699,8 @@ document.getElementById('restartBtn').addEventListener('click', startGame);
 
 function die(){
     window.sDeath();
+    window.setRoll(0);
+    surf = null;
     camShake = 1;
     state = 'dead';
     if (round > bestRound){ bestRound = round; saveMeta('alonHordeBest', bestRound); }
@@ -1621,6 +1727,7 @@ addEventListener('keydown', e => {
     if (k === 'm') window.toggleMute();
     if (k === ' '){                                   // space = jump (buffered); restart when dead
         if (state === 'dead') startGame();
+        else if (boardT > 0 && grounded){ jumpHeld = true; ollieCharge = 0.001; }   // hold = charge the ollie
         else jbufT = 0.12;
     }
     if (k === 'x' || k === 'f'){
@@ -1630,7 +1737,11 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => {
     keys[e.key.toLowerCase()] = false;
-    if (e.key === ' ' && vy > 3.5) vy = 3.5;          // variable jump height
+    if (e.key === ' '){
+        jumpHeld = false;
+        if (ollieCharge > 0){ olliePop = 1 + Math.min(0.5, ollieCharge); ollieCharge = 0; jbufT = 0.12; }  // release = pop
+        else if (vy > 3.5 && boardT <= 0) vy = 3.5;   // variable jump height (on foot)
+    }
 });
 let mouseDrag = false, mouseX = 0;
 renderer.domElement.addEventListener('mousedown', e => {
@@ -1684,9 +1795,14 @@ const btnJump = document.getElementById('btnJump');
 btnJump.addEventListener('touchstart', e => {
     e.preventDefault();
     if (state === 'dead'){ startGame(); return; }
-    jbufT = 0.15;
+    if (boardT > 0 && grounded){ jumpHeld = true; ollieCharge = 0.001; }
+    else jbufT = 0.15;
 }, { passive: false });
-btnJump.addEventListener('touchend', e => { if (vy > 3.5) vy = 3.5; }, { passive: false });
+btnJump.addEventListener('touchend', e => {
+    jumpHeld = false;
+    if (ollieCharge > 0){ olliePop = 1 + Math.min(0.5, ollieCharge); ollieCharge = 0; jbufT = 0.12; }
+    else if (vy > 3.5 && boardT <= 0) vy = 3.5;
+}, { passive: false });
 // touch anywhere on the world = camera drag (joystick + button are DOM, they never reach here)
 let camTouchId = null, camTouchX = 0;
 renderer.domElement.addEventListener('touchstart', e => {
@@ -1711,7 +1827,7 @@ renderer.domElement.addEventListener('touchend', e => {
 
 // headless-test hook
 window.__dbg = () => JSON.stringify({ f: frame, st: state, j: jeets.length, q: spawnQueue, k: kills, an: AN.active, hp,
-    py: +py.toFixed(2), bd: +boardT.toFixed(1), gr: grounded,
+    py: +py.toFixed(2), bd: +boardT.toFixed(1), gr: grounded, sf: !!surf, tn: window.__tablesN || 0,
     h: +heading.toFixed(2), cy: +camYaw.toFixed(2) });
 
 // ---------- loop ----------
@@ -1736,7 +1852,33 @@ function step(dt){
         const mx = sx * cy + sz * sy;              // screen-right/down → world
         const mz = -sx * sy + sz * cy;
         const moving = mlen > 0.01;
-        if (boardT > 0){
+        if (surf){
+            // ---- TABLE SURF: the black table takes off, mowing the horde ----
+            surf.t -= dt;
+            const so = surf.o;
+            const rot = sx * 0.9 * dt;                              // gentle steer
+            const ndx = surf.dx * Math.cos(rot) - surf.dz * Math.sin(rot);
+            surf.dz = surf.dx * Math.sin(rot) + surf.dz * Math.cos(rot);
+            surf.dx = ndx;
+            so.x += surf.dx * 22 * dt; so.z += surf.dz * 22 * dt;
+            if (Math.hypot(so.x, so.z) > WORLD_R - 4) surf.t = 0;
+            const gy3 = groundH(so.x, so.z);
+            so.topY = gy3 + so.baseH;
+            so.mesh.position.set(so.x, gy3, so.z);
+            pos.x = so.x; pos.z = so.z;
+            heading = Math.atan2(-surf.dx, -surf.dz);
+            speed = 22;
+            for (let i = jeets.length - 1; i >= 0; i--){
+                const j3 = jeets[i];
+                const vx3 = j3.mesh.position.x - so.x, vz3 = j3.mesh.position.z - so.z;
+                const dd = Math.hypot(vx3, vz3) || 1;
+                if (dd < Math.max(so.hw, so.hd) + 1.3) killJeet(i, vx3/dd, vz3/dd, true);
+            }
+            if (frame % 4 === 0) burst(so.x - surf.dx * so.hw, gy3 + 0.3, so.z - surf.dz * so.hd,
+                { n: 2, color: 0x3a4238, sp: 3, up: 2, grav: 5, life: 0.5, size: 0.4, spread: 1.5, smoke: true });
+            camShake = Math.max(camShake, 0.12);
+            if (!grounded || surf.t <= 0) surf = null;              // hop off or ride over
+        } else if (boardT > 0){
             // ---- skateboard: momentum carving. left/right = carve, up = push, down = brake ----
             boardT -= dt;
             const turn = sx, thr = -sz;
@@ -1744,6 +1886,14 @@ function step(dt){
             const targetS = thr > 0.1 ? BOARD_MAX * Math.min(1, thr) : thr < -0.1 ? 2 : speed;
             speed += (targetS - speed) * dt * (thr > 0.1 ? 2.2 : 1.5);
             if (thr <= 0.1 && thr >= -0.1) speed *= 1 - 0.12 * dt;              // coast friction
+            // skate physics: gravity along the slope — downhill accelerates, uphill bleeds; pump the transitions
+            const dxh = -Math.sin(heading), dzh = -Math.cos(heading);
+            bSlope = (terrainY(pos.x + dxh * 0.9, pos.z + dzh * 0.9, py) - terrainY(pos.x, pos.z, py)) / 0.9;
+            if (grounded){
+                speed -= bSlope * 9.5 * dt;
+                if (thr > 0.1 && bSlope < -0.15) speed += 6 * dt;    // pumping the down-transition
+            }
+            speed = Math.max(0, Math.min(24, speed));
             pos.x += -Math.sin(heading) * speed * dt;
             pos.z += -Math.cos(heading) * speed * dt;
             clampToWorld(pos, WORLD_R - 1.5);
@@ -1771,7 +1921,7 @@ function step(dt){
             const dxo = pos.x - o.x, dzo = pos.z - o.z;
             if (Math.abs(dxo) < o.hw + 0.45 && Math.abs(dzo) < o.hd + 0.45 && py < o.topY - 0.45){
                 if (!grounded && boardT <= 0 && vy < 3 && o.topY - py < 1.5){
-                    py = o.topY; vy = 0; grounded = true;            // mantle: pop up onto the lip
+                    py = o.topY; vy = 0; grounded = true; airJumps = 0;   // mantle: pop up onto the lip
                     burst(pos.x, py + 0.1, pos.z, { n: 3, color: 0x3a4238, sp: 1.5, up: 1.2, grav: 3, life: 0.4, size: 0.2, spread: 0.5, smoke: true });
                 } else {
                     const penX = o.hw + 0.45 - Math.abs(dxo), penZ = o.hd + 0.45 - Math.abs(dzo);
@@ -1793,16 +1943,25 @@ function step(dt){
                 vy = Math.max(0, Math.min(12, gvy)) * 0.8;           // pipe lips + kickers throw you
             } else py = tY;
         }
+        if (ollieCharge > 0 && jumpHeld && grounded) ollieCharge = Math.min(0.6, ollieCharge + dt);
+        if (!grounded) ollieCharge = 0;
         if ((grounded || coyoteT > 0) && jbufT > 0){
-            vy = JUMP_V * (boardT > 0 ? 0.85 : 1);                   // ollie is a touch lower, keeps speed
+            vy = JUMP_V * (boardT > 0 ? 0.85 * olliePop : 1);        // charged ollie pops harder
+            olliePop = 1;
             grounded = false; coyoteT = 0; jbufT = 0;
+            airJumps = 0;
             window.sJump();
+        } else if (!grounded && jbufT > 0 && airJumps < 1){          // double jump
+            vy = JUMP_V * 0.92;
+            airJumps++; jbufT = 0;
+            window.sJump();
+            sparkBurst(pos.x, py + 0.3, pos.z, 0x7dffa8, 8, 3);
         }
         if (!grounded){
             vy -= GRAV * dt;
             py += vy * dt;
             if (py <= tY && vy <= 0){
-                py = tY; vy = 0; grounded = true;
+                py = tY; vy = 0; grounded = true; airJumps = 0;
                 burst(pos.x, py + 0.1, pos.z, { n: 3, color: 0x3a4238, sp: 1.6, up: 1, grav: 3, life: 0.4, size: 0.22, spread: 0.6, smoke: true });
             }
         }
@@ -1831,14 +1990,17 @@ function step(dt){
         const runT = (player.userData.runT = (player.userData.runT || 0) + speed * dt * 2.1);
         const gK = Math.min(1, speed / 4);
         rideBoard.visible = boardT > 0;
-        if (boardT > 0){
+        if (boardT > 0 || surf){                                     // board stance (also riding the table)
             const turn = sx;
             hero.rotation.y = 0.55;                                   // side stance
             hero.rotation.x = 0;
             hero.rotation.z = -turn * 0.28;                           // carve lean
             rideBoard.rotation.z = -turn * 0.22;
-            hero.position.y = 0.16;
-            A.legL.rotation.x = 0.3; A.legR.rotation.x = -0.35;
+            hero.position.y = 0.16 - ollieCharge * 0.12;             // crouch into the charge
+            rideBoard.rotation.x = !grounded
+                ? (vy > 0 ? -0.35 * Math.min(1, vy / 8) : 0.28 * Math.min(1, -vy / 8))   // nose up on pop, down on fall
+                : Math.max(-0.5, Math.min(0.5, Math.atan(-bSlope) * 0.55));              // hug the slope
+            A.legL.rotation.x = 0.3 + ollieCharge * 0.9; A.legR.rotation.x = -0.35 - ollieCharge * 0.7;
             A.legL.rotation.z = 0.18; A.legR.rotation.z = -0.18;
             A.armL.rotation.x = 0; A.armL.rotation.z = 0.85;          // arms out
             if (grounded && speed > 6 && frame % 5 === 0)
@@ -1864,6 +2026,18 @@ function step(dt){
                 player.userData.stepUp = stepUp;
                 burst(pos.x + Math.sin(heading) * 0.6, player.position.y + 0.12, pos.z + Math.cos(heading) * 0.6,
                     { n: 2, color: 0x3a4238, sp: 1.4, up: 1.1, grav: 2.5, life: 0.5, size: 0.22, spread: 0.4, smoke: true });
+            }
+        }
+        // hop ON a big table = THE BLACK TABLE RIDES
+        if (!surf) for (const o of obstacles){
+            if (!o.surf) continue;
+            if (o.surfCd > 0){ o.surfCd -= dt; continue; }
+            if (grounded && Math.abs(pos.x - o.x) < o.hw && Math.abs(pos.z - o.z) < o.hd && Math.abs(py - o.topY) < 0.4){
+                surf = { o, t: 6, dx: -Math.sin(heading), dz: -Math.cos(heading) };
+                o.surfCd = 30;
+                banner('🏄 THE BLACK TABLE RIDES');
+                window.sHorn();
+                camShake = Math.max(camShake, 0.35);
             }
         }
         // board rack: grab it, it respawns 20s after your ride ends
@@ -1902,9 +2076,11 @@ function step(dt){
             if (powerT <= 0) power = null;
         }
         const hudBits = [];
+        if (surf) hudBits.push('🏄 TABLE ' + Math.ceil(surf.t) + 's');
         if (boardT > 0) hudBits.push('🛹 SHRED ' + Math.ceil(boardT) + 's');
         if (power && powerT > 0) hudBits.push(POWER_DEF[power].label + ' ' + Math.ceil(powerT) + 's');
         powerEl.textContent = hudBits.join('  ·  ');
+        window.setRoll((boardT > 0 || surf) && grounded ? Math.min(0.15, 0.02 + speed * 0.006) : 0);
         A.bladeMat.emissiveIntensity = (power === 'lev' && powerT > 0) ? 1.7 : 0.8;
         diaRing.visible = power === 'diamond' && powerT > 0;
         if (diaRing.visible){
@@ -2211,6 +2387,23 @@ function step(dt){
                 }
         }
         if (mt.t <= 0){ scene.remove(mt.ln); mt.ln.geometry.dispose(); meteorList.splice(i, 1); }
+    }
+    // living tables wander (title screen too)
+    for (const w of walkers){
+        const dxw = w.wx - w.g.position.x, dzw = w.wz - w.g.position.z;
+        const dw = Math.hypot(dxw, dzw);
+        if (dw < 2){
+            const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 70;
+            w.wx = Math.cos(a) * r; w.wz = Math.sin(a) * r;
+            continue;
+        }
+        w.g.position.x += dxw / dw * w.sp * rawDt;
+        w.g.position.z += dzw / dw * w.sp * rawDt;
+        const want = Math.atan2(dxw, dzw);
+        let dh2 = ((want - w.g.rotation.y + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+        w.g.rotation.y += dh2 * Math.min(1, rawDt * 2);
+        w.g.position.y = groundH(w.g.position.x, w.g.position.z) + Math.abs(Math.sin(frame * 0.06 + w.ph)) * 0.08;
+        w.g.rotation.z = Math.sin(frame * 0.06 + w.ph) * 0.09;    // waddle
     }
     skyMat.uniforms.flash.value = senv;
     gradePass.uniforms.uFlash.value = senv * 0.3;
