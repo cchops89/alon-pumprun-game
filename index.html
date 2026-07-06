@@ -31,7 +31,10 @@
         h1 { font-size:clamp(30px,7vw,54px); letter-spacing:2px; color:#4ade80;
              text-shadow:0 0 30px rgba(74,222,128,0.55), 3px 3px 0 #052e16; }
         h1 .dim { color:#a7f3d0; }
-        .tag { margin-top:6px; color:#7dab8c; font-size:clamp(12px,2.6vw,15px); font-weight:normal; font-family:Arial, sans-serif; }
+        .tag { margin-top:6px; color:#a7f3d0; font-size:clamp(15px,3.4vw,20px); letter-spacing:1px;
+               text-shadow:0 0 18px rgba(74,222,128,0.35); }
+        footer a { color:#7dffa8; text-decoration:none; }
+        footer a:hover { text-decoration:underline; }
         #mc { display:inline-block; margin-top:14px; padding:8px 22px; border-radius:999px;
               background:rgba(6,20,12,0.8); border:2px solid #14532d; color:#4ade80;
               font-size:clamp(13px,3vw,17px); box-shadow:0 0 18px rgba(74,222,128,0.25); }
@@ -61,8 +64,7 @@
 <body>
     <div class="stars" id="stars"></div>
     <header>
-        <h1>ALON<span class="dim">PUMP</span>.RUN</h1>
-        <div class="tag">two games. one bull run. pick your grind.</div>
+        <div class="tag">the ALON arcade — pick your grind.</div>
         <div id="mc">$ALON MC: <span id="mcValue">...</span></div>
     </header>
 
@@ -89,7 +91,7 @@
         </a>
     </div>
 
-    <footer>alonpump.run · powered by $ALON</footer>
+    <footer>games developed by <a href="https://x.com/thejpegjunkie" target="_blank" rel="noopener">@thejpegjunkie</a> · powered by $ALON</footer>
 
     <script>
         const ALON_CONTRACT = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
