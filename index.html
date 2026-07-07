@@ -27,8 +27,10 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         :root { --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace; }
+        html { overflow-x:hidden; }
         body {
-            min-height:100vh; font-family:'Arial Black', Arial, sans-serif; color:#e8fff0;
+            min-height:100vh; width:100%; max-width:100%; overflow-x:hidden;
+            font-family:'Arial Black', Arial, sans-serif; color:#e8fff0;
             background:#050d08;
             background-image:radial-gradient(ellipse 90% 60% at 50% -10%, #123822 0%, rgba(18,56,34,0) 60%),
                              radial-gradient(ellipse 60% 40% at 50% 110%, #0b2415 0%, rgba(11,36,21,0) 70%);
@@ -96,6 +98,24 @@
         .badge { position:absolute; top:12px; right:12px; padding:4px 12px; border-radius:999px; font-size:11px;
                  font-family:var(--mono); background:rgba(4,10,6,0.72); color:#7dffa8; border:1px solid #1e5c38;
                  letter-spacing:1px; }
+        /* $ALON contract — front and center */
+        #ca { margin-top:14px; display:flex; flex-direction:column; align-items:center; gap:11px; z-index:1; width:100%; }
+        #caCopy { display:inline-flex; align-items:center; gap:9px; max-width:94vw; cursor:pointer;
+                  padding:9px 15px; border-radius:12px; background:rgba(6,20,12,0.9); border:2px solid #14532d;
+                  font-family:var(--mono); color:#7dffa8; transition:border-color .15s, box-shadow .15s; }
+        #caCopy:hover { border-color:#1f5c3a; box-shadow:0 0 16px rgba(74,222,128,0.25); }
+        #caCopy .calbl { color:#5f8f72; font-weight:bold; letter-spacing:1px; }
+        #caCopy .caval { font-size:clamp(9.5px,2.5vw,14px); overflow-wrap:anywhere; word-break:break-all; min-width:0; text-align:left; line-height:1.25; }
+        #caCopy .cacopy { color:#4ade80; font-size:15px; flex-shrink:0; }
+        #caCopy.copied { border-color:#4ade80; }
+        #caCopy.copied .cacopy::after { content:' copied!'; font-size:11px; color:#4ade80; }
+        .calinks { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+        .calinks a { font-family:var(--mono); font-size:15px; text-decoration:none; padding:10px 26px; border-radius:999px;
+                     letter-spacing:0.5px; transition:.15s; }
+        .calinks a.chart { color:#7dffa8; background:rgba(6,20,12,0.85); border:2px solid #14532d; }
+        .calinks a.chart:hover { border-color:#1f5c3a; box-shadow:0 0 14px rgba(74,222,128,0.22); }
+        .calinks a.buy { color:#062012; background:#4ade80; border:2px solid #14532d; font-weight:bold; box-shadow:0 4px 0 #14532d; }
+        .calinks a.buy:hover { background:#6ee7a0; transform:translateY(-1px); }
         footer { margin-top:clamp(28px,6vw,52px); color:#4b6355; font-size:12px; font-family:var(--mono);
                  text-align:center; z-index:1; letter-spacing:0.5px; }
         footer a { color:#7dffa8; text-decoration:none; }
@@ -112,6 +132,17 @@
         </svg>
         <div class="tag">pick your grind.</div>
         <div id="mc"><span class="lbl">$ALON</span> <span id="mcValue">…</span></div>
+        <div id="ca">
+            <button id="caCopy" title="copy contract address">
+                <span class="calbl">CA</span>
+                <span class="caval">8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span>
+                <span class="cacopy">⧉</span>
+            </button>
+            <div class="calinks">
+                <a class="chart" href="https://dexscreener.com/solana/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener">chart</a>
+                <a class="buy" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener">buy here ▸</a>
+            </div>
+        </div>
     </header>
 
     <div class="games">
@@ -141,6 +172,14 @@
 
     <script>
         const ALON_CONTRACT = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
+        (() => {
+            const btn = document.getElementById('caCopy');
+            btn.addEventListener('click', async () => {
+                try { await navigator.clipboard.writeText(ALON_CONTRACT); } catch (e) {}
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1300);
+            });
+        })();
         let lastMC = null;
         function fmtMC(v){ if(v>=1e9)return '$'+(v/1e9).toFixed(2)+'B'; if(v>=1e6)return '$'+(v/1e6).toFixed(2)+'M'; if(v>=1e3)return '$'+(v/1e3).toFixed(2)+'K'; return '$'+v.toFixed(2); }
         async function fetchMC(){
