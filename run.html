@@ -346,26 +346,15 @@
             border-color: #ff6b6b;
         }
 
-        #arcadeBtn {
-            position: absolute;
-            top: 52px;
-            left: 10px;
-            width: 44px;
-            height: 44px;
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid #4ade80;
-            border-radius: 50%;
-            cursor: pointer;
-            z-index: 150;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 20px;
-            text-decoration: none;
-            transition: transform 0.1s, background 0.2s;
+        #bottomBar a.arcadeLink {
+            color: #7dffa8;
+            font-weight: bold;
+            border: 2px solid #1e5a38;
+            border-radius: 8px;
+            padding: 4px 14px;
+            background: rgba(0, 0, 0, 0.5);
         }
-        #arcadeBtn:hover { background: rgba(0, 0, 0, 0.8); }
-        #arcadeBtn:active { transform: scale(0.9); }
+        #bottomBar a.arcadeLink:active { transform: scale(0.96); }
     </style>
 </head>
 <body>
@@ -373,7 +362,6 @@
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-        <a id="arcadeBtn" href="/" title="Back to arcade" aria-label="Back to arcade">🕹️</a>
         <button id="muteBtn" title="Toggle Music">🔊</button>
 
         <div id="ui">
@@ -407,6 +395,7 @@
     </div>
 
     <div id="bottomBar">
+        <a href="/" class="arcadeLink">&larr; ARCADE MENU</a>
         <a href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">BUY $ALON NOW: <span>8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span></a>
         <a href="https://x.com/thejpegjunkie" target="_blank" class="credit">created by: @thejpegjunkie</a>
     </div>
