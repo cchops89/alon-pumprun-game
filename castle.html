@@ -21,12 +21,26 @@
 <title>ALON's Pump Castle — survive the jeet horde</title>
 <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-user-select:none; user-select:none; }
-    body { background:#0a0f0c; font-family:'Arial Black', sans-serif; overflow:hidden; height:100vh; height:100dvh;
+    body { background:#050d08;
+           background-image:radial-gradient(ellipse 90% 60% at 50% -10%, #123822 0%, rgba(18,56,34,0) 60%),
+                            radial-gradient(ellipse 60% 40% at 50% 110%, #0b2415 0%, rgba(11,36,21,0) 70%);
+           font-family:'Arial Black', sans-serif; overflow:hidden; height:100vh; height:100dvh;
            display:flex; flex-direction:column; justify-content:center; align-items:center; }
     #gameContainer { position:relative; width:100%; max-width:800px; aspect-ratio:800/600;
                      box-shadow:0 10px 40px rgba(0,0,0,0.8); z-index:1; }
-    /* phones: fill the whole screen instead of a letterboxed strip */
-    @media (max-width:800px){ #gameContainer{ max-width:100vw; width:100vw; height:calc(100dvh - 48px); max-height:calc(100dvh - 48px); aspect-ratio:auto; } }
+    /* phones: fill the whole screen instead of a letterboxed strip (leave room for the top + bottom bars) */
+    @media (max-width:800px){ #gameContainer{ max-width:100vw; width:100vw; height:calc(100dvh - 96px); max-height:calc(100dvh - 96px); aspect-ratio:auto; } }
+    /* buy / chart / credit strip under the game (arcade menu stays on top) */
+    #bottomBar { flex:0 0 auto; width:100%; max-width:800px; box-sizing:border-box; background:rgba(4,10,6,0.72);
+                 color:#4ade80; font-size:clamp(9px,2.2vw,12px); padding:8px 15px; font-family:monospace; z-index:2;
+                 user-select:text; -webkit-user-select:text; display:flex; justify-content:space-between;
+                 align-items:center; gap:12px; border-radius:0 0 10px 10px; }
+    #bottomBar a { color:#4ade80; text-decoration:none; white-space:nowrap; }
+    #bottomBar a:hover { text-decoration:underline; }
+    #bottomBar a.buy { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+    #bottomBar span { color:#fff; }
+    #bottomBar a.credit { color:rgba(255,255,255,0.7); }
+    @media (max-width:800px){ #bottomBar{ max-width:100vw; font-size:9px; gap:8px; } #bottomBar a.credit{ display:none; } }
     canvas { width:100%; height:100%; display:block; touch-action:none; }
     .cinebar { position:absolute; left:0; right:0; height:6%; background:#000; z-index:20; pointer-events:none; }
     #cineTop { top:0; } #cineBot { bottom:0; }
@@ -97,7 +111,7 @@
         pointer-events:none; z-index:60; opacity:0; transition:opacity 0.4s; white-space:nowrap; }
 </style>
 
-  <script type="module" crossorigin src="./castle-assets/index-Oo8-6bzb.js"></script>
+  <script type="module" crossorigin src="./castle-assets/index-CKsNTeaS.js"></script>
 </head>
 <body>
 <div id="arcadeBar"><a href="/">&larr; ARCADE MENU</a></div>
@@ -127,7 +141,11 @@
         <button id="startBtn" disabled>SURVIVE</button>
         <div id="loadNote">loading...</div>
         <p style="margin-top:10px"><a href="/" style="color:#4b6355;font-size:12px;text-decoration:none">&larr; alonpump.run arcade</a></p>
-        <p style="font-style:italic; font-weight:bold; font-size:9px; color:#5a7263; max-width:90%; margin-top:12px;">"MENSA" (https://skfb.ly/pLFCL) by yungcloud is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)</p>
+        <div style="margin-top:14px; max-width:92%;">
+            <p style="font-weight:bold; font-size:12px; color:#7dffa8; letter-spacing:0.12em; margin-bottom:6px;">CREDITS</p>
+            <p style="font-style:italic; font-weight:bold; font-size:12px; color:#8fb2a2; margin:4px 0;"><a href="https://x.com/ordinalOS/status/2073915551295082665?s=20" target="_blank" style="color:#8fb2a2; text-decoration:none;">"MENSA" (https://skfb.ly/pLFCL) by yungcloud is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)</a></p>
+            <p style="font-style:italic; font-weight:bold; font-size:12px; color:#8fb2a2; margin:4px 0;">3D ALON Game Character modeled by <a href="https://x.com/_DegenMaster_" target="_blank" style="color:#7dffa8; text-decoration:none;">@_DegenMaster_</a></p>
+        </div>
     </div>
     <div class="overlay" id="gameOver">
         <h1 id="goHead" style="color:#f87171">OVERRUN</h1>
@@ -138,6 +156,11 @@
         <button id="shareBtn" class="secondary">SHARE ON 𝕏</button>
         <p style="margin-top:10px"><a href="/" style="color:#4b6355;font-size:12px;text-decoration:none">&larr; alonpump.run arcade</a></p>
     </div>
+</div>
+<div id="bottomBar">
+    <a class="buy" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">BUY $ALON NOW: <span>8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span></a>
+    <a class="chart" href="https://dexscreener.com/solana/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank">📈 CHART</a>
+    <a class="credit" href="https://x.com/thejpegjunkie" target="_blank">created by: @thejpegjunkie</a>
 </div>
 
 <script>
