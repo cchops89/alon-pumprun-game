@@ -1,0 +1,10 @@
+# local canopy harness — never ship
+*REFERENCE*.md
+*-reference.md
+features.json
+init.sh
+MEMORY.md
+CLAUDE.md
+.claude/
+node_modules/
+.DS_Store
