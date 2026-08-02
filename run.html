@@ -806,7 +806,6 @@
 
         player.spriteSheet.onload = function() {
             player.spriteLoaded = true;
-            console.log('ALON sprite sheet loaded:', player.spriteSheet.width, 'x', player.spriteSheet.height);
         };
 
         player.spriteSheet.onerror = function() {
@@ -832,7 +831,6 @@
 
         narc.spriteSheet.onload = function() {
             narc.spriteLoaded = true;
-            console.log('Narc sprite sheet loaded:', narc.spriteSheet.width, 'x', narc.spriteSheet.height);
         };
 
         narc.spriteSheet.onerror = function() {
@@ -850,7 +848,6 @@
 
         groundSprite.image.onload = function() {
             groundSprite.loaded = true;
-            console.log('Ground sprite loaded:', groundSprite.image.width, 'x', groundSprite.image.height);
         };
 
         groundSprite.image.onerror = function() {
@@ -868,7 +865,6 @@
 
         backgroundSprite.image.onload = function() {
             backgroundSprite.loaded = true;
-            console.log('Background sprite loaded:', backgroundSprite.image.width, 'x', backgroundSprite.image.height);
         };
 
         backgroundSprite.image.onerror = function() {
@@ -886,7 +882,6 @@
 
         stormBackgroundSprite.image.onload = function() {
             stormBackgroundSprite.loaded = true;
-            console.log('Storm background sprite loaded:', stormBackgroundSprite.image.width, 'x', stormBackgroundSprite.image.height);
         };
 
         stormBackgroundSprite.image.onerror = function() {
@@ -916,7 +911,6 @@
             // Calculate frame size from actual image
             bonkSprite.frameWidth = bonkSprite.image.width / 7;
             bonkSprite.frameHeight = bonkSprite.image.height;
-            console.log('Bonk sprite loaded:', bonkSprite.image.width, 'x', bonkSprite.image.height);
         };
 
         bonkSprite.image.onerror = function() {
@@ -938,7 +932,6 @@
             // Calculate frame size from actual image (5 frames)
             bagsSprite.frameWidth = bagsSprite.image.width / 5;
             bagsSprite.frameHeight = bagsSprite.image.height;
-            console.log('Bags sprite loaded:', bagsSprite.image.width, 'x', bagsSprite.image.height);
         };
 
         bagsSprite.image.onerror = function() {
@@ -960,7 +953,6 @@
             // Calculate frame size from actual image (6 frames)
             bearSprite.frameWidth = bearSprite.image.width / 6;
             bearSprite.frameHeight = bearSprite.image.height;
-            console.log('Bear sprite loaded:', bearSprite.image.width, 'x', bearSprite.image.height);
         };
 
         bearSprite.image.onerror = function() {
@@ -981,7 +973,6 @@
             vladSprite.loaded = true;
             vladSprite.width = vladSprite.image.width;
             vladSprite.height = vladSprite.image.height;
-            console.log('Vlad sprite loaded:', vladSprite.width, 'x', vladSprite.height);
         };
 
         vladSprite.image.onerror = function() {
@@ -1002,7 +993,6 @@
             ansemSprite.loaded = true;
             ansemSprite.width = ansemSprite.image.width;
             ansemSprite.height = ansemSprite.image.height;
-            console.log('Ansem sprite loaded:', ansemSprite.width, 'x', ansemSprite.height);
         };
 
         ansemSprite.image.onerror = function() {
