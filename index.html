@@ -1010,6 +1010,8 @@
 
     function renderCoin() {
         const p = shown(); if (!p) return;
+        // mcap first — tabs truncate from the right, so the number survives the squeeze
+        if (p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alonpump.run`;
         setTxt('headMc', fmtMC(p.mcap));
         setTxt('headChg', `${p.h24 >= 0 ? '▲' : '▼'} ${Math.abs(p.h24).toFixed(1)}% 24h`, 'c ' + cls(p.h24));
 
@@ -1426,10 +1428,11 @@
 
     // ===== init =====
     async function refresh() {
-        if (document.hidden) return;
         try {
             tok = await fetchToken();
             supply = tok.supply || (tok.price > 0 ? tok.mcap / tok.price : 0);
+            // keep polling while backgrounded — the tab title is the whole point of this one
+            if (document.hidden) { const p = shown(); if (p && p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alonpump.run`; return; }
             renderCoin();
             renderMarquee();
         } catch (e) { console.warn('[arcade]', e.message); }
