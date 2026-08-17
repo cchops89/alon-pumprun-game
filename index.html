@@ -773,9 +773,23 @@
     let boosting = false, boostTimer = null, boostRows = [], boostTxs = [];
     let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
     let boostVolUnit = 0, boostTick = 0, lastTxs = [];
-    let redActive = false, redLeft = 0, popTimer = null, popArming = false;
+    let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
     const BOOST_MS = 380, TICKS_PER_CANDLE = 6, BOOST_MAX_CANDLES = 400;
     const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
+
+    // every candle gets a character rolled at birth — that's where the drama comes from.
+    // the wick modes rip one way for three ticks and reverse for three, which is what actually
+    // prints a long wick: the extreme is a high/low the body never keeps.
+    function rollCandle() {
+        if (redActive) return Math.random() < 0.45
+            ? { mode: 'crash', amp: 1 + Math.random() * 1.3 }
+            : { mode: 'red',   amp: 1 };
+        const r = Math.random();
+        if (r < 0.10) return { mode: 'god',      amp: 3.0 + Math.random() * 3.5 };
+        if (r < 0.20) return { mode: 'wickup',   amp: 2.2 + Math.random() * 2.6 };
+        if (r < 0.28) return { mode: 'wickdown', amp: 2.0 + Math.random() * 2.2 };
+        return { mode: 'normal', amp: 0.7 + Math.random() * 0.8 };
+    }
 
     // lightweight-charts asserts on non-ascending times and takes the whole chart down with it,
     // so drop any fake bar that MANIFEST has since overrun rather than trusting the anchor
@@ -813,42 +827,58 @@
             boostVolUnit = Math.max(Math.max(...tail, 0), 1) * 1.6;
             boostRows.push({ time: lastReal.time + step, open: lastReal.close, high: lastReal.close,
                              low: lastReal.close, close: lastReal.close, volume: 0 });
-            boostTick = 0; redActive = false; redLeft = nextRedGap();
+            boostTick = 0; redActive = false; redLeft = nextRedGap(); cand = null;
         }
 
         let cur = boostRows[boostRows.length - 1];
         boostTick++;
+        if (!cand) cand = rollCandle();
+        const k = ((boostTick - 1) % TICKS_PER_CANDLE) + 1;   // 1..6 within this candle
+        const B = 0.011, A = cand.amp;
 
-        let close;
-        if (redActive) {
-            // the ratchet is off for this one — a genuine dump, then the climb resumes below it
-            close = cur.close * (1 - (0.004 + Math.random() * 0.016));
-        } else {
+        let d;
+        switch (cand.mode) {
+            case 'god':      d =  B * A * (0.7 + Math.random() * 0.8); break;
+            case 'wickup':   d =  k <= 3 ?  B * A * (0.8 + Math.random() * 0.6)
+                                         : -B * A * (0.55 + Math.random() * 0.5); break;
+            case 'wickdown': d =  k <= 3 ? -B * A * (0.8 + Math.random() * 0.6)
+                                         :  B * A * (0.7 + Math.random() * 0.6); break;
+            case 'crash':    d = -(0.008 + Math.random() * 0.016) * A; break;
+            case 'red':      d = -(0.004 + Math.random() * 0.016); break;
             // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
-            const move = 0.011 + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2;
-            close = cur.close * (1 + move);
-            boostFloor = Math.max(boostFloor, close * 0.982);   // ratchet: pullbacks, never a breakdown
-            close = Math.max(close, boostFloor);
+            default:         d = B + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2 * A;
         }
+
+        let close = cur.close * (1 + d);
+        const sealed = boostTick % TICKS_PER_CANDLE === 0 && boostRows.length < BOOST_MAX_CANDLES;
+        const lastTick = k === TICKS_PER_CANDLE;
+        // the ratchet binds the CLOSE, not the path — so a wick is free to pierce the floor and
+        // the body still has to hold it. that's the whole shape of a rejection candle.
+        if (lastTick && !redActive) close = Math.max(close, boostFloor);
 
         cur.close = close;
         if (close > cur.high) cur.high = close;
         if (close < cur.low) cur.low = close;
-        cur.volume += boostVolUnit * (redActive ? 0.8 + Math.random() * 1.1 : 0.35 + Math.random() * 0.9);
+        const drama = cand.mode === 'normal' ? 1 : 1.3 + A * 0.35;
+        cur.volume += boostVolUnit * (0.35 + Math.random() * 0.9) * drama;
 
-        const sealed = boostTick % TICKS_PER_CANDLE === 0 && boostRows.length < BOOST_MAX_CANDLES;
-        const wasRed = redActive;
         if (sealed) {
             if (redActive) { redActive = false; boostFloor = close * 0.995; }
-            else if (--redLeft <= 0) { redActive = true; redLeft = nextRedGap(); }
+            else {
+                boostFloor = Math.max(boostFloor, close * 0.982);
+                if (--redLeft <= 0) { redActive = true; redLeft = nextRedGap(); }
+            }
             boostRows.push({ time: cur.time + step, open: close, high: close, low: close, close, volume: 0 });
+            cand = rollCandle();
         }
 
-        // fake prints — mostly buys, occasional whale; the dump flips the ratio
-        const n = 1 + Math.floor(Math.random() * 4);
+        // fake prints — the feed follows whichever way this tick actually went, so a rejection
+        // wick reads as sells hitting the bid instead of contradicting the candle
+        const n = 1 + Math.floor(Math.random() * 4 * Math.min(drama, 2.2));
         for (let i = 0; i < n; i++) {
-            const buy = Math.random() < (wasRed ? 0.26 : 0.74);
-            const usd = Math.random() < 0.12 ? 5000 + Math.random() * 45000 : 40 + Math.random() * 2600;
+            const buy = Math.random() < (d >= 0 ? 0.82 : 0.24);
+            const whale = Math.random() < 0.12 * drama;
+            const usd = whale ? 5000 + Math.random() * 45000 * drama : 40 + Math.random() * 2600;
             boostTxs.unshift({
                 fake: true, type: buy ? 'buy' : 'sell', timestamp: new Date().toISOString(),
                 usdVolume: usd, usdPrice: close, amount: usd / (close || 1),
@@ -880,7 +910,7 @@
         if (on) {
             boostRows = []; boostTxs = [];
             boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0;
-            redActive = false; redLeft = nextRedGap();
+            redActive = false; redLeft = nextRedGap(); cand = null;
             boostStep();
             boostTimer = setInterval(boostStep, BOOST_MS);
         } else {
