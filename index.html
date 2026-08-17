@@ -777,6 +777,20 @@
     let candTick = 0, launchLeft = 0;
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
     const POP_MS = 1400;   // must match the .pump-pop animation duration in CSS
+    const PUMP_SECONDS = 60, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
+    let boostT0 = 0;
+
+    // Closed loop, not a tuned constant: every tick asks "how much per-tick growth is left to
+    // still hit $1B on schedule" and hands that back as the drift the candle shapes ride on.
+    // That's what makes the 60s hold no matter what the coin opened at — and it self-corrects,
+    // so a crash candle just means the climb after it runs hotter.
+    function paceDrift(close) {
+        if (!supply || !close) return 0.011;
+        const elapsed = (performance.now() - boostT0) / 1000;
+        const remain = Math.max(PUMP_SECONDS - elapsed, 6);      // never divide by ~0 at the buzzer
+        const need = Math.log((PUMP_TARGET_MC / supply) / close);
+        return Math.max(need / Math.max(remain / AVG_TICK_S, 1), 0.002);
+    }
     const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
 
     // real tape comes in flurries and lulls, not on a metronome — so weight it toward fast ticks
@@ -862,7 +876,7 @@
         if (!cand) cand = rollCandle();
         const k = ++candTick;                          // 1..cand.len within this candle
         const half = Math.ceil(cand.len / 2);
-        const B = 0.011, A = cand.amp;
+        const A = cand.amp, B = paceDrift(cur.close);
 
         let d;
         switch (cand.mode) {
@@ -879,10 +893,11 @@
                                             : -B * A * (0.55 + Math.random() * 0.5); break;
             case 'wickdown': d =  k <= half ? -B * A * (0.8 + Math.random() * 0.6)
                                             :  B * A * (0.7 + Math.random() * 0.6); break;
-            case 'crash':    d = -(0.008 + Math.random() * 0.016) * A; break;
-            case 'red':      d = -(0.004 + Math.random() * 0.016); break;
+            // the dumps scale off the same drift, so drama stays proportional as the run accelerates
+            case 'crash':    d = -(0.55 + Math.random() * 1.15) * B * A; break;
+            case 'red':      d = -(0.30 + Math.random() * 0.95) * B; break;
             // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
-            default:         d = B + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2 * A;
+            default:         d = B + (Math.random() - 0.42) * B * (1.1 + Math.random() * 1.8) * A;
         }
 
         let close = cur.close * (1 + d);
@@ -953,6 +968,7 @@
             boostRows = []; boostTxs = [];
             boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0; candTick = 0;
             redActive = false; redLeft = nextRedGap(); cand = null; launchLeft = LAUNCH_EVERY;
+            boostT0 = performance.now();
             boostLoop();
         } else {
             boostRows = []; boostTxs = [];
