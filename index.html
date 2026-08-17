@@ -208,7 +208,15 @@
         .alon-toggle.on .sw { background:var(--green-d); box-shadow:0 0 8px rgba(74,222,128,0.5); }
         .alon-toggle.on .sw i { left:13px; background:#eafff2; }
 
-        .bar-right { margin-left:auto; display:flex; align-items:center; gap:4px; }
+        .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+        /* linear vs log market-cap axis */
+        .segbar { display:flex; gap:2px; padding:2px; border-radius:8px;
+                  background:var(--panel2); border:1px solid var(--line2); }
+        .seg { padding:3px 10px; border-radius:6px; background:none; border:none; cursor:pointer;
+               font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
+               color:var(--dimmer); transition:.14s; }
+        .seg:hover { color:var(--txt); }
+        .seg.on { background:var(--green-x); color:var(--green); box-shadow:0 0 12px rgba(74,222,128,0.35); }
         .chart-status { font-family:var(--mono); font-size:10.5px; color:var(--dimmer); padding-right:3px; }
         .chart-status.err { color:var(--red); }
         .chart-stage { position:relative; }
@@ -429,7 +437,13 @@
                         <span class="sw"><i></i></span>
                         <span class="alon-state">ON</span>
                     </button>
-                    <div class="bar-right"><span class="chart-status" id="chartStatus"></span></div>
+                    <div class="bar-right">
+                        <span class="chart-status" id="chartStatus"></span>
+                        <div class="segbar" id="scaleToggle">
+                            <button class="seg on" data-mode="reg">REG</button>
+                            <button class="seg" data-mode="log">LOG</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="chart-stage" id="chartStage">
@@ -1113,7 +1127,7 @@
     function addLevel(price) {
         levels.push({ price, line: candleS.createPriceLine({
             price, color: '#fbbf24', lineWidth: 1, lineStyle: 2,
-            axisLabelVisible: true, title: fmtMC(price),
+            axisLabelVisible: true, title: '',
         }) });
     }
 
@@ -1263,6 +1277,29 @@
         };
     })();
 
+    // ===== market-cap axis: linear or logarithmic =====
+    function applyScale(log) {
+        if (!chart) return;
+        chart.priceScale('right').applyOptions({
+            mode: log ? LightweightCharts.PriceScaleMode.Logarithmic : LightweightCharts.PriceScaleMode.Normal,
+        });
+    }
+    (function scaleSwitch() {
+        const bar = document.getElementById('scaleToggle');
+        let log = false;
+        try { log = localStorage.getItem('scaleMode') === 'log'; } catch (e) {}
+        function set(v) {
+            log = v;
+            bar.querySelectorAll('.seg').forEach(b => b.classList.toggle('on', (b.dataset.mode === 'log') === v));
+            applyScale(v);
+            try { localStorage.setItem('scaleMode', v ? 'log' : 'reg'); } catch (e) {}
+        }
+        bar.querySelectorAll('.seg').forEach(b =>
+            b.addEventListener('click', () => set(b.dataset.mode === 'log')));
+        set(log);
+        window.__applyScaleOnInit = () => set(log);
+    })();
+
     // ===== transactions panel: collapsed by default =====
     (function txPanel() {
         const btn = document.getElementById('txToggle');
@@ -1324,6 +1361,7 @@
                 base.rows = await fetchCandles('1_HOUR');
             } catch (e) { setStatus('chart data unavailable', true); }
             await loadChart();
+            if (window.__applyScaleOnInit) { window.__applyScaleOnInit(); delete window.__applyScaleOnInit; }
             paintAth();
             renderMarquee();
             backfill();
