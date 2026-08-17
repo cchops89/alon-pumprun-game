@@ -208,6 +208,16 @@
         .alon-toggle.on .sw { background:var(--green-d); box-shadow:0 0 8px rgba(74,222,128,0.5); }
         .alon-toggle.on .sw i { left:13px; background:#eafff2; }
 
+        .manifest { display:flex; align-items:center; gap:6px; padding:5px 11px; border-radius:8px;
+                    background:var(--panel2); border:1px solid var(--line2); cursor:pointer;
+                    font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
+                    color:var(--dimmer); transition:.16s; }
+        .manifest svg { width:14px; height:14px; }
+        .manifest:hover { color:var(--green); border-color:var(--green-d); }
+        .manifest.on { background:var(--green-x); border-color:var(--green); color:var(--green);
+                       box-shadow:0 0 18px rgba(74,222,128,0.55); animation:manifestPulse 1.5s ease-in-out infinite; }
+        @keyframes manifestPulse { 50% { box-shadow:0 0 26px rgba(74,222,128,0.85); } }
+
         .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
         /* linear vs log market-cap axis */
         .segbar { display:flex; gap:2px; padding:2px; border-radius:8px;
@@ -224,7 +234,7 @@
         #chart.drawing { cursor:crosshair; }
         /* brush layer sits over the chart but stays transparent to clicks until armed */
         #draw { position:absolute; inset:0; z-index:5; pointer-events:none; touch-action:none; }
-        #draw.on { pointer-events:auto; cursor:none; }
+        #draw.on { pointer-events:auto; cursor:crosshair; }
 
         .erase { display:none; margin-left:12px; padding:6px 13px; border-radius:8px; cursor:pointer;
                  background:var(--panel2); border:1px solid var(--line2); color:var(--dim);
@@ -436,6 +446,10 @@
                         <span class="alon-face"></span>
                         <span class="sw"><i></i></span>
                         <span class="alon-state">ON</span>
+                    </button>
+                    <button class="manifest" id="manifestBtn" title="manifest $1B">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-4"/><path d="M13.5 4.5c3.5-1.5 6-1 6-1s.5 2.5-1 6c-1.2 2.8-4 5.6-6.4 7.1L9 13.9C10.5 11.5 10.7 8 13.5 4.5Z"/><circle cx="14.5" cy="9.5" r="1.4"/></svg>
+                        MANIFEST
                     </button>
                     <div class="bar-right">
                         <span class="chart-status" id="chartStatus"></span>
@@ -695,6 +709,36 @@
         return [...out.values()].sort((a, b) => a.time - b.time);
     }
 
+    // MANIFEST: bolt a run to a $1B market cap onto the end of whatever's on screen.
+    // purely cosmetic — it never touches the cached candles or the ATH.
+    let manifesting = false;
+    function withManifest(rows) {
+        if (!manifesting || !rows.length) return rows;
+        const last = rows[rows.length - 1];
+        const step = rows.length > 1 ? last.time - rows[rows.length - 2].time : 3600;
+        const target = 1e9 / (supply || 1);
+        if (target <= last.close) return rows;
+        const out = rows.slice();
+        const N = 16;
+        let prev = last.close;
+        for (let i = 1; i <= N; i++) {
+            const t = i / N;
+            const close = last.close + (target - last.close) * Math.pow(t, 3);   // slow, then vertical
+            out.push({
+                time: last.time + step * i,
+                open: prev,
+                high: i === N ? target : close * 1.015,
+                low: Math.min(prev, close) * 0.994,
+                close,
+                volume: (last.volume || 0) * (1 + t * 6),
+            });
+            prev = close;
+        }
+        return out;
+    }
+
+    function displayRows() { return withManifest(viewRows(tf)); }
+
     function viewRows(timeframe) {
         if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe]);
         if (timeframe === '1h') return base.rows;
@@ -809,9 +853,9 @@
                 fine[tf] = { rows: await fetchCandles(FINE[tf]), done: false };
             }
             if (mine !== reqId) return;
-            const rows = viewRows(tf);
+            const rows = displayRows();
             if (!rows.length) { setStatus('no data', true); return; }
-            applySeries(rows);
+            applySeries(displayRows());
             chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
             setStatus('');
         } catch (e) {
@@ -821,7 +865,7 @@
 
     function shiftView(added) {
         const r = chart.timeScale().getVisibleLogicalRange();
-        applySeries(viewRows(tf));
+        applySeries(displayRows());
         if (r && added) chart.timeScale().setVisibleLogicalRange({ from: r.from + added, to: r.to + added });
     }
 
@@ -1196,7 +1240,7 @@
         // the live end of the chart, in page coordinates
         function priceLine() {
             if (!chart || !candleS) return null;
-            const rows = viewRows(tf);
+            const rows = displayRows();
             if (!rows.length) return null;
             const last = rows[rows.length - 1];
             const y = candleS.priceToCoordinate(last.close * (supply || 1));
@@ -1275,6 +1319,22 @@
                 else { px = py = null; }          // reappear at the price line, no fly-in from nowhere
             },
         };
+    })();
+
+    // ===== manifest =====
+    (function manifestSwitch() {
+        const btn = document.getElementById('manifestBtn');
+        btn.addEventListener('click', () => {
+            manifesting = !manifesting;
+            btn.classList.toggle('on', manifesting);
+            btn.title = manifesting ? 'back to reality' : 'manifest $1B';
+            if (!chart) return;
+            const rows = displayRows();
+            if (!rows.length) return;
+            applySeries(rows);
+            if (manifesting) chart.timeScale().fitContent();
+            else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
+        });
     })();
 
     // ===== market-cap axis: linear or logarithmic =====
