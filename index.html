@@ -218,6 +218,13 @@
                        box-shadow:0 0 18px rgba(74,222,128,0.55); animation:manifestPulse 1.5s ease-in-out infinite; }
         @keyframes manifestPulse { 50% { box-shadow:0 0 26px rgba(74,222,128,0.85); } }
 
+        /* amber, not green — MANIFEST already owns the green glow and two lit green
+           buttons side by side read as one control */
+        .manifest.boost:hover { color:#fbbf24; border-color:rgba(251,191,36,0.55); }
+        .manifest.boost.on { background:rgba(251,191,36,0.13); border-color:#fbbf24; color:#fbbf24;
+                             box-shadow:0 0 18px rgba(251,191,36,0.5); animation:boostPulse .62s ease-in-out infinite; }
+        @keyframes boostPulse { 50% { box-shadow:0 0 30px rgba(251,191,36,0.9); } }
+
         .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
         /* linear vs log market-cap axis */
         .segbar { display:flex; gap:2px; padding:2px; border-radius:8px;
@@ -450,6 +457,10 @@
                     <button class="manifest" id="manifestBtn" title="manifest $1B">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-4"/><path d="M13.5 4.5c3.5-1.5 6-1 6-1s.5 2.5-1 6c-1.2 2.8-4 5.6-6.4 7.1L9 13.9C10.5 11.5 10.7 8 13.5 4.5Z"/><circle cx="14.5" cy="9.5" r="1.4"/></svg>
                         MANIFEST
+                    </button>
+                    <button class="manifest boost" id="boostBtn" title="volume boost">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V13"/><path d="M9 20V9"/><path d="M14 20V6"/><path d="M19 20V3"/></svg>
+                        VOLUME BOOST
                     </button>
                     <div class="bar-right">
                         <span class="chart-status" id="chartStatus"></span>
@@ -737,7 +748,119 @@
         return out;
     }
 
-    function displayRows() { return withManifest(viewRows(tf)); }
+    // VOLUME BOOST: a synthetic candle stream bolted onto the end of the chart, ticking live,
+    // plus a flood of fake prints in the trades table. Every tick is a coin flip, but the coin is
+    // weighted and a ratcheting floor means the run can pull back and never actually break down.
+    // Like MANIFEST it's cosmetic — it never touches base.rows, the cached candles, or the ATH.
+    let boosting = false, boostTimer = null, boostRows = [], boostTxs = [];
+    let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
+    let boostVolUnit = 0, boostTick = 0, lastTxs = [];
+    const BOOST_MS = 380, TICKS_PER_CANDLE = 6, BOOST_MAX_CANDLES = 400;
+
+    // lightweight-charts asserts on non-ascending times and takes the whole chart down with it,
+    // so drop any fake bar that MANIFEST has since overrun rather than trusting the anchor
+    function withBoost(rows) {
+        if (!boosting || !boostRows.length) return rows;
+        const cut = rows.length ? rows[rows.length - 1].time : 0;
+        return rows.concat(boostRows.filter(c => c.time > cut));
+    }
+
+    function displayRows() { return withBoost(withManifest(viewRows(tf))); }
+
+    // how far the fake run has carried price above where it started — drives the stats strip
+    function boostGain() {
+        if (!boosting || !boostRows.length || !boostAnchor) return 1;
+        return boostRows[boostRows.length - 1].close / boostAnchor;
+    }
+
+    function fakeAddr() {
+        const A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        let s = ''; for (let i = 0; i < 44; i++) s += A[Math.floor(Math.random() * A.length)];
+        return s;
+    }
+
+    function boostStep() {
+        const real = withManifest(viewRows(tf));
+        if (!real.length) { return; }
+        const lastReal = real[real.length - 1];
+        const step = real.length > 1 ? (lastReal.time - real[real.length - 2].time) || 3600 : 3600;
+
+        if (!boostRows.length) {
+            boostAnchor = lastReal.close;
+            boostFloor = lastReal.close;
+            // size the fake bars off the busiest real bar on screen so they visibly dwarf history
+            const tail = real.slice(-120).map(c => c.volume || 0);
+            boostVolUnit = Math.max(Math.max(...tail, 0), 1) * 1.6;
+            boostRows.push({ time: lastReal.time + step, open: lastReal.close, high: lastReal.close,
+                             low: lastReal.close, close: lastReal.close, volume: 0 });
+            boostTick = 0;
+        }
+
+        let cur = boostRows[boostRows.length - 1];
+        boostTick++;
+
+        // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
+        const move = 0.011 + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2;
+        let close = cur.close * (1 + move);
+        boostFloor = Math.max(boostFloor, close * 0.982);   // ratchet: pullbacks, never a breakdown
+        close = Math.max(close, boostFloor);
+
+        cur.close = close;
+        if (close > cur.high) cur.high = close;
+        if (close < cur.low) cur.low = close;
+        cur.volume += boostVolUnit * (0.35 + Math.random() * 0.9);
+
+        const sealed = boostTick % TICKS_PER_CANDLE === 0 && boostRows.length < BOOST_MAX_CANDLES;
+        if (sealed) {
+            boostRows.push({ time: cur.time + step, open: close, high: close, low: close, close, volume: 0 });
+        }
+
+        // fake prints — mostly buys, occasional whale
+        const n = 1 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) {
+            const buy = Math.random() < 0.74;
+            const usd = Math.random() < 0.12 ? 5000 + Math.random() * 45000 : 40 + Math.random() * 2600;
+            boostTxs.unshift({
+                fake: true, type: buy ? 'buy' : 'sell', timestamp: new Date().toISOString(),
+                usdVolume: usd, usdPrice: close, amount: usd / (close || 1),
+                nativeVolume: solUsd ? usd / solUsd : 0,
+                txHash: 'boost-' + (boostTick * 10 + i) + '-' + boostRows.length,
+                traderAddress: fakeAddr(),
+            });
+            boostVolUsd += usd;
+            if (buy) boostBuys++; else boostSells++;
+        }
+        if (boostTxs.length > 60) boostTxs.length = 60;
+
+        if (chart) {
+            const r = chart.timeScale().getVisibleLogicalRange();
+            applySeries(displayRows());
+            if (r && sealed) chart.timeScale().setVisibleLogicalRange({ from: r.from + 1, to: r.to + 1 });
+        }
+        renderTxs(txFeed());
+        renderCoin();
+        renderMarquee();
+    }
+
+    function txFeed() { return boosting ? boostTxs.concat(lastTxs).slice(0, 80) : lastTxs; }
+
+    function setBoost(on) {
+        boosting = on;
+        document.getElementById('boostBtn').classList.toggle('on', on);
+        clearInterval(boostTimer); boostTimer = null;
+        if (on) {
+            boostRows = []; boostTxs = [];
+            boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0;
+            boostStep();
+            boostTimer = setInterval(boostStep, BOOST_MS);
+        } else {
+            boostRows = []; boostTxs = [];
+            boostVolUsd = 0; boostBuys = 0; boostSells = 0;
+            if (chart && tok) applySeries(displayRows());
+            if (lastTxs.length) renderTxs(txFeed());
+            renderCoin(); renderMarquee();
+        }
+    }
 
     function viewRows(timeframe) {
         if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe]);
@@ -935,7 +1058,8 @@
                 <td>${fmtAmt(t.amount || 0)}</td>
                 <td>${(t.nativeVolume || 0).toFixed(3)}</td>
                 <td>${fmtPrice(t.usdPrice || 0)}</td>
-                <td><a class="tx-addr" href="https://solscan.io/tx/${t.txHash}" target="_blank" rel="noopener">${short(t.traderAddress || '')}</a></td>
+                <td>${t.fake ? `<span class="tx-addr">${short(t.traderAddress || '')}</span>`
+                             : `<a class="tx-addr" href="https://solscan.io/tx/${t.txHash}" target="_blank" rel="noopener">${short(t.traderAddress || '')}</a>`}</td>
             </tr>`;
         }).join('');
         const cnt = document.getElementById('txCount');
@@ -951,7 +1075,8 @@
             // each trade carries both legs, so SOL/USD falls out of it — no extra request
             const ref = txs.find(t => t.nativeVolume > 0 && t.usdVolume > 0);
             if (ref) { solUsd = ref.usdVolume / ref.nativeVolume; renderCoin(); }
-            renderTxs(txs);
+            lastTxs = txs;
+            renderTxs(txFeed());
         } catch (e) { /* keep last */ }
     }
 
@@ -964,24 +1089,40 @@
                `<span class="m-val">${label ? label + ' ' : ''}${value}</span>${arrow}</span>`;
     }
 
-    // what the page shows — the real token, or the $1B fantasy while MANIFEST is lit
+    // what the page shows — the real token, plus whichever fantasies are lit (they stack)
     function shown() {
-        if (!manifesting || !tok || !tok.mcap) return tok;
-        const target = 1e9;
-        const mult = target / tok.mcap;
-        // liquidity and volume don't scale 1:1 with market cap — big caps run a thinner ratio.
-        // damping the multiplier lands ~3-4% of mcap in liquidity, which is the right ballpark
-        // for a billion-dollar memecoin.
-        const deep = Math.pow(mult, 0.85);
-        return Object.assign({}, tok, {
-            mcap: target, fdv: target,
-            price: tok.price * mult,
-            h24: (mult - 1) * 100,
-            liquidity: tok.liquidity * deep,
-            volume: tok.volume * deep,
-            buyVol: tok.buyVol * deep,
-            sellVol: tok.sellVol * deep,
-        });
+        if (!tok) return tok;
+        let p = tok;
+        if (manifesting && tok.mcap) {
+            const target = 1e9;
+            const mult = target / tok.mcap;
+            // liquidity and volume don't scale 1:1 with market cap — big caps run a thinner ratio.
+            // damping the multiplier lands ~3-4% of mcap in liquidity, which is the right ballpark
+            // for a billion-dollar memecoin.
+            const deep = Math.pow(mult, 0.85);
+            p = Object.assign({}, tok, {
+                mcap: target, fdv: target,
+                price: tok.price * mult,
+                h24: (mult - 1) * 100,
+                liquidity: tok.liquidity * deep,
+                volume: tok.volume * deep,
+                buyVol: tok.buyVol * deep,
+                sellVol: tok.sellVol * deep,
+            });
+        }
+        if (boosting) {
+            const g = boostGain(), up = (g - 1) * 100;
+            const bVol = boostVolUsd * 0.74, sVol = boostVolUsd * 0.26;
+            p = Object.assign({}, p, {
+                price: p.price * g, mcap: p.mcap * g, fdv: p.fdv * g,
+                volume: p.volume + boostVolUsd,
+                buyVol: p.buyVol + bVol, sellVol: p.sellVol + sVol,
+                liquidity: p.liquidity + boostVolUsd * 0.04,
+                buys: p.buys + boostBuys, sells: p.sells + boostSells,
+                m5: p.m5 + up, h1: p.h1 + up, h6: p.h6 + up, h24: p.h24 + up,
+            });
+        }
+        return p;
     }
 
     function renderMarquee() {
@@ -1057,7 +1198,8 @@
     // ===== events =====
     document.querySelectorAll('.tf').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.tf').forEach(x => x.classList.remove('on'));
-        b.classList.add('on'); tf = b.dataset.tf; loadChart();
+        // the fake candles are pinned to the old timeframe's step — restart them on the new one
+        b.classList.add('on'); tf = b.dataset.tf; boostRows = []; loadChart();
     }));
 
     document.querySelectorAll('.tool[data-type]').forEach(b => b.addEventListener('click', () => {
@@ -1348,6 +1490,7 @@
         const btn = document.getElementById('manifestBtn');
         btn.addEventListener('click', () => {
             manifesting = !manifesting;
+            boostRows = [];   // re-anchor the fake run onto the new tail
             btn.classList.toggle('on', manifesting);
             btn.title = manifesting ? 'back to reality' : 'manifest $1B';
             renderCoin(); renderMarquee();
@@ -1360,6 +1503,11 @@
             else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
         });
     })();
+
+    document.getElementById('boostBtn').addEventListener('click', () => {
+        setBoost(!boosting);
+        document.getElementById('boostBtn').title = boosting ? 'back to real volume' : 'volume boost';
+    });
 
     // ===== market-cap axis: linear or logarithmic =====
     function applyScale(log) {
