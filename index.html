@@ -243,6 +243,23 @@
         #draw { position:absolute; inset:0; z-index:5; pointer-events:none; touch-action:none; }
         #draw.on { pointer-events:auto; cursor:crosshair; }
 
+        /* the mom threat, slammed over the chart on the way into a pump */
+        .pump-pop { position:absolute; inset:0; z-index:9; display:none; pointer-events:none;
+                    align-items:center; justify-content:center; background:rgba(6,10,10,0.55); }
+        .pump-pop.show { display:flex; animation:popVeil 1.9s ease-out forwards; }
+        .pump-pop img { width:min(90%,720px); border-radius:10px; border:2px solid #fbbf24;
+                        box-shadow:0 0 70px rgba(251,191,36,0.6);
+                        animation:popSlam 1.9s cubic-bezier(.18,1.5,.4,1) forwards; }
+        @keyframes popVeil { 0%{opacity:0} 8%,72%{opacity:1} 100%{opacity:0} }
+        @keyframes popSlam {
+            0%   { transform:scale(.25) rotate(-9deg); opacity:0; }
+            13%  { transform:scale(1.12) rotate(2.5deg); opacity:1; }
+            21%  { transform:scale(.98) rotate(-1.5deg); }
+            30%  { transform:scale(1) rotate(0deg); }
+            72%  { transform:scale(1) rotate(0deg); opacity:1; }
+            100% { transform:scale(1.55) rotate(0deg); opacity:0; }
+        }
+
         .erase { display:none; margin-left:12px; padding:6px 13px; border-radius:8px; cursor:pointer;
                  background:var(--panel2); border:1px solid var(--line2); color:var(--dim);
                  font-family:var(--mono); font-size:11.5px; font-weight:700; transition:.12s; }
@@ -460,7 +477,7 @@
                     </button>
                     <button class="manifest boost" id="boostBtn" title="volume boost">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V13"/><path d="M9 20V9"/><path d="M14 20V6"/><path d="M19 20V3"/></svg>
-                        VOLUME BOOST
+                        PUMP UR SHIT
                     </button>
                     <div class="bar-right">
                         <span class="chart-status" id="chartStatus"></span>
@@ -474,6 +491,7 @@
                 <div class="chart-stage" id="chartStage">
                     <div id="chart"></div>
                     <canvas id="draw"></canvas>
+                    <div class="pump-pop" id="pumpPop"><img src="pumpurshit.png?v=1" alt="alon if you dont pump ur shit ill call my mom"></div>
                 </div>
 
                 <div class="strip">
@@ -755,7 +773,9 @@
     let boosting = false, boostTimer = null, boostRows = [], boostTxs = [];
     let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
     let boostVolUnit = 0, boostTick = 0, lastTxs = [];
+    let redActive = false, redLeft = 0, popTimer = null, popArming = false;
     const BOOST_MS = 380, TICKS_PER_CANDLE = 6, BOOST_MAX_CANDLES = 400;
+    const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
 
     // lightweight-charts asserts on non-ascending times and takes the whole chart down with it,
     // so drop any fake bar that MANIFEST has since overrun rather than trusting the anchor
@@ -793,32 +813,41 @@
             boostVolUnit = Math.max(Math.max(...tail, 0), 1) * 1.6;
             boostRows.push({ time: lastReal.time + step, open: lastReal.close, high: lastReal.close,
                              low: lastReal.close, close: lastReal.close, volume: 0 });
-            boostTick = 0;
+            boostTick = 0; redActive = false; redLeft = nextRedGap();
         }
 
         let cur = boostRows[boostRows.length - 1];
         boostTick++;
 
-        // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
-        const move = 0.011 + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2;
-        let close = cur.close * (1 + move);
-        boostFloor = Math.max(boostFloor, close * 0.982);   // ratchet: pullbacks, never a breakdown
-        close = Math.max(close, boostFloor);
+        let close;
+        if (redActive) {
+            // the ratchet is off for this one — a genuine dump, then the climb resumes below it
+            close = cur.close * (1 - (0.004 + Math.random() * 0.016));
+        } else {
+            // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
+            const move = 0.011 + (Math.random() - 0.42) * (0.012 + Math.random() * 0.02) * 2;
+            close = cur.close * (1 + move);
+            boostFloor = Math.max(boostFloor, close * 0.982);   // ratchet: pullbacks, never a breakdown
+            close = Math.max(close, boostFloor);
+        }
 
         cur.close = close;
         if (close > cur.high) cur.high = close;
         if (close < cur.low) cur.low = close;
-        cur.volume += boostVolUnit * (0.35 + Math.random() * 0.9);
+        cur.volume += boostVolUnit * (redActive ? 0.8 + Math.random() * 1.1 : 0.35 + Math.random() * 0.9);
 
         const sealed = boostTick % TICKS_PER_CANDLE === 0 && boostRows.length < BOOST_MAX_CANDLES;
+        const wasRed = redActive;
         if (sealed) {
+            if (redActive) { redActive = false; boostFloor = close * 0.995; }
+            else if (--redLeft <= 0) { redActive = true; redLeft = nextRedGap(); }
             boostRows.push({ time: cur.time + step, open: close, high: close, low: close, close, volume: 0 });
         }
 
-        // fake prints — mostly buys, occasional whale
+        // fake prints — mostly buys, occasional whale; the dump flips the ratio
         const n = 1 + Math.floor(Math.random() * 4);
         for (let i = 0; i < n; i++) {
-            const buy = Math.random() < 0.74;
+            const buy = Math.random() < (wasRed ? 0.26 : 0.74);
             const usd = Math.random() < 0.12 ? 5000 + Math.random() * 45000 : 40 + Math.random() * 2600;
             boostTxs.unshift({
                 fake: true, type: buy ? 'buy' : 'sell', timestamp: new Date().toISOString(),
@@ -851,6 +880,7 @@
         if (on) {
             boostRows = []; boostTxs = [];
             boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0;
+            redActive = false; redLeft = nextRedGap();
             boostStep();
             boostTimer = setInterval(boostStep, BOOST_MS);
         } else {
@@ -1504,9 +1534,21 @@
         });
     })();
 
+    // the image lands first, the candles start ripping behind it, then it clears
+    function pumpPop() {
+        const el = document.getElementById('pumpPop');
+        el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+        clearTimeout(popTimer);
+        popTimer = setTimeout(() => el.classList.remove('show'), 1900);
+    }
+
     document.getElementById('boostBtn').addEventListener('click', () => {
-        setBoost(!boosting);
-        document.getElementById('boostBtn').title = boosting ? 'back to real volume' : 'volume boost';
+        const btn = document.getElementById('boostBtn');
+        if (boosting) { setBoost(false); btn.title = 'pump ur shit'; return; }
+        if (popArming) return;                 // don't stack pops on a double-click
+        popArming = true;
+        pumpPop();
+        setTimeout(() => { popArming = false; setBoost(true); btn.title = 'back to real volume'; }, 520);
     });
 
     // ===== market-cap axis: linear or logarithmic =====
