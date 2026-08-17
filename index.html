@@ -208,6 +208,25 @@
         .alon-toggle.on .sw { background:var(--green-d); box-shadow:0 0 8px rgba(74,222,128,0.5); }
         .alon-toggle.on .sw i { left:13px; background:#eafff2; }
 
+        /* run mode — cyan, because green is alon-on and amber is the pump */
+        .run-toggle .run-lbl { font-weight:800; letter-spacing:0.5px; padding-left:4px; }
+        .run-toggle:hover { border-color:#38bdf8; color:#7dd3fc; }
+        .run-toggle.on { border-color:#38bdf8; background:rgba(56,189,248,0.13); color:#7dd3fc;
+                         box-shadow:0 0 14px rgba(56,189,248,0.35); }
+        .run-toggle.on .sw { background:#0ea5e9; box-shadow:0 0 8px rgba(56,189,248,0.5); }
+        .run-toggle.on .sw i { left:13px; background:#e0f2fe; }
+
+        /* thumbstick — touch pointers only, so it never shows up on desktop */
+        #stick { position:absolute; left:14px; bottom:14px; width:98px; height:98px; z-index:12;
+                 display:none; border-radius:50%; touch-action:none; background:rgba(10,16,17,0.55);
+                 border:1.5px solid rgba(56,189,248,0.5); box-shadow:0 0 18px rgba(56,189,248,0.22); }
+        #stick i { position:absolute; left:50%; top:50%; width:40px; height:40px; margin:-20px 0 0 -20px;
+                   border-radius:50%; background:rgba(56,189,248,0.85);
+                   box-shadow:0 0 14px rgba(56,189,248,0.6); }
+        #stick b { position:absolute; left:0; right:0; bottom:-19px; text-align:center;
+                   font-family:var(--mono); font-size:9px; letter-spacing:0.6px; color:#7dd3fc; opacity:.8; }
+        @media (pointer:coarse) { #stick.show { display:block; } }
+
         .manifest { display:flex; align-items:center; gap:6px; padding:5px 11px; border-radius:8px;
                     background:var(--panel2); border:1px solid var(--line2); cursor:pointer;
                     font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
@@ -471,6 +490,11 @@
                         <span class="sw"><i></i></span>
                         <span class="alon-state">ON</span>
                     </button>
+                    <button class="alon-toggle run-toggle" id="runToggle" title="run mode — arrow keys move alon along the chart">
+                        <span class="run-lbl">RUN</span>
+                        <span class="sw"><i></i></span>
+                        <span class="alon-state">OFF</span>
+                    </button>
                     <button class="manifest" id="manifestBtn" title="manifest $1B">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-4"/><path d="M13.5 4.5c3.5-1.5 6-1 6-1s.5 2.5-1 6c-1.2 2.8-4 5.6-6.4 7.1L9 13.9C10.5 11.5 10.7 8 13.5 4.5Z"/><circle cx="14.5" cy="9.5" r="1.4"/></svg>
                         MANIFEST
@@ -492,6 +516,7 @@
                     <div id="chart"></div>
                     <canvas id="draw"></canvas>
                     <div class="pump-pop" id="pumpPop"><img src="pumpurshit.png?v=1" alt="alon if you dont pump ur shit ill call my mom"></div>
+                    <div id="stick"><i></i><b>DRAG TO RUN</b></div>
                 </div>
 
                 <div class="strip">
@@ -1518,6 +1543,49 @@
         let tx = 0, ty = 0;           // where he wants to be
         let frame = 0, lastMove = 0, flip = false, touching = false, shown = false, enabled = true;
 
+        // ---- run mode: his feet are pinned to the close-to-close line and you drive him ----
+        let running = false, runX = null, hopY = 0, hopV = 0, stickX = 0, lastT = 0;
+        const held = { left: false, right: false };
+        const RUN_SPEED = 210, GRAV = 1700, HOP_V = -540;
+
+        // rebuilding this every frame would be ~200 timeToCoordinate calls at 60fps, so cache it.
+        // only the visible slice matters — the chart can hold 1500 rows.
+        let surf = [], surfAt = 0;
+        function surface() {
+            const now = performance.now();
+            if (surf.length && now - surfAt < 110) return surf;
+            surfAt = now;
+            surf = [];
+            if (!chart || !candleS) return surf;
+            const rows = displayRows();
+            if (!rows.length) return surf;
+            const ts = chart.timeScale();
+            const r = ts.getVisibleLogicalRange();
+            let a = 0, b = rows.length - 1;
+            if (r) { a = Math.max(0, Math.floor(r.from) - 1); b = Math.min(b, Math.ceil(r.to) + 1); }
+            const mult = supply || 1;
+            for (let i = a; i <= b; i++) {
+                const x = ts.timeToCoordinate(rows[i].time);
+                if (x == null) continue;
+                const y = candleS.priceToCoordinate(rows[i].close * mult);
+                if (y == null) continue;
+                surf.push({ x, y });
+            }
+            return surf;
+        }
+
+        // walk the polyline between candle closes so he tracks the slope instead of stair-stepping
+        function surfaceY(pts, x) {
+            if (x <= pts[0].x) return pts[0].y;
+            if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+            let lo = 0, hi = pts.length - 1;
+            while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m].x <= x) lo = m; else hi = m; }
+            const p = pts[lo], q = pts[hi];
+            return p.y + (q.y - p.y) * ((x - p.x) / Math.max(q.x - p.x, 1e-4));
+        }
+
+        function hop() { if (running && hopY === 0) hopV = HOP_V; }
+
         // the live end of the chart, in page coordinates
         function priceLine() {
             if (!chart || !candleS) return null;
@@ -1538,7 +1606,7 @@
             el.style.display = v ? 'block' : 'none';
         }
         function follow(x, y) {
-            if (drawing || !enabled) return;      // level tool wants the bare crosshair
+            if (drawing || !enabled || running) return;   // level tool wants the bare crosshair
             if (Math.abs(x - tx) > 1.5) flip = x < tx;
             tx = x; ty = y; lastMove = performance.now();
             mode = 'follow';
@@ -1564,6 +1632,45 @@
         stage.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') park(); });
         document.getElementById('drawBtn').addEventListener('click', () => { if (drawing) park(); });
 
+        // ---- controls: arrows on desktop, thumbstick on touch ----
+        function key(e, down) {
+            if (!running) return;                 // don't eat arrow keys when run mode is off
+            const k = e.key;
+            if (k === 'ArrowLeft')  { held.left = down; }
+            else if (k === 'ArrowRight') { held.right = down; }
+            else if (k === 'ArrowUp' || k === ' ') { if (down) hop(); }
+            else return;
+            e.preventDefault();
+        }
+        window.addEventListener('keydown', e => key(e, true));
+        window.addEventListener('keyup', e => key(e, false));
+        window.addEventListener('blur', () => { held.left = held.right = false; });
+
+        (function thumbstick() {
+            const pad = document.getElementById('stick'), knob = pad.querySelector('i');
+            const R = 30;
+            let id = null;
+            function set(dx, dy) {
+                const d = Math.hypot(dx, dy) || 1, s = Math.min(d, R) / d;
+                knob.style.transform = `translate(${dx * s}px, ${dy * s}px)`;
+                stickX = Math.max(-1, Math.min(1, dx / R));
+                if (dy < -R * 0.7) hop();
+            }
+            function reset() { id = null; stickX = 0; knob.style.transform = ''; }
+            pad.addEventListener('pointerdown', e => {
+                id = e.pointerId; pad.setPointerCapture(id);
+                const r = pad.getBoundingClientRect();
+                set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+                e.preventDefault();
+            });
+            pad.addEventListener('pointermove', e => {
+                if (e.pointerId !== id) return;
+                const r = pad.getBoundingClientRect();
+                set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+            });
+            for (const ev of ['pointerup', 'pointercancel']) pad.addEventListener(ev, reset);
+        })();
+
         (function frameLoop() {
             // he keeps running while parked (the price line is alive) and while you're moving
             const busy = mode === 'park' || performance.now() - lastMove < 140;
@@ -1575,6 +1682,31 @@
         (function move() {
             requestAnimationFrame(move);
             if (!enabled) { show(false); stage.classList.remove('alon-cur'); return; }
+
+            if (running) {
+                const pts = surface();
+                if (!pts.length) { show(false); return; }
+                const now = performance.now();
+                const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+
+                const dir = Math.max(-1, Math.min(1, (held.right ? 1 : 0) - (held.left ? 1 : 0) + stickX));
+                if (runX === null) runX = pts[pts.length - 1].x;
+                if (dir) { runX += dir * RUN_SPEED * dt; flip = dir < 0; lastMove = now; }
+                runX = Math.max(pts[0].x, Math.min(pts[pts.length - 1].x, runX));
+
+                if (hopV || hopY) {
+                    hopY += hopV * dt; hopV += GRAV * dt;
+                    if (hopY >= 0) { hopY = 0; hopV = 0; }
+                }
+
+                const box = document.getElementById('chart').getBoundingClientRect();
+                const w = el.offsetWidth || 54, h = el.offsetHeight || 54;
+                show(true);
+                el.style.transform = `translate(${box.left + runX - w / 2}px, ` +
+                                     `${box.top + surfaceY(pts, runX) + hopY - h}px) scaleX(${flip ? -1 : 1})`;
+                return;
+            }
+
             let goal;
             if (mode === 'follow') goal = { x: tx, y: ty };
             else {
@@ -1594,10 +1726,18 @@
 
         return {
             park,
+            isRunning: () => running,
             enable(v) {
                 enabled = v;
                 if (!v) { show(false); stage.classList.remove('alon-cur'); park(); }
                 else { px = py = null; }          // reappear at the price line, no fly-in from nowhere
+            },
+            run(v) {
+                running = v;
+                document.getElementById('stick').classList.toggle('show', v);
+                held.left = held.right = false; stickX = 0; hopY = 0; hopV = 0;
+                if (v) { mode = 'run'; runX = null; lastT = performance.now(); surf = []; stage.classList.remove('alon-cur'); }
+                else { mode = 'park'; px = py = null; }
             },
         };
     })();
@@ -1677,7 +1817,8 @@
         set(open);
     })();
 
-    // ===== alon on/off =====
+    // ===== alon on/off, and run mode =====
+    let setAlonOn = null, setRunOn = null;
     (function alonSwitch() {
         const btn = document.getElementById('alonToggle');
         let on = true;
@@ -1688,10 +1829,32 @@
             btn.querySelector('.alon-state').textContent = v ? 'ON' : 'OFF';
             btn.title = v ? 'alon is running the chart — click to turn him off' : 'alon is off — click to bring him back';
             alon.enable(v);
+            if (!v && setRunOn) setRunOn(false);   // no alon, nothing to drive
             try { localStorage.setItem('alonChart', v ? 'on' : 'off'); } catch (e) {}
         }
+        setAlonOn = set;
         btn.addEventListener('click', () => set(!on));
         set(on);
+    })();
+
+    (function runSwitch() {
+        const btn = document.getElementById('runToggle');
+        let on = false;
+        function set(v) {
+            if (v === on) return;
+            on = v;
+            btn.classList.toggle('on', v);
+            btn.querySelector('.alon-state').textContent = v ? 'ON' : 'OFF';
+            btn.title = v ? 'run mode on — arrows to run, up to jump' : 'run mode — arrow keys move alon along the chart';
+            if (v && setAlonOn) setAlonOn(true);   // you can't drive him if he isn't there
+            alon.run(v);
+            try { localStorage.setItem('alonRun', v ? 'on' : 'off'); } catch (e) {}
+        }
+        setRunOn = set;
+        btn.addEventListener('click', () => set(!on));
+        let want = false;
+        try { want = localStorage.getItem('alonRun') === 'on'; } catch (e) {}
+        if (want) set(true);
     })();
 
     // shill rotator
