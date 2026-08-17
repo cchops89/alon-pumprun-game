@@ -246,17 +246,17 @@
         /* the mom threat, slammed over the chart on the way into a pump */
         .pump-pop { position:absolute; inset:0; z-index:9; display:none; pointer-events:none;
                     align-items:center; justify-content:center; background:rgba(6,10,10,0.55); }
-        .pump-pop.show { display:flex; animation:popVeil 1.9s ease-out forwards; }
+        .pump-pop.show { display:flex; animation:popVeil 1.4s ease-out forwards; }
         .pump-pop img { width:min(90%,720px); border-radius:10px; border:2px solid #fbbf24;
                         box-shadow:0 0 70px rgba(251,191,36,0.6);
-                        animation:popSlam 1.9s cubic-bezier(.18,1.5,.4,1) forwards; }
-        @keyframes popVeil { 0%{opacity:0} 8%,72%{opacity:1} 100%{opacity:0} }
+                        animation:popSlam 1.4s cubic-bezier(.18,1.5,.4,1) forwards; }
+        @keyframes popVeil { 0%{opacity:0} 10%,66%{opacity:1} 100%{opacity:0} }
         @keyframes popSlam {
             0%   { transform:scale(.25) rotate(-9deg); opacity:0; }
-            13%  { transform:scale(1.12) rotate(2.5deg); opacity:1; }
-            21%  { transform:scale(.98) rotate(-1.5deg); }
-            30%  { transform:scale(1) rotate(0deg); }
-            72%  { transform:scale(1) rotate(0deg); opacity:1; }
+            16%  { transform:scale(1.12) rotate(2.5deg); opacity:1; }
+            26%  { transform:scale(.98) rotate(-1.5deg); }
+            36%  { transform:scale(1) rotate(0deg); }
+            66%  { transform:scale(1) rotate(0deg); opacity:1; }
             100% { transform:scale(1.55) rotate(0deg); opacity:0; }
         }
 
@@ -776,6 +776,7 @@
     let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
     let candTick = 0, launchLeft = 0;
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
+    const POP_MS = 1400;   // must match the .pump-pop animation duration in CSS
     const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
 
     // real tape comes in flurries and lulls, not on a metronome — so weight it toward fast ticks
@@ -1604,12 +1605,12 @@
         });
     })();
 
-    // the image lands first, the candles start ripping behind it, then it clears
+    // the image plays out in full and clears — only then do the candles start
     function pumpPop() {
         const el = document.getElementById('pumpPop');
         el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
         clearTimeout(popTimer);
-        popTimer = setTimeout(() => el.classList.remove('show'), 1900);
+        popTimer = setTimeout(() => el.classList.remove('show'), POP_MS);
     }
 
     document.getElementById('boostBtn').addEventListener('click', () => {
@@ -1618,7 +1619,7 @@
         if (popArming) return;                 // don't stack pops on a double-click
         popArming = true;
         pumpPop();
-        setTimeout(() => { popArming = false; setBoost(true); btn.title = 'back to real volume'; }, 520);
+        setTimeout(() => { popArming = false; setBoost(true); btn.title = 'back to real volume'; }, POP_MS + 150);
     });
 
     // ===== market-cap axis: linear or logarithmic =====
