@@ -964,9 +964,21 @@
                `<span class="m-val">${label ? label + ' ' : ''}${value}</span>${arrow}</span>`;
     }
 
+    // what the page shows — the real token, or the $1B fantasy while MANIFEST is lit
+    function shown() {
+        if (!manifesting || !tok || !tok.mcap) return tok;
+        const target = 1e9;
+        const mult = target / tok.mcap;
+        return Object.assign({}, tok, {
+            mcap: target, fdv: target,
+            price: tok.price * mult,
+            h24: (mult - 1) * 100,
+        });
+    }
+
     function renderMarquee() {
         if (!tok) return;
-        const p = tok;
+        const p = shown();
         const items = [
             marqueeItem('#1', '', fmtMC(p.mcap), p.h24),
             marqueeItem('#2', 'also', fmtMC(p.mcap), p.h24),
@@ -989,7 +1001,7 @@
     }
 
     function renderCoin() {
-        const p = tok; if (!p) return;
+        const p = shown(); if (!p) return;
         setTxt('headMc', fmtMC(p.mcap));
         setTxt('headChg', `${p.h24 >= 0 ? '▲' : '▼'} ${Math.abs(p.h24).toFixed(1)}% 24h`, 'c ' + cls(p.h24));
 
@@ -1328,10 +1340,12 @@
             manifesting = !manifesting;
             btn.classList.toggle('on', manifesting);
             btn.title = manifesting ? 'back to reality' : 'manifest $1B';
+            renderCoin(); renderMarquee();
             if (!chart) return;
             const rows = displayRows();
             if (!rows.length) return;
             applySeries(rows);
+            renderCoin(); renderMarquee();
             if (manifesting) chart.timeScale().fitContent();
             else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
         });
