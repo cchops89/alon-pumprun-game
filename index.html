@@ -969,10 +969,18 @@
         if (!manifesting || !tok || !tok.mcap) return tok;
         const target = 1e9;
         const mult = target / tok.mcap;
+        // liquidity and volume don't scale 1:1 with market cap — big caps run a thinner ratio.
+        // damping the multiplier lands ~3-4% of mcap in liquidity, which is the right ballpark
+        // for a billion-dollar memecoin.
+        const deep = Math.pow(mult, 0.85);
         return Object.assign({}, tok, {
             mcap: target, fdv: target,
             price: tok.price * mult,
             h24: (mult - 1) * 100,
+            liquidity: tok.liquidity * deep,
+            volume: tok.volume * deep,
+            buyVol: tok.buyVol * deep,
+            sellVol: tok.sellVol * deep,
         });
     }
 
