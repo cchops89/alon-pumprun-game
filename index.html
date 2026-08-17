@@ -799,7 +799,7 @@
     let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
     let boostVolUnit = 0, boostTick = 0, lastTxs = [];
     let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
-    let candTick = 0, launchLeft = 0;
+    let candTick = 0, launchLeft = 0, rowsStamp = 0;
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
     const POP_MS = 1400;   // must match the .pump-pop animation duration in CSS
     const PUMP_SECONDS = 60, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
@@ -1095,6 +1095,7 @@
     }
 
     function applySeries(rows) {
+        rowsStamp++;              // single funnel for "the chart data changed" — run mode caches off it
         const mult = supply || 1;
         const mc = rows.map(c => ({
             time: c.time, open: c.open*mult, high: c.high*mult, low: c.low*mult, close: c.close*mult,
@@ -1546,23 +1547,45 @@
         // ---- run mode: his feet are pinned to the close-to-close line and you drive him ----
         let running = false, runX = null, hopY = 0, hopV = 0, stickX = 0, lastT = 0;
         const held = { left: false, right: false };
-        const RUN_SPEED = 210, GRAV = 1700, HOP_V = -540;
+        const RUN_SPEED = 210, GRAV = 1700, HOP_V = -540, EDGE = 95;
 
         // rebuilding this every frame would be ~200 timeToCoordinate calls at 60fps, so cache it.
         // only the visible slice matters — the chart can hold 1500 rows.
-        let surf = [], surfAt = 0;
+        let surf = [], surfAt = 0, surfMeta = { n: 0, from: 0, to: 0 };
+
+        // rows change rarely, coordinates change on every pan — so cache them separately.
+        // displayRows() runs aggregate() over the full history on 4H/1D; doing that per frame
+        // while edge-panning cost ~35fps.
+        let srcRows = null, srcStamp = -1, srcTf = '';
+        function runRows() {
+            if (srcStamp !== rowsStamp || srcTf !== tf) {
+                srcStamp = rowsStamp; srcTf = tf; srcRows = displayRows();
+            }
+            return srcRows;
+        }
+
         function surface() {
             const now = performance.now();
             if (surf.length && now - surfAt < 110) return surf;
             surfAt = now;
             surf = [];
             if (!chart || !candleS) return surf;
-            const rows = displayRows();
+            const rows = runRows();
             if (!rows.length) return surf;
             const ts = chart.timeScale();
             const r = ts.getVisibleLogicalRange();
             let a = 0, b = rows.length - 1;
             if (r) { a = Math.max(0, Math.floor(r.from) - 1); b = Math.min(b, Math.ceil(r.to) + 1); }
+            // he only needs the ground under his feet — a window beats mapping every visible bar
+            if (runX !== null && b - a > 80) {
+                const li = ts.coordinateToLogical(runX);
+                if (li != null) {
+                    const c = Math.round(li);
+                    a = Math.max(0, Math.max(a, c - 40));
+                    b = Math.min(rows.length - 1, Math.min(b, c + 40));
+                }
+            }
+            surfMeta = { n: rows.length, a, b };
             const mult = supply || 1;
             for (let i = a; i <= b; i++) {
                 const x = ts.timeToCoordinate(rows[i].time);
@@ -1572,6 +1595,24 @@
                 surf.push({ x, y });
             }
             return surf;
+        }
+
+        // running into the edge pans the chart instead of stopping him — and panning left trips
+        // the same `from < 12` subscription that already lazy-loads older candles, so the history
+        // populates as he goes.
+        function panBy(dxPx, width) {
+            const ts = chart.timeScale(), r = ts.getVisibleLogicalRange();
+            if (!r || width <= 0) return false;
+            const perPx = (r.to - r.from) / width;
+            if (dxPx < 0 && r.from < -20) return false;                  // already past the oldest bar
+            if (dxPx > 0 && r.to > surfMeta.n + 6) return false;         // already past the newest
+            const from = r.from + dxPx * perPx;
+            ts.setVisibleLogicalRange({ from, to: r.to + dxPx * perPx });
+            // ask for older candles ourselves rather than trusting the range subscription to fire
+            // on a programmatic scroll — that's what left him walking into a wall at the edge
+            if (from < 24) loadMore();
+            surfAt = 0;                        // coords just moved — don't ride a stale surface
+            return true;
         }
 
         // walk the polyline between candle closes so he tracks the slope instead of stair-stepping
@@ -1689,17 +1730,25 @@
                 const now = performance.now();
                 const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
 
+                const box = document.getElementById('chart').getBoundingClientRect();
                 const dir = Math.max(-1, Math.min(1, (held.right ? 1 : 0) - (held.left ? 1 : 0) + stickX));
                 if (runX === null) runX = pts[pts.length - 1].x;
-                if (dir) { runX += dir * RUN_SPEED * dt; flip = dir < 0; lastMove = now; }
-                runX = Math.max(pts[0].x, Math.min(pts[pts.length - 1].x, runX));
+                if (dir) {
+                    runX += dir * RUN_SPEED * dt; flip = dir < 0; lastMove = now;
+                    // hand the overshoot to the chart: he holds station at the edge and it pans
+                    if (runX < EDGE && panBy(runX - EDGE, box.width)) runX = EDGE;
+                    else if (runX > box.width - EDGE && panBy(runX - (box.width - EDGE), box.width)) runX = box.width - EDGE;
+                }
+                // only fence him in at the true ends of the data — mid-history the window is a
+                // slice, and clamping to a slice edge is exactly the wall we're removing
+                if (surfMeta.a === 0) runX = Math.max(pts[0].x, runX);
+                if (surfMeta.b === surfMeta.n - 1) runX = Math.min(pts[pts.length - 1].x, runX);
 
                 if (hopV || hopY) {
                     hopY += hopV * dt; hopV += GRAV * dt;
                     if (hopY >= 0) { hopY = 0; hopV = 0; }
                 }
 
-                const box = document.getElementById('chart').getBoundingClientRect();
                 const w = el.offsetWidth || 54, h = el.offsetHeight || 54;
                 show(true);
                 el.style.transform = `translate(${box.left + runX - w / 2}px, ` +
