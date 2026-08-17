@@ -774,15 +774,15 @@
     let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
     let boostVolUnit = 0, boostTick = 0, lastTxs = [];
     let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
-    let candTick = 0;
-    const BOOST_MAX_CANDLES = 400;
+    let candTick = 0, launchLeft = 0;
+    const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
     const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
 
     // real tape comes in flurries and lulls, not on a metronome — so weight it toward fast ticks
     // with the occasional stall. 2s is the hard ceiling.
     function nextDelay() {
         const r = Math.random();
-        if (r < 0.12) return 850 + Math.random() * 1050;   // ceiling 1.9s — timers fire late, keep it under 2
+        if (r < 0.12) return 780 + Math.random() * 370;    // ceiling 1.15s — timers fire late, keep it under 1.2
         if (r < 0.35) return 420 + Math.random() * 480;
         return 80 + Math.random() * 340;
     }
@@ -796,6 +796,13 @@
         if (redActive) return Math.random() < 0.45
             ? { mode: 'crash', amp: 1 + Math.random() * 1.3, len }
             : { mode: 'red',   amp: 1, len };
+        // the recurring mega spike is proportional, not a fixed dollar jump — +$10M is a rocket at
+        // $3M and invisible at $800M, and this thing is at $800M inside two minutes
+        if (--launchLeft <= 0) {
+            launchLeft = LAUNCH_EVERY;
+            return { mode: 'launch', amp: 5, len: 5 + Math.floor(Math.random() * 3),
+                     mult: 1.6 + Math.random() * 0.9 };
+        }
         const r = Math.random();
         if (r < 0.10) return { mode: 'god',      amp: 3.0 + Math.random() * 3.5, len };
         if (r < 0.20) return { mode: 'wickup',   amp: 2.2 + Math.random() * 2.6, len };
@@ -839,7 +846,14 @@
             boostVolUnit = Math.max(Math.max(...tail, 0), 1) * 1.6;
             boostRows.push({ time: lastReal.time + step, open: lastReal.close, high: lastReal.close,
                              low: lastReal.close, close: lastReal.close, volume: 0 });
-            boostTick = 0; candTick = 0; redActive = false; redLeft = nextRedGap(); cand = null;
+            boostTick = 0; candTick = 0; redActive = false; redLeft = nextRedGap();
+            launchLeft = LAUNCH_EVERY;
+            // the opening candle is an absolute +$8–13M on the market cap, not a percentage —
+            // it's the one spike whose size the viewer can actually read off the strip
+            const bump = supply ? (8e6 + Math.random() * 5e6) / supply : 0;
+            cand = bump
+                ? { mode: 'launch', amp: 5, len: 5 + Math.floor(Math.random() * 3), target: lastReal.close + bump }
+                : { mode: 'god', amp: 6, len: 6 };
         }
 
         let cur = boostRows[boostRows.length - 1];
@@ -851,6 +865,14 @@
 
         let d;
         switch (cand.mode) {
+            case 'launch': {
+                // drive the body at a known destination instead of accumulating random ticks —
+                // that's the only way a spike lands on a size you asked for
+                const tgt = cand.target || cur.open * cand.mult;
+                const want = cur.open + (tgt - cur.open) * Math.pow(k / cand.len, 0.7);
+                d = Math.max(want / cur.close - 1, 0.002);
+                break;
+            }
             case 'god':      d =  B * A * (0.7 + Math.random() * 0.8); break;
             case 'wickup':   d =  k <= half ?  B * A * (0.8 + Math.random() * 0.6)
                                             : -B * A * (0.55 + Math.random() * 0.5); break;
@@ -929,7 +951,7 @@
         if (on) {
             boostRows = []; boostTxs = [];
             boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0; candTick = 0;
-            redActive = false; redLeft = nextRedGap(); cand = null;
+            redActive = false; redLeft = nextRedGap(); cand = null; launchLeft = LAUNCH_EVERY;
             boostLoop();
         } else {
             boostRows = []; boostTxs = [];
