@@ -845,6 +845,7 @@
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
     const POP_MS = 1400, HINT_MS = 2300;   // must match the .pump-pop animation duration in CSS
     const PUMP_SECONDS = 60, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
+    const MAX_TICK_DROP = 0.22, MAX_CANDLE_DROP = 0.5;
     let boostT0 = 0;
 
     // Closed loop, not a tuned constant: every tick asks "how much per-tick growth is left to
@@ -852,11 +853,16 @@
     // That's what makes the 60s hold no matter what the coin opened at — and it self-corrects,
     // so a crash candle just means the climb after it runs hotter.
     function paceDrift(close) {
-        if (!supply || !close) return 0.011;
+        if (!supply || !(close > 0) || !isFinite(close)) return 0.011;
         const elapsed = (performance.now() - boostT0) / 1000;
         const remain = Math.max(PUMP_SECONDS - elapsed, 6);      // never divide by ~0 at the buzzer
         const need = Math.log((PUMP_TARGET_MC / supply) / close);
-        return Math.max(need / Math.max(remain / AVG_TICK_S, 1), 0.002);
+        // measure the tick rate rather than assume it — a throttled tab or a slow phone ticks
+        // slower than AVG_TICK_S, and budgeting for ticks that never happen undershoots badly
+        const rate = (elapsed > 3 && boostTick > 4) ? boostTick / elapsed : 1 / AVG_TICK_S;
+        // the cap matters: B is derived from how far BEHIND we are, so without it a dump feeds
+        // itself a bigger B, which feeds a bigger dump. that loop is what zeroed the price out.
+        return Math.min(Math.max(need / Math.max(remain * rate, 1), 0.002), 0.30);
     }
     const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
 
@@ -875,9 +881,11 @@
     function rollCandle() {
         const len = 4 + Math.floor(Math.random() * 6);   // 4–9 ticks, so candles aren't uniform either
         candTick = 0;
+        // a dump is driven at a depth chosen up front — bounded by construction, and crucially
+        // independent of the pace drift, so it can't spiral
         if (redActive) return Math.random() < 0.45
-            ? { mode: 'crash', amp: 1 + Math.random() * 1.3, len }
-            : { mode: 'red',   amp: 1, len };
+            ? { mode: 'crash', amp: 1 + Math.random() * 1.3, len, drop: 0.24 + Math.random() * 0.26 }
+            : { mode: 'red',   amp: 1, len, drop: 0.05 + Math.random() * 0.12 };
         // the recurring mega spike is proportional, not a fixed dollar jump — +$10M is a rocket at
         // $3M and invisible at $800M, and this thing is at $800M inside two minutes
         if (--launchLeft <= 0) {
@@ -960,14 +968,23 @@
                                             : -B * A * (0.55 + Math.random() * 0.5); break;
             case 'wickdown': d =  k <= half ? -B * A * (0.8 + Math.random() * 0.6)
                                             :  B * A * (0.7 + Math.random() * 0.6); break;
-            // the dumps scale off the same drift, so drama stays proportional as the run accelerates
-            case 'crash':    d = -(0.55 + Math.random() * 1.15) * B * A; break;
-            case 'red':      d = -(0.30 + Math.random() * 0.95) * B; break;
+            // dumps are driven at a depth rolled at birth, NOT off B — see rollCandle
+            case 'crash':
+            case 'red': {
+                const bottom = cur.open * (1 - cand.drop);
+                const want = cur.open + (bottom - cur.open) * Math.pow(k / cand.len, 0.7);
+                d = want / cur.close - 1;
+                break;
+            }
             // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
             default:         d = B + (Math.random() - 0.42) * B * (1.1 + Math.random() * 1.8) * A;
         }
 
+        if (d < -MAX_TICK_DROP) d = -MAX_TICK_DROP;      // no single tick can gut the price
         let close = cur.close * (1 + d);
+        // 50% off the open is the floor for any candle — drops are capped, spikes are not
+        close = Math.max(close, cur.open * (1 - MAX_CANDLE_DROP));
+        if (!isFinite(close) || close <= 0) close = cur.open;
         const lastTick = k >= cand.len;
         const sealed = lastTick && boostRows.length < BOOST_MAX_CANDLES;
         // the ratchet binds the CLOSE, not the path — so a wick is free to pierce the floor and
