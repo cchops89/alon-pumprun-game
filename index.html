@@ -227,6 +227,37 @@
                    font-family:var(--mono); font-size:9px; letter-spacing:0.6px; color:#7dd3fc; opacity:.8; }
         @media (pointer:coarse) { #stick.show { display:block; } }
 
+        /* onboarding card — most people never guessed the arrows do anything */
+        .run-hint { position:absolute; inset:0; z-index:10; display:none; pointer-events:none;
+                    align-items:center; justify-content:center; background:rgba(6,10,10,0.42); }
+        .run-hint.show { display:flex; animation:hintVeil 2.3s ease-out forwards; }
+        .run-hint .card { display:flex; flex-direction:column; align-items:center; gap:11px;
+                          padding:20px 30px; border-radius:14px; background:rgba(13,20,21,0.95);
+                          border:1.5px solid #38bdf8; box-shadow:0 0 44px rgba(56,189,248,0.45);
+                          animation:hintPop 2.3s cubic-bezier(.2,1.5,.4,1) forwards; }
+        .run-hint .keys { display:flex; align-items:flex-end; gap:8px; }
+        .run-hint .kcol { display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .run-hint kbd { width:40px; height:40px; display:grid; place-items:center; border-radius:9px;
+                        background:#182225; border:1.5px solid #38bdf8; border-bottom-width:3.5px;
+                        color:#7dd3fc; font-size:19px; line-height:1; font-family:var(--mono); }
+        .run-hint kbd.tap { animation:hintTap 0.62s ease-in-out infinite; }
+        .run-hint kbd.tap:nth-of-type(2) { animation-delay:.31s; }
+        .run-hint .cap { font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:1.1px;
+                         color:var(--dimmer); text-transform:uppercase; }
+        .run-hint .lede { font-family:var(--mono); font-size:12.5px; font-weight:800; letter-spacing:.8px;
+                          color:#e6f6ff; }
+        .run-hint .touch-only { display:none; }
+        @media (pointer:coarse) { .run-hint .key-only { display:none; } .run-hint .touch-only { display:block; } }
+        @keyframes hintVeil { 0%{opacity:0} 9%,70%{opacity:1} 100%{opacity:0} }
+        @keyframes hintPop {
+            0%   { transform:scale(.7) translateY(14px); opacity:0; }
+            12%  { transform:scale(1.04) translateY(0); opacity:1; }
+            20%  { transform:scale(1); }
+            70%  { transform:scale(1); opacity:1; }
+            100% { transform:scale(1.12); opacity:0; }
+        }
+        @keyframes hintTap { 50% { transform:translateY(-5px); background:#38bdf8; color:#06212e; } }
+
         .manifest { display:flex; align-items:center; gap:6px; padding:5px 11px; border-radius:8px;
                     background:var(--panel2); border:1px solid var(--line2); cursor:pointer;
                     font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
@@ -517,6 +548,17 @@
                     <canvas id="draw"></canvas>
                     <div class="pump-pop" id="pumpPop"><img src="pumpurshit.png?v=1" alt="alon if you dont pump ur shit ill call my mom"></div>
                     <div id="stick"><i></i><b>DRAG TO RUN</b></div>
+                    <div class="run-hint" id="runHint"><div class="card">
+                        <div class="lede key-only">ALON RUNS THE CHART</div>
+                        <div class="lede touch-only">ALON RUNS THE CHART</div>
+                        <div class="keys key-only">
+                            <div class="kcol"><kbd>&#8593;</kbd><span class="cap">jump</span></div>
+                            <div class="kcol"><div style="display:flex;gap:8px"><kbd class="tap">&#8592;</kbd><kbd class="tap">&#8594;</kbd></div><span class="cap">run</span></div>
+                        </div>
+                        <div class="keys touch-only">
+                            <div class="kcol"><kbd>&#9678;</kbd><span class="cap">drag the stick to run</span></div>
+                        </div>
+                    </div></div>
                 </div>
 
                 <div class="strip">
@@ -801,7 +843,7 @@
     let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
     let candTick = 0, launchLeft = 0, rowsStamp = 0;
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
-    const POP_MS = 1400;   // must match the .pump-pop animation duration in CSS
+    const POP_MS = 1400, HINT_MS = 2300;   // must match the .pump-pop animation duration in CSS
     const PUMP_SECONDS = 60, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
     let boostT0 = 0;
 
@@ -1810,6 +1852,15 @@
         });
     })();
 
+    // same slam-and-clear as the meme, but it teaches the controls instead
+    let hintTimer = null;
+    function runHint() {
+        const el = document.getElementById('runHint');
+        el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => el.classList.remove('show'), HINT_MS);
+    }
+
     // the image plays out in full and clears — only then do the candles start
     function pumpPop() {
         const el = document.getElementById('pumpPop');
@@ -1897,6 +1948,7 @@
             btn.title = v ? 'run mode on — arrows to run, up to jump' : 'run mode — arrow keys move alon along the chart';
             if (v && setAlonOn) setAlonOn(true);   // you can't drive him if he isn't there
             alon.run(v);
+            if (v) runHint();
             try { localStorage.setItem('alonRun', v ? 'on' : 'off'); } catch (e) {}
         }
         setRunOn = set;
