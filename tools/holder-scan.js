@@ -236,6 +236,30 @@ async function lastActivity(accounts, prior) {
   }
   ages.sort((a, b) => a - b);
   agg.medianDays = ages.length ? Math.round(ages[Math.floor(ages.length / 2)]) : 0;
+
+  // dust check. most "holders" of a memecoin own cents, and a wallet-count metric quietly
+  // becomes a measure of abandonment rather than conviction — the median bag here is under a
+  // dollar. so also report the cohort that actually owns something.
+  let px = 0, mcap = 0;
+  try {
+    const j = await (await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${CA}`)).json();
+    const t = (Array.isArray(j) ? j : []).find(x => x.id === CA) || j[0];
+    px = (t && t.usdPrice) || 0;
+    mcap = (t && (t.mcap || t.fdv)) || 0;   // take it from the source rather than deriving it
+  } catch (e) { console.error('  (price unavailable — dust metrics skipped)'); }
+  const real = held.filter(h => h.amount * px >= 100 && (state.wallets[h.account] || {}).lastActive);
+  const realAges = real.map(h => (now - state.wallets[h.account].lastActive) / DAY).sort((a, b) => a - b);
+  agg.real = {
+    threshold: 100,
+    wallets: real.length,
+    supplyPct: +(real.reduce((a, h) => a + h.amount, 0) / Math.max(agg.supplyTracked, 1) * 100).toFixed(1),
+    medianDays: realAges.length ? Math.round(realAges[Math.floor(realAges.length / 2)]) : 0,
+  };
+  const vals = held.map(h => h.amount * px).sort((a, b) => a - b);
+  agg.medianUsd = vals.length ? +vals[Math.floor(vals.length / 2)].toFixed(2) : 0;
+  agg.mcap = mcap;
+  // holders per $1m of cap — the number that makes 17.9k at a $3.3m cap legible as unusual
+  agg.holdersPerM = agg.mcap ? Math.round(agg.holders / (agg.mcap / 1e6)) : 0;
   fs.writeFileSync(path.join(__dirname, '..', 'conviction.json'), JSON.stringify(agg, null, 2));
 
   // one tiny row per day — this is the file that becomes the trend graph, and the only
