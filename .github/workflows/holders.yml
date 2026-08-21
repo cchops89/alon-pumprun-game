@@ -1,0 +1,61 @@
+name: holder conviction scan
+
+on:
+  schedule:
+    - cron: '0 6 * * *'        # 06:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'full signature re-seed (~18k credits, ~30 min) instead of the cheap daily diff'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:                    # a slow seed must never overlap the next night's run
+  group: holder-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: restore wallet state
+        run: |
+          if [ -f holders/state.json.gz ]; then
+            gunzip -kf holders/state.json.gz
+            echo "restored $(wc -c < holders/state.json) bytes of state"
+          else
+            echo "no prior state — this run will seed"
+            echo "FORCE_SEED=1" >> $GITHUB_ENV
+          fi
+
+      - name: scan
+        env:
+          HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+        run: |
+          if [ "${{ inputs.seed }}" = "true" ] || [ "$FORCE_SEED" = "1" ]; then
+            node tools/holder-scan.js --seed
+          else
+            node tools/holder-scan.js
+          fi
+
+      - name: compress state
+        run: gzip -9f holders/state.json
+
+      - name: commit
+        run: |
+          git config user.name  "holder-scan"
+          git config user.email "actions@github.com"
+          git add conviction.json holders/state.json.gz holders/history.json 2>/dev/null || true
+          git diff --cached --quiet && echo "nothing changed" && exit 0
+          git commit -m "holder scan $(date -u +%Y-%m-%d)"
+          git push
