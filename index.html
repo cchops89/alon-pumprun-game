@@ -287,9 +287,9 @@
         .chart-status { font-family:var(--mono); font-size:10.5px; color:var(--dimmer); padding-right:3px; }
 
         /* ===== holder conviction ===== */
-        .conv-band { max-width:1920px; margin:0 auto; padding:10px clamp(8px,1.4vw,14px) 0; }
-        .conv-head { display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-        .conv-head h3 { font-size:12.5px; font-weight:800; letter-spacing:.5px; color:var(--txt); }
+        .conv-band { max-width:1920px; margin:0 auto; padding:8px clamp(8px,1.4vw,14px) 0; }
+        .conv-head { display:flex; align-items:center; gap:9px; padding:6px 13px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+        .conv-head h3 { font-size:11.5px; font-weight:800; letter-spacing:.5px; color:var(--txt); }
         .conv-head .live { display:flex; align-items:center; gap:5px; margin-left:auto;
                            font-family:var(--mono); font-size:9.5px; color:var(--dimmer); }
         .conv-head .live i { width:5px; height:5px; border-radius:50%; background:var(--green);
@@ -299,33 +299,34 @@
         .conv-col { border-right:1px solid var(--line); min-width:0; }
         .conv-col:last-child { border-right:none; }
         .conv-colA { display:grid; place-items:center; }
-        .conv-hero { padding:16px 14px; text-align:center; }
-        .conv-hero .big { font-family:var(--mono); font-size:38px; font-weight:800; color:var(--green);
+        .conv-hero { padding:8px 12px; text-align:center; }
+        .conv-hero .big { font-family:var(--mono); font-size:29px; font-weight:800; color:var(--green);
                           line-height:1; letter-spacing:-1.5px; text-shadow:0 0 26px rgba(74,222,128,.35); }
-        .conv-hero .sub { margin-top:8px; font-size:11px; color:var(--dim); line-height:1.5; }
+        .conv-hero .sub { margin-top:4px; font-size:10px; color:var(--dim); line-height:1.35; }
 
         /* plain-english takeaways, one per line */
-        .conv-lines { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
-        .conv-lines p { font-size:12px; color:var(--dim); line-height:1.45; }
-        .conv-lines p b { color:var(--txt); font-family:var(--mono); font-weight:800; font-size:13px; }
+        .conv-lines { padding:8px 13px; display:flex; flex-direction:column; gap:5px; }
+        .conv-lines p { font-size:11.5px; color:var(--dim); line-height:1.45; }
+        .conv-lines p b { color:var(--txt); font-family:var(--mono); font-weight:800; font-size:12px; }
         .conv-lines p b.g { color:var(--green); }
 
         /* how long since each wallet last moved */
-        .conv-sect { padding:9px 14px 2px; font-family:var(--mono); font-size:8.5px; font-weight:700;
+        .conv-sect { padding:6px 13px 1px; font-family:var(--mono); font-size:8.5px; font-weight:700;
                      letter-spacing:.9px; text-transform:uppercase; color:var(--dimmer); }
-        .conv-dist { padding:4px 14px 12px; display:flex; flex-direction:column; gap:6px; }
-        .conv-drow { display:grid; grid-template-columns:88px 1fr 92px; align-items:center; gap:9px; }
-        .conv-drow span { font-family:var(--mono); font-size:10px; color:var(--dim); }
-        .conv-drow .dbars { display:flex; flex-direction:column; gap:2px; }
-        .conv-drow i { display:block; height:6px; border-radius:99px; min-width:1px;
+        .conv-dist { padding:2px 13px 6px; display:flex; flex-direction:column; gap:3px; }
+        .conv-drow { display:grid; grid-template-columns:76px 1fr 84px; align-items:center; gap:8px; }
+        .conv-drow span { font-family:var(--mono); font-size:9.5px; color:var(--dim); }
+        .conv-drow .dbars { display:flex; flex-direction:column; gap:1.5px; }
+        .conv-drow i { display:block; height:4px; border-radius:99px; min-width:1px;
                        transition:width .8s cubic-bezier(.2,.8,.3,1); }
         .conv-drow .bw { background:#4ade80; }
         .conv-drow .bs { background:#38bdf8; }
         .conv-drow b { font-family:var(--mono); font-size:9.5px; text-align:right; color:var(--dimmer); font-weight:600; }
-        .conv-dlegend { display:flex; gap:12px; justify-content:flex-end; padding:2px 14px 0;
-                        font-family:var(--mono); font-size:9px; color:var(--dimmer); }
+        .conv-sect-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .conv-dlegend { display:flex; gap:10px; font-family:var(--mono); font-size:8.5px;
+                        color:var(--dimmer); text-transform:none; letter-spacing:0; }
         .conv-dlegend b { display:inline-block; width:7px; height:2.5px; border-radius:2px; margin-right:3px; vertical-align:middle; }
-        .conv-foot { padding:9px 14px; font-family:var(--mono); font-size:9px; color:var(--dimmer);
+        .conv-foot { padding:5px 13px; font-family:var(--mono); font-size:8.5px; color:var(--dimmer);
                      line-height:1.55; border-top:1px solid var(--line); white-space:pre-line; }
         @media (max-width:1080px) {
             .conv-grid { grid-template-columns:1fr 1fr; }
@@ -512,7 +513,8 @@
                     <div class="conv-lines" id="convLines"></div>
                 </div>
                 <div class="conv-col conv-colC">
-                    <div class="conv-sect">when holders last touched their bag</div>
+                    <div class="conv-sect conv-sect-row"><span>when holders last touched their bag</span>
+                        <span class="conv-dlegend"><span><b style="background:#4ade80"></b>wallets</span><span><b style="background:#38bdf8"></b>supply</span></span></div>
                     <div class="conv-dist" id="convDist"></div>
                 </div>
             </div>
@@ -2082,19 +2084,30 @@
         const months = (c.medianDays || 0) / 30.44;
         set('convBig', months >= 12 ? (months / 12).toFixed(1) + ' yrs' : months.toFixed(0) + ' mo');
 
-        const dist = c.dist || [];
-        const byLabel = Object.fromEntries(dist.map(b => [b.label, b]));
-        const yr = byLabel['over a year'] || { wPct: 0, sPct: 0, wallets: 0 };
-        const today = byLabel['moved today'] || { sPct: 0 };
-        const week = byLabel['this week'] || { sPct: 0 };
+        // 7 rows was taller than the story needed — fold the ones that say the same thing
+        const raw = c.dist || [];
+        const fold = (label, ...names) => {
+            const p = names.map(n => raw.find(b => b.label === n)).filter(Boolean);
+            return { label, wallets: p.reduce((a, b) => a + b.wallets, 0),
+                     wPct: +p.reduce((a, b) => a + b.wPct, 0).toFixed(1),
+                     sPct: +p.reduce((a, b) => a + b.sPct, 0).toFixed(1) };
+        };
+        const dist = [
+            fold('this week', 'moved today', 'this week'),
+            fold('this month', 'this month'),
+            fold('1-6 months', '1-3 months', '3-6 months'),
+            fold('6-12 months', '6-12 months'),
+            fold('over a year', 'over a year'),
+        ];
+        const yr = dist.find(b => b.label === 'over a year');
+        const wk = dist.find(b => b.label === 'this week');
 
         document.getElementById('convLines').innerHTML = [
-            `<p><b class="g">${(c.d7Pct || 0).toFixed(0)}%</b> of every $ALON in existence hasn't moved in a week.</p>`,
-            `<p><b class="g">${(c.d30Pct || 0).toFixed(0)}%</b> hasn't moved in a month.</p>`,
-            `<p><b>${nf(yr.wallets)}</b> wallets — <b>${yr.wPct.toFixed(0)}%</b> of everyone holding — haven't touched
-               their bag in over a year. But they only hold <b>${yr.sPct.toFixed(0)}%</b> of the supply.</p>`,
-            `<p>The coins that actually move are concentrated: wallets active in the last week hold
-               <b>${(today.sPct + week.sPct).toFixed(0)}%</b> of the supply.</p>`,
+            `<p><b class="g">${(c.d7Pct || 0).toFixed(0)}%</b> of every $ALON hasn't moved in a week ·
+               <b class="g">${(c.d30Pct || 0).toFixed(0)}%</b> hasn't moved in a month.</p>`,
+            `<p><b>${nf(yr.wallets)}</b> wallets (<b>${yr.wPct.toFixed(0)}%</b> of holders) haven't touched their
+               bag in over a year — but they hold just <b>${yr.sPct.toFixed(0)}%</b> of the supply.</p>`,
+            `<p>Wallets active this week hold <b>${wk.sPct.toFixed(0)}%</b> of the supply.</p>`,
         ].join('');
 
         // ONE shared scale for both series. normalising each to its own max makes a 66% bar and
@@ -2108,16 +2121,13 @@
                     <i class="bs" style="width:${(b.sPct / mx * 100).toFixed(1)}%"></i>
                 </div>
                 <b>${b.wPct.toFixed(0)}% · ${b.sPct.toFixed(0)}%</b>
-            </div>`).join('') +
-            `<div class="conv-dlegend"><span><b style="background:#4ade80"></b>share of wallets</span>
-             <span><b style="background:#38bdf8"></b>share of supply</span></div>`;
+            </div>`).join('');
 
         const d = new Date((c.asOf || 0) * 1000);
         set('convWhen', d.toISOString().slice(0, 10));
         set('convFoot',
-            `"Touched" means any on-chain activity on the wallet's $ALON account — a sell, a buy, a transfer. ` +
-            `Liquidity pool and exchange accounts are left out entirely, so they can't inflate the numbers.\n` +
-            `${nf(c.holders || 0)} wallets counted from the chain directly. No API, no estimates.`);
+            `"touched" = any on-chain activity on that wallet's $ALON account · LP and exchange accounts excluded · ` +
+            `${nf(c.holders || 0)} wallets read straight from the chain`);
     })();
 
     // ===== init =====
