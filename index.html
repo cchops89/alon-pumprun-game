@@ -43,6 +43,85 @@
         a { color:inherit; text-decoration:none; }
         .up { color:var(--green); } .down { color:var(--red); }
 
+        /* ===== conviction lightbox ===== */
+        .conv-card { cursor:pointer; }
+        .conv-card:focus-visible { outline:2px solid var(--green); outline-offset:-2px; }
+        .conv-more { position:absolute; right:10px; top:8px; font-family:var(--mono); font-size:8.5px;
+                     letter-spacing:.5px; color:var(--dimmer); opacity:0; transition:opacity .2s; }
+        .conv-card:hover .conv-more, .conv-card:focus-visible .conv-more { opacity:1; }
+
+        .lb { position:fixed; inset:0; z-index:200; display:none; padding:clamp(12px,4vh,48px) 14px;
+              overflow-y:auto; background:rgba(6,9,10,0.78); backdrop-filter:blur(6px);
+              animation:lbIn .16s ease-out; }
+        .lb.show { display:flex; align-items:flex-start; justify-content:center; }
+        @keyframes lbIn { from { opacity:0; } }
+        .lb-card { position:relative; width:min(620px,100%); margin:auto; background:var(--panel);
+                   border:1px solid var(--line2); border-radius:14px; overflow:hidden;
+                   box-shadow:0 24px 70px rgba(0,0,0,0.6); animation:lbUp .2s cubic-bezier(.2,.8,.3,1); }
+        @keyframes lbUp { from { transform:translateY(10px); opacity:0; } }
+        @media (prefers-reduced-motion:reduce) { .lb, .lb-card { animation:none; } }
+
+        .lb-x { position:absolute; right:9px; top:9px; z-index:2; width:24px; height:24px; display:grid;
+                place-items:center; border-radius:7px; background:var(--panel2);
+                border:1px solid var(--line2); color:var(--dim); cursor:pointer; transition:.15s; }
+        .lb-x:hover { color:var(--txt); border-color:var(--green-d); }
+        .lb-x svg { width:11px; height:11px; }
+
+        #shareCv { display:block; width:100%; height:auto; border-bottom:1px solid var(--line); }
+        .share-tools { padding:13px 14px 15px; }
+        .share-btns { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+        .sb { padding:9px 10px; border-radius:9px; background:var(--panel2); border:1px solid var(--line2);
+              color:var(--dim); font-family:var(--mono); font-size:10.5px; font-weight:700;
+              letter-spacing:.4px; cursor:pointer; transition:.15s; }
+        .sb:hover { color:var(--txt); border-color:var(--green-d); }
+        .sb.primary { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
+        .sb.ok { background:var(--green-x); border-color:var(--green); color:var(--green); }
+        .sb.wide { width:100%; margin-top:7px; }
+        .share-cap { margin:13px 0 5px; font-family:var(--mono); font-size:9px; letter-spacing:.7px;
+                     color:var(--dimmer); }
+        .share-txt { padding:10px 11px; border-radius:9px; background:var(--bg);
+                     border:1px solid var(--line); font-family:var(--mono); font-size:10.5px;
+                     line-height:1.75; color:var(--txt); white-space:pre-wrap; word-break:break-word; }
+
+        .lb-head { display:flex; align-items:center; gap:15px; padding:17px 46px 15px 18px;
+                   border-bottom:1px solid var(--line); background:
+                   radial-gradient(120% 150% at 0% 0%, var(--cardGlow), transparent 62%); }
+        .lb-head .conv-ring { width:76px; height:76px; }
+        .lb-head .conv-ring span { font-size:19px; }
+        .lb-big { font-family:var(--mono); font-size:36px; font-weight:800; letter-spacing:-1px;
+                  color:var(--cardCol); line-height:1; }
+        .lb-ttl { font-size:14.5px; font-weight:800; letter-spacing:.2px; }
+        .lb-sub { margin-top:4px; font-size:11px; color:var(--dim); line-height:1.5; }
+        .lb-body { padding:15px 18px 18px; }
+        .lb-body p { font-size:12px; color:var(--dim); line-height:1.62; margin-bottom:11px; }
+        .lb-body p b, .lb-body p strong { color:var(--txt); font-weight:700; }
+        .lb-body p:last-child { margin-bottom:0; }
+        .lb-note { margin-top:13px; padding:9px 11px; border-radius:9px; background:var(--panel2);
+                   border:1px solid var(--line); font-size:10.5px; color:var(--dimmer); line-height:1.55; }
+        .lb-note b { color:var(--dim); }
+
+        .lb-h { margin:15px 0 8px; font-family:var(--mono); font-size:9.5px; font-weight:700;
+                letter-spacing:1px; color:var(--dimmer); }
+        .lb-rows { display:flex; flex-direction:column; gap:6px; }
+        .lb-row { display:grid; grid-template-columns:88px 1fr 52px; align-items:center; gap:9px;
+                  font-size:10.5px; }
+        .lb-row .rl { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .lb-row .rb { height:6px; border-radius:99px; background:var(--panel2); overflow:hidden; }
+        .lb-row .rb i { display:block; height:100%; border-radius:99px; background:var(--cardCol);
+                        box-shadow:0 0 9px var(--cardGlow); }
+        .lb-row .rv { font-family:var(--mono); font-size:10px; color:var(--txt); text-align:right; }
+        .lb-kv { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+                 border:1px solid var(--line); border-radius:9px; overflow:hidden; margin-top:4px; }
+        .lb-kv div { background:var(--panel); padding:8px 11px; }
+        .lb-kv label { display:block; font-family:var(--mono); font-size:8.5px; letter-spacing:.7px;
+                       color:var(--dimmer); margin-bottom:3px; }
+        .lb-kv b { font-family:var(--mono); font-size:13px; color:var(--txt); }
+        @media (max-width:420px) {
+            .lb-head { padding:14px 42px 13px 14px; gap:11px; }
+            .lb-big { font-size:28px; }
+            .lb-row { grid-template-columns:74px 1fr 46px; }
+        }
+
         /* ===== TOP BAR ===== */
         .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px;
                   padding:8px clamp(10px,2vw,18px); background:rgba(11,13,14,0.95);
@@ -315,7 +394,9 @@
            fitting beside the label — no breakpoint guessing, and it can't clip out of the card */
         .conv-card { display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
         .conv-ring { position:relative; flex:0 0 auto; width:56px; height:56px; }
-        .conv-ring svg { transform:rotate(-90deg); overflow:visible; }
+        /* the svg carries width/height="56" attrs — without this it ignores any resized
+           container (.conv-rail 44px, .lb-head 76px) and the % label centres somewhere else */
+        .conv-ring svg { width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
         .conv-ring .trk { fill:none; stroke:var(--panel2); stroke-width:6; }
         .conv-ring .val { fill:none; stroke:var(--cardCol); stroke-width:6; stroke-linecap:round;
                           filter:drop-shadow(0 0 6px var(--cardGlow));
@@ -516,6 +597,26 @@
 
     <!-- alon, sprinting after the cursor -->
     <div id="alonCursor"></div>
+
+    <!-- conviction lightbox — filled by conviction(), backdrop click / × / Esc all close it -->
+    <div class="lb" id="convLb" role="dialog" aria-modal="true" aria-labelledby="convLbTtl">
+        <div class="lb-card" id="convLbCard">
+            <button class="lb-x" id="convLbX" aria-label="close">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+            </button>
+            <canvas id="shareCv" width="1200" height="1000" aria-label="shareable $ALON holder card"></canvas>
+            <div class="share-tools">
+                <div class="share-btns">
+                    <button class="sb primary" id="shareImg">copy image</button>
+                    <button class="sb" id="shareDl">download</button>
+                    <button class="sb" id="shareX">post on X</button>
+                </div>
+                <div class="share-cap">the three lines, lowercase, ready to paste</div>
+                <pre class="share-txt" id="shareTxt"></pre>
+                <button class="sb wide" id="shareCopy">copy text</button>
+            </div>
+        </div>
+    </div>
 
     <!-- holder conviction — full-width band under the ticker -->
     <div class="conv-band">
@@ -2133,11 +2234,18 @@
               </svg><span>${pct.toFixed(0)}%</span></div>`;
         };
 
+        // 6 months, not a week — a week is a low bar and most of the supply clears it.
+        // The scanner emits d180Pct now; older censuses don't have it, so fall back to the two
+        // buckets above 180 days, which is the identical cut (BUCKETS breaks at exactly 180).
+        const sixMo = c.d180Pct != null ? c.d180Pct
+            : +(c.dist || []).filter(b => b.label === '6-12 months' || b.label === 'over a year')
+                             .reduce((a, b) => a + (b.sPct || 0), 0).toFixed(1);
+
         // supply-weighted first, because it's the only framing dust can't distort. the wallet
         // counts underneath exist to explain WHY the wallet-count version would mislead.
         const cards = [
-            { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: c.d7Pct || 0,
-              lab: 'of <b>all $ALON</b><br>hasn\'t moved in a week' },
+            { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: sixMo,
+              lab: 'of <b>all $ALON</b><br>hasn\'t moved in 6 months' },
             { col: '#38bdf8', glow: 'rgba(56,189,248,.30)',
               big: nf(c.holders || 0),
               lab: `wallets hold $ALON at a<br><b>$${((c.mcap || 0) / 1e6).toFixed(2)}M</b> cap — ${nf(c.holdersPerM || 0)} per $1M` },
@@ -2148,6 +2256,17 @@
               // census stamp rides in the corner of the last card — it used to be a header row
               live: true },
         ];
+
+        // ---- share card: one card for all three numbers, drawn on a canvas so what you
+        // ---- see is exactly what lands in the clipboard ----
+        const g = c.growth || {}, months = g.months || [];
+        const SHARE_W = 1200, SHARE_H = 1000;        // slightly wider than square
+        const shareLines = [
+            `${sixMo.toFixed(0)}% of all $alon hasn't moved in 6 months`,
+            `${nf(c.holders || 0)} wallets hold it at a $${((c.mcap || 0) / 1e6).toFixed(2)}m cap`,
+            `+${nf(g.d30 || 0)} new wallets in the last 30 days — +${(g.pct30 || 0).toFixed(0)}% holder growth`,
+        ];
+
         document.getElementById('convCards').innerHTML = cards.map(k => `
             <div class="conv-card" style="--cardCol:${k.col};--cardGlow:${k.glow}">
                 ${k.ring != null ? ring(k.ring, k.col) : `<div class="num">${k.big}</div>`}
@@ -2161,12 +2280,172 @@
                         return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
                     })()}</div>` : ''}
                 </div>
+                <span class="conv-more">MORE ›</span>
                 ${k.live ? `<span class="conv-live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>` : ''}
             </div>`).join('');
         if (jupCount) set('convHolders', jupCount);
-        requestAnimationFrame(() => {
-            document.querySelectorAll('.conv-ring .val').forEach(e => { e.style.strokeDashoffset = e.dataset.off; });
-            document.querySelectorAll('.conv-spark i').forEach(e => { e.style.height = e.dataset.h + '%'; });
+
+        // ---- share card: any of the three cards opens the same one ----
+        const lb = document.getElementById('convLb');
+        const cv = document.getElementById('shareCv');
+        let lastFocus = null, shareBlob = null;
+
+        const pfp = new Image();
+        pfp.src = 'alon-pfp.jpg?v=1';
+
+        function drawShare() {
+            const x = cv.getContext('2d');
+            const F = (sz, w, mono) => `${w} ${sz}px ${mono ? "ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+                                                           : "Inter,-apple-system,'Segoe UI',sans-serif"}`;
+            x.fillStyle = '#0b0d0e'; x.fillRect(0, 0, SHARE_W, SHARE_H);
+            // same green wash the panels use, so the card looks like the site
+            const gl = x.createRadialGradient(120, 60, 0, 120, 60, 900);
+            gl.addColorStop(0, 'rgba(74,222,128,0.13)'); gl.addColorStop(1, 'rgba(74,222,128,0)');
+            x.fillStyle = gl; x.fillRect(0, 0, SHARE_W, SHARE_H);
+            x.strokeStyle = '#232a2b'; x.lineWidth = 2; x.strokeRect(1, 1, SHARE_W - 2, SHARE_H - 2);
+
+            const L = 68, RIGHT = 930;                 // left text column, right identity column
+            x.fillStyle = '#7d8b83'; x.font = F(23, 700); x.letterSpacing = '2px';
+            x.fillText("WHO'S ACTUALLY HOLDING", L, 92);
+            x.letterSpacing = '0px';
+            x.fillStyle = '#e9f2ec'; x.font = F(52, 800);
+            x.fillText('$ALON', L, 152);
+
+            x.strokeStyle = '#232a2b'; x.lineWidth = 1;
+            x.beginPath(); x.moveTo(L, 196); x.lineTo(SHARE_W - L, 196); x.stroke();
+
+            const rows = [
+                { col: '#4ade80', ring: sixMo,
+                  big: sixMo.toFixed(0) + '%',
+                  l1: 'of all $ALON', l2: "hasn't moved in 6 months" },
+                { col: '#38bdf8', big: nf(c.holders || 0),
+                  l1: 'wallets hold $ALON at a',
+                  l2: `$${((c.mcap || 0) / 1e6).toFixed(2)}M cap — ${nf(c.holdersPerM || 0)} per $1M` },
+                { col: '#c084fc', big: '+' + nf(g.d30 || 0),
+                  l1: 'new wallets in 30 days —',
+                  l2: `+${(g.pct30 || 0).toFixed(0)}% holder growth`, spark: months },
+            ];
+            let y = 336;
+            for (const r of rows) {
+                if (r.ring != null) {
+                    const cx = L + 54, cy = y - 16, rad = 46;
+                    x.lineWidth = 11; x.lineCap = 'round';
+                    x.strokeStyle = '#191e1f';
+                    x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.stroke();
+                    x.strokeStyle = r.col; x.shadowColor = r.col; x.shadowBlur = 22;
+                    x.beginPath(); x.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (r.ring / 100)); x.stroke();
+                    x.shadowBlur = 0;
+                    x.fillStyle = r.col; x.font = F(30, 800, true); x.textAlign = 'center';
+                    x.fillText(r.big, cx, cy + 11); x.textAlign = 'left';
+                } else {
+                    x.fillStyle = r.col; x.font = F(64, 800, true);
+                    x.shadowColor = r.col; x.shadowBlur = 26;
+                    x.fillText(r.big, L, y + 6); x.shadowBlur = 0;
+                }
+                const tx = r.ring != null ? L + 126 : L + x.measureText(r.big).width + 34;
+                x.fillStyle = '#7d8b83'; x.font = F(26, 500);
+                x.fillText(r.l1, tx, y - 12);
+                x.fillStyle = '#e9f2ec'; x.font = F(26, 700);
+                x.fillText(r.l2, tx, y + 24);
+
+                if (r.spark && r.spark.length > 1) {
+                    // log scale, same reason the on-page sparkline uses one: august is 50x a quiet month
+                    const lg = v => Math.log10(Math.max(v, 1) + 1);
+                    const mx = lg(Math.max(...r.spark.map(m => m.n), 1));
+                    const bw = 18, gap = 7, base = y + 78, hMax = 44;
+                    r.spark.forEach((m, i) => {
+                        const h = Math.max(5, lg(m.n) / mx * hMax);
+                        x.fillStyle = r.col;
+                        x.globalAlpha = i === r.spark.length - 1 ? 1 : 0.45;
+                        x.fillRect(tx + i * (bw + gap), base - h, bw, h);
+                    });
+                    x.globalAlpha = 1;
+                }
+                y += 210;                       // even rhythm — the spark hangs below its own row
+            }
+
+            // right column: pfp, ticker under it
+            if (pfp.complete && pfp.naturalWidth) {
+                const d = 190, px = RIGHT + 20, py = 402;   // centred against the three rows
+                x.save(); x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2, 0, Math.PI * 2);
+                x.closePath(); x.clip(); x.drawImage(pfp, px, py, d, d); x.restore();
+                x.strokeStyle = '#16a34a'; x.lineWidth = 3;
+                x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2 + 2, 0, Math.PI * 2); x.stroke();
+                x.fillStyle = '#e9f2ec'; x.font = F(40, 800, true); x.textAlign = 'center';
+                x.fillText('$ALON', px + d / 2, py + d + 62);
+                x.fillStyle = '#5a6862'; x.font = F(20, 600);
+                x.fillText('alonpump.run', px + d / 2, py + d + 96);
+                x.textAlign = 'left';
+            }
+
+            const when = new Date((c.asOf || 0) * 1000).toISOString().slice(0, 10);
+            x.fillStyle = '#5a6862'; x.font = F(20, 500, true);
+            x.fillText(`on-chain holder census · ${when}`, L, SHARE_H - 46);
+        }
+
+        function openLb() {
+            lastFocus = document.activeElement;
+            lb.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('shareTxt').textContent = shareLines.join('\n');
+            requestAnimationFrame(() => { drawShare(); document.getElementById('convLbX').focus(); });
+        }
+        function closeLb() {
+            if (!lb.classList.contains('show')) return;
+            lb.classList.remove('show');
+            document.body.style.overflow = '';
+            if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+        // the pfp may land after the first draw — repaint once it does
+        pfp.addEventListener('load', () => { if (lb.classList.contains('show')) drawShare(); });
+
+        document.querySelectorAll('#convCards .conv-card').forEach(el => {
+            el.tabIndex = 0;
+            el.setAttribute('role', 'button');
+            el.setAttribute('aria-label', 'open the shareable card');
+            el.addEventListener('click', openLb);
+            el.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(); }
+            });
+        });
+        lb.addEventListener('mousedown', e => { if (e.target === lb) closeLb(); });
+        document.getElementById('convLbX').addEventListener('click', closeLb);
+        window.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+        // ---- copy / download / post ----
+        const flash = (btn, msg) => {
+            const old = btn.dataset.label || btn.textContent;
+            btn.dataset.label = old; btn.textContent = msg; btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = btn.dataset.label; btn.classList.remove('ok'); }, 1600);
+        };
+        const toBlob = () => new Promise(res => cv.toBlob(res, 'image/png'));
+
+        document.getElementById('shareImg').addEventListener('click', async function () {
+            try {
+                const blob = await toBlob();
+                // ClipboardItem is the only way to get a PNG onto the clipboard; Firefox and
+                // any non-secure context will throw, and the download below is the fallback
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                flash(this, 'copied ✓');
+            } catch (e) { flash(this, 'use download →'); }
+        });
+        document.getElementById('shareDl').addEventListener('click', async function () {
+            const blob = await toBlob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'alon-holders.png';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+            flash(this, 'saved ✓');
+        });
+        document.getElementById('shareCopy').addEventListener('click', async function () {
+            try { await navigator.clipboard.writeText(shareLines.join('\n')); flash(this, 'copied ✓'); }
+            catch (e) { flash(this, 'copy failed'); }
+        });
+        document.getElementById('shareX').addEventListener('click', async function () {
+            try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toBlob() })]); } catch (e) {}
+            const t = encodeURIComponent(shareLines.join('\n') + '\n\nalonpump.run');
+            window.open('https://twitter.com/intent/tweet?text=' + t, '_blank', 'noopener');
         });
 
         const d = new Date((c.asOf || 0) * 1000);
