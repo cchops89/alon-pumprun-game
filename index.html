@@ -285,6 +285,44 @@
         .seg:hover { color:var(--txt); }
         .seg.on { background:var(--green-x); color:var(--green); box-shadow:0 0 12px rgba(74,222,128,0.35); }
         .chart-status { font-family:var(--mono); font-size:10.5px; color:var(--dimmer); padding-right:3px; }
+
+        /* ===== holder conviction ===== */
+        .conv-head { display:flex; align-items:center; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); }
+        .conv-head h3 { font-size:12px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--txt); }
+        .conv-head .live { display:flex; align-items:center; gap:4px; margin-left:auto;
+                           font-family:var(--mono); font-size:9.5px; color:var(--dimmer); }
+        .conv-head .live i { width:5px; height:5px; border-radius:50%; background:var(--green);
+                             box-shadow:0 0 7px var(--green); animation:convPulse 2s ease-in-out infinite; }
+        @keyframes convPulse { 50% { opacity:.35; } }
+        .conv-hero { padding:16px 14px 13px; text-align:center; border-bottom:1px solid var(--line); }
+        .conv-hero .big { font-family:var(--mono); font-size:34px; font-weight:800; color:var(--green);
+                          line-height:1; letter-spacing:-1px; text-shadow:0 0 26px rgba(74,222,128,.35); }
+        .conv-hero .sub { margin-top:6px; font-size:10.5px; color:var(--dim); line-height:1.45; }
+        .conv-sect { padding:8px 14px 0; font-family:var(--mono); font-size:8.5px; font-weight:700;
+                     letter-spacing:.9px; text-transform:uppercase; color:var(--dimmer); }
+        .conv-bars { padding:8px 14px 12px; display:flex; flex-direction:column; gap:9px; border-bottom:1px solid var(--line); }
+        .conv-row { display:grid; grid-template-columns:44px 1fr 52px; align-items:center; gap:9px; }
+        .conv-row span { font-family:var(--mono); font-size:10px; color:var(--dimmer); font-weight:700; }
+        .conv-row b { font-family:var(--mono); font-size:11.5px; text-align:right; color:var(--txt); }
+        .conv-track { height:7px; border-radius:99px; background:var(--panel2); overflow:hidden; }
+        .conv-fill { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--green-d),var(--green));
+                     width:0; transition:width .9s cubic-bezier(.2,.8,.3,1); }
+        .conv-graph { padding:12px 12px 6px; border-bottom:1px solid var(--line); position:relative; }
+        .conv-graph svg { display:block; width:100%; height:96px; overflow:visible; }
+        .conv-graph .gline { fill:none; stroke-width:1.8; stroke-linejoin:round; stroke-linecap:round; }
+        .conv-graph .gfill { stroke:none; opacity:.13; }
+        .conv-legend { display:flex; gap:11px; justify-content:center; padding:6px 0 2px;
+                       font-family:var(--mono); font-size:9px; color:var(--dimmer); }
+        .conv-legend b { display:inline-block; width:7px; height:2.5px; border-radius:2px;
+                         margin-right:3px; vertical-align:middle; }
+        .conv-graph .gempty { font-family:var(--mono); font-size:10px; fill:var(--dimmer); }
+        .conv-split { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid var(--line); }
+        .conv-split div { padding:9px 6px; text-align:center; border-right:1px solid var(--line); }
+        .conv-split div:last-child { border-right:none; }
+        .conv-split label { display:block; font-size:8.5px; letter-spacing:.5px; text-transform:uppercase;
+                            color:var(--dimmer); font-weight:700; margin-bottom:3px; }
+        .conv-split b { font-family:var(--mono); font-size:12.5px; font-weight:700; }
+        .conv-foot { padding:9px 14px; font-family:var(--mono); font-size:9px; color:var(--dimmer); line-height:1.55; white-space:pre-line; }
         .chart-status.err { color:var(--red); }
         .chart-stage { position:relative; }
         #chart { width:100%; height:clamp(320px,54vh,520px); }
@@ -569,6 +607,41 @@
                     <div><label>ath mcap</label><b id="sAth">—</b></div>
                     <div><label>holders</label><b id="sHolders">—</b></div>
                 </div>
+            </div>
+
+
+            <div class="panel" id="convPanel">
+                <div class="conv-head">
+                    <h3>holder conviction</h3>
+                    <span class="live"><i></i><span id="convHolders">—</span> holders</span>
+                </div>
+                <div class="conv-hero">
+                    <div class="big" id="convBig">—</div>
+                    <div class="sub">of supply untouched <b>7+ days</b><br>
+                        <span style="color:var(--dimmer)">pool &amp; LP accounts excluded</span></div>
+                </div>
+                <div class="conv-sect">share of supply</div>
+                <div class="conv-bars">
+                    <div class="conv-row"><span>7d</span><div class="conv-track"><i class="conv-fill" id="convF7"></i></div><b id="convV7">—</b></div>
+                    <div class="conv-row"><span>14d</span><div class="conv-track"><i class="conv-fill" id="convF14"></i></div><b id="convV14">—</b></div>
+                    <div class="conv-row"><span>30d</span><div class="conv-track"><i class="conv-fill" id="convF30"></i></div><b id="convV30">—</b></div>
+                </div>
+                <div class="conv-sect">today's holders · how long they'd been still, back-tested</div>
+                <div class="conv-graph" id="convGraph">
+                    <svg id="convSvg" viewBox="0 0 300 96" preserveAspectRatio="none"></svg>
+                    <div class="conv-legend">
+                        <span><b style="background:#4ade80"></b>7d</span>
+                        <span><b style="background:#38bdf8"></b>14d</span>
+                        <span><b style="background:#fbbf24"></b>30d</span>
+                    </div>
+                </div>
+                <div class="conv-sect" id="convDirSect">direction · since last census</div>
+                <div class="conv-split">
+                    <div><label>holding</label><b class="up" id="convFlat">—</b></div>
+                    <div><label>adding</label><b class="up" id="convAcc">—</b></div>
+                    <div><label>trimming</label><b class="down" id="convDis">—</b></div>
+                </div>
+                <div class="conv-foot" id="convFoot">census pending</div>
             </div>
 
             <div class="panel">
@@ -1983,6 +2056,85 @@
         el.textContent = SHILLS[shillI];
         el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
     }, 3200);
+
+
+    // ===== holder conviction: static census + a live holder count =====
+    // the buckets come from the nightly on-chain scan (conviction.json). the holder count is
+    // pulled live because jupiter serves it CORS-open and free — no reason to let it go stale.
+    (async function conviction() {
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        try {
+            const j = await (await fetch(`https://datapi.jup.ag/v1/holders/${CA}`)).json();
+            if (j && j.count) set('convHolders', j.count.toLocaleString());
+        } catch (e) {}
+        let c = null;
+        try { c = await (await fetch('conviction.json?v=' + Date.now())).json(); } catch (e) {}
+        if (!c) { document.getElementById('convFoot').textContent = 'census unavailable'; return; }
+        const pct = v => (v == null ? '—' : v.toFixed(1) + '%');
+        set('convBig', pct(c.d7Pct));
+        for (const [k, f, v] of [['d7Pct','convF7','convV7'], ['d14Pct','convF14','convV14'], ['d30Pct','convF30','convV30']]) {
+            set(v, pct(c[k]));
+            const el = document.getElementById(f);
+            if (el) requestAnimationFrame(() => { el.style.width = Math.min(100, c[k] || 0) + '%'; });
+        }
+        // direction needs two censuses to exist. before that, say so — 100/0/0 would read as
+        // a finding rather than an absence of data.
+        const moved = (c.accumulating || 0) + (c.distributing || 0);
+        if (!moved) {
+            for (const id of ['convFlat', 'convAcc', 'convDis']) {
+                const e = document.getElementById(id);
+                if (e) { e.textContent = '—'; e.className = ''; }
+            }
+            const sect = document.getElementById('convDirSect');
+            if (sect) sect.textContent = 'direction · first census, builds from tomorrow';
+        } else {
+            const tot = (c.flat || 0) + moved || 1;
+            set('convFlat', Math.round((c.flat || 0) / tot * 100) + '%');
+            set('convAcc',  Math.round((c.accumulating || 0) / tot * 100) + '%');
+            set('convDis',  Math.round((c.distributing || 0) / tot * 100) + '%');
+        }
+
+        // lifespan trend. lifespan.json is the backfilled series (rebuilt from chain history);
+        // history.json is what the nightly scan appends. prefer the long one.
+        try {
+            let series = null;
+            for (const f of ['holders/lifespan.json', 'holders/history.json']) {
+                try { const r = await fetch(f + '?v=' + Date.now()); if (r.ok) { const j = await r.json(); if (j && j.length) { series = j; break; } } } catch (e) {}
+            }
+            const svg = document.getElementById('convSvg');
+            if (!series || series.length < 2) {
+                svg.innerHTML = '<text x="150" y="50" text-anchor="middle" class="gempty">trend builds as the census runs</text>';
+            } else {
+                const W = 300, H = 96, n = series.length;
+                const xs = i => (i / (n - 1)) * W;
+                const vals = series.flatMap(r => [r.d7, r.d14, r.d30]).filter(v => v != null);
+                const lo = Math.max(0, Math.min(...vals) - 4), hi = Math.min(100, Math.max(...vals) + 4);
+                const ys = v => H - ((v - lo) / Math.max(hi - lo, 1)) * H;
+                let out = '';
+                for (const [k, col] of [['d30', '#fbbf24'], ['d14', '#38bdf8'], ['d7', '#4ade80']]) {
+                    const pts = series.map((r, i) => `${xs(i).toFixed(1)},${ys(r[k] ?? lo).toFixed(1)}`).join(' ');
+                    out += `<polygon class="gfill" fill="${col}" points="0,${H} ${pts} ${W},${H}"/>`;
+                    out += `<polyline class="gline" stroke="${col}" points="${pts}"/>`;
+                }
+                svg.innerHTML = out;
+                const g = document.getElementById('convGraph');
+                if (!g.dataset.range) { g.dataset.range = '1';
+                    g.insertAdjacentHTML('beforeend',
+                        `<div class="conv-legend" style="justify-content:space-between;padding:0 2px">
+                           <span>${series[0].d}</span><span>${series[n-1].d}</span></div>`); }
+            }
+        } catch (e) {}
+
+        const d = new Date((c.asOf || 0) * 1000);
+        document.getElementById('convFoot').textContent =
+            `method: a wallet counts as dormant when its token account has no on-chain activity — ` +
+            `no sell, no transfer — for the full window. LP, AMM and vault accounts are excluded from ` +
+            `both numerator and denominator.\n` +
+            `the chart back-tests only wallets holding TODAY, so it is a cohort view, not a census of ` +
+            `the past — wallets that sold out and closed are not in it. the bars above are a live census.\n` +
+            `${(c.holders || 0).toLocaleString()} wallets · ${c.excluded || 0} pool account${c.excluded === 1 ? '' : 's'} excluded · ` +
+            `census ${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+    })();
 
     // ===== init =====
     async function refresh() {

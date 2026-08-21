@@ -8,3 +8,11 @@ CLAUDE.md
 .claude/
 node_modules/
 .DS_Store
+
+# holder scanner working files — state is committed gzipped, these are not
+holders/snap-*.json
+holders/state.json
+.env
+holders/activity.json
+owners-*.json
+holders/daymap.json
