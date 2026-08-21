@@ -295,7 +295,7 @@
         .conv-head .live i { width:5px; height:5px; border-radius:50%; background:var(--green);
                              box-shadow:0 0 7px var(--green); animation:convPulse 2s ease-in-out infinite; }
         @keyframes convPulse { 50% { opacity:.35; } }
-        .conv-cards { display:grid; grid-template-columns:repeat(4,1fr); }
+        .conv-cards { display:grid; grid-template-columns:repeat(3,1fr); }
         .conv-card { position:relative; padding:13px 16px 15px; border-right:1px solid var(--line);
                      overflow:hidden; transition:background .25s; }
         .conv-card:last-child { border-right:none; }
@@ -323,10 +323,14 @@
         .conv-card .mini i { display:block; height:100%; width:0; border-radius:99px;
                              background:var(--cardCol); box-shadow:0 0 9px var(--cardGlow);
                              transition:width 1.1s cubic-bezier(.2,.8,.3,1); }
+        .conv-spark { position:relative; margin-top:8px; display:flex; align-items:flex-end; gap:2px; height:26px; }
+        .conv-spark i { flex:1; min-width:2px; border-radius:1.5px 1.5px 0 0; background:var(--cardCol);
+                        opacity:.45; height:0; transition:height .9s cubic-bezier(.2,.8,.3,1); }
+        .conv-spark i:last-child { opacity:1; box-shadow:0 0 8px var(--cardGlow); }
         @media (max-width:900px) {
             .conv-cards { grid-template-columns:1fr 1fr; }
             .conv-card:nth-child(2) { border-right:none; }
-            .conv-card:nth-child(3), .conv-card:nth-child(4) { border-top:1px solid var(--line); }
+            .conv-card:nth-child(3) { border-top:1px solid var(--line); }
         }
         @media (max-width:520px) {
             .conv-cards { grid-template-columns:1fr; }
@@ -510,7 +514,6 @@
                 <span class="live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>
             </div>
             <div class="conv-cards" id="convCards"></div>
-            <div class="conv-foot" id="convFoot">census pending</div>
         </div>
     </div>
 
@@ -2091,10 +2094,10 @@
             { col: '#38bdf8', glow: 'rgba(56,189,248,.30)',
               big: nf(c.holders || 0),
               lab: `wallets hold $ALON at a<br><b>$${((c.mcap || 0) / 1e6).toFixed(2)}M</b> cap — ${nf(c.holdersPerM || 0)} per $1M` },
-            { col: '#fbbf24', glow: 'rgba(251,191,36,.30)', ring: real.supplyPct || 0,
-              lab: `of supply sits in just<br><b>${nf(real.wallets)} real wallets</b>` },
-            { col: '#c084fc', glow: 'rgba(192,132,252,.30)', big: real.medianDays + '<em>d</em>',
-              lab: `since the <b>typical real holder</b><br>last moved (bags over $${real.threshold})` },
+            { col: '#c084fc', glow: 'rgba(192,132,252,.30)',
+              big: '+' + nf((c.growth || {}).d30 || 0),
+              lab: `new wallets in 30 days —<br><b>+${((c.growth || {}).pct30 || 0).toFixed(0)}%</b> holder growth`,
+              spark: ((c.growth || {}).months || []) },
         ];
         document.getElementById('convCards').innerHTML = cards.map(k => `
             <div class="conv-card" style="--cardCol:${k.col};--cardGlow:${k.glow}">
@@ -2102,17 +2105,23 @@
                 <div class="body">
                     ${k.big ? `<div class="num">${k.big}</div>` : ''}
                     <div class="lab">${k.lab}</div>
+                    ${k.spark && k.spark.length > 1 ? `<div class="conv-spark">${(() => {
+                        // log scale: august is 50x a quiet month, so linear flattens eleven bars
+                        // to nothing and the shape disappears
+                        const lg = v => Math.log10(Math.max(v, 1) + 1);
+                        const mx = lg(Math.max(...k.spark.map(x => x.n), 1));
+                        return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
+                    })()}</div>` : ''}
                 </div>
             </div>`).join('');
-        requestAnimationFrame(() => document.querySelectorAll('.conv-ring .val')
-            .forEach(e => { e.style.strokeDashoffset = e.dataset.off; }));
+        requestAnimationFrame(() => {
+            document.querySelectorAll('.conv-ring .val').forEach(e => { e.style.strokeDashoffset = e.dataset.off; });
+            document.querySelectorAll('.conv-spark i').forEach(e => { e.style.height = e.dataset.h + '%'; });
+        });
 
         const d = new Date((c.asOf || 0) * 1000);
         set('convWhen', d.toISOString().slice(0, 10));
-        set('convFoot',
-            `"moved" = any on-chain activity on that wallet's $ALON account. LP and exchange accounts excluded. ` +
-            `${nf(c.holders || 0)} wallets read straight from the chain — but the median bag is $${c.medianUsd}, ` +
-            `so supply-weighted figures are used throughout; a wallet count would mostly be counting abandoned dust.`);
+
     })();
 
     // ===== init =====

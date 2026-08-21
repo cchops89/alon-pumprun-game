@@ -172,11 +172,13 @@ async function lastActivity(accounts, prior) {
       const w = state.wallets[h.account] || (state.wallets[h.account] = {});
       w.lastActive = act[h.account] || w.lastActive || null;
       w.amount = h.amount; w.dir = w.dir || 'flat';
+      if (!w.first) w.first = w.lastActive || now;
     }
   } else {
     // the free half: a balance that didn't move means the wallet didn't act
     for (const h of list) {
-      const w = state.wallets[h.account] || (state.wallets[h.account] = { lastActive: null, amount: h.amount, dir: 'flat' });
+      const w = state.wallets[h.account] || (state.wallets[h.account] = { lastActive: null, amount: h.amount, dir: 'flat', first: now });
+      if (!w.first) w.first = now;
       const before = w.amount;
       if (before == null || h.amount === before) { w.dir = w.dir || 'flat'; }
       else { w.lastActive = now; w.dir = h.amount > before ? 'accumulating' : 'distributing'; }
@@ -260,6 +262,19 @@ async function lastActivity(accounts, prior) {
   agg.mcap = mcap;
   // holders per $1m of cap — the number that makes 17.9k at a $3.3m cap legible as unusual
   agg.holdersPerM = agg.mcap ? Math.round(agg.holders / (agg.mcap / 1e6)) : 0;
+
+  // holder growth. survivorship cuts the right way here: wallets that arrived recently haven't
+  // had time to leave, so the recent months are accurate even though older ones undercount.
+  const firsts = held.map(h => (state.wallets[h.account] || {}).first).filter(Boolean);
+  const since = d => firsts.filter(f => (now - f) / DAY <= d).length;
+  agg.growth = { d30: since(30), d90: since(90),
+                 pct30: +(since(30) / Math.max(agg.holders - since(30), 1) * 100).toFixed(1) };
+  const months = {};
+  for (const f of firsts) {
+    const k = new Date(f * 1000).toISOString().slice(0, 7);
+    months[k] = (months[k] || 0) + 1;
+  }
+  agg.growth.months = Object.keys(months).sort().slice(-12).map(k => ({ m: k, n: months[k] }));
   fs.writeFileSync(path.join(__dirname, '..', 'conviction.json'), JSON.stringify(agg, null, 2));
 
   // one tiny row per day — this is the file that becomes the trend graph, and the only
