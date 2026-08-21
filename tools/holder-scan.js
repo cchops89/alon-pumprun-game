@@ -212,6 +212,30 @@ async function lastActivity(accounts, prior) {
   }
   for (const k of ['d7', 'd14', 'd30']) agg[k + 'Pct'] = agg.supplyTracked ? +(agg[k] / agg.supplyTracked * 100).toFixed(2) : 0;
   for (const k of ['7', '14', '30']) agg['w' + k + 'Pct'] = agg.dated ? +(agg['n' + k] / agg.dated * 100).toFixed(2) : 0;
+
+  // "when did each holder last touch their bag" — a plain distribution off the current census.
+  // no survivorship problem here: it describes who holds now, which is the question people
+  // actually ask. buckets are in human units, not 7d/14d/30d jargon.
+  const BUCKETS = [['moved today', 0, 1], ['this week', 1, 7], ['this month', 7, 30],
+                   ['1-3 months', 30, 90], ['3-6 months', 90, 180],
+                   ['6-12 months', 180, 365], ['over a year', 365, Infinity]];
+  const ages = [];
+  agg.dist = BUCKETS.map(([label]) => ({ label, wallets: 0, supply: 0 }));
+  for (const h of held) {
+    const w = state.wallets[h.account] || {};
+    if (!w.lastActive) continue;
+    const age = (now - w.lastActive) / DAY;
+    ages.push(age);
+    const i = BUCKETS.findIndex(([, lo, hi]) => age >= lo && age < hi);
+    if (i >= 0) { agg.dist[i].wallets++; agg.dist[i].supply += h.amount; }
+  }
+  for (const b of agg.dist) {
+    b.wPct = +(b.wallets / Math.max(ages.length, 1) * 100).toFixed(1);
+    b.sPct = +(b.supply / Math.max(agg.supplyTracked, 1) * 100).toFixed(1);
+    delete b.supply;
+  }
+  ages.sort((a, b) => a - b);
+  agg.medianDays = ages.length ? Math.round(ages[Math.floor(ages.length / 2)]) : 0;
   fs.writeFileSync(path.join(__dirname, '..', 'conviction.json'), JSON.stringify(agg, null, 2));
 
   // one tiny row per day — this is the file that becomes the trend graph, and the only

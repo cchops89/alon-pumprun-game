@@ -1,24 +1,69 @@
 {
-  "asOf": 1787250046,
+  "asOf": 1787276057,
   "mint": "8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS",
   "excluded": 1,
-  "holders": 17940,
-  "supplyTracked": 910461806.312566,
-  "d7": 567044789.8840591,
-  "d14": 383910223.45564777,
-  "d30": 372282576.82912385,
-  "n7": 16590,
-  "n14": 13863,
-  "n30": 13791,
-  "dated": 17940,
+  "holders": 17902,
+  "supplyTracked": 910672341.3304121,
+  "d7": 570218211.2570922,
+  "d14": 384239395.2072859,
+  "d30": 372278774.1978929,
+  "n7": 16640,
+  "n14": 13864,
+  "n30": 13790,
+  "dated": 17902,
   "accumulating": 0,
   "distributing": 0,
-  "flat": 17940,
+  "flat": 17902,
   "unknown": 0,
-  "d7Pct": 62.28,
-  "d14Pct": 42.17,
-  "d30Pct": 40.89,
-  "w7Pct": 92.47,
-  "w14Pct": 77.27,
-  "w30Pct": 76.87
+  "d7Pct": 62.62,
+  "d14Pct": 42.19,
+  "d30Pct": 40.88,
+  "w7Pct": 92.95,
+  "w14Pct": 77.44,
+  "w30Pct": 77.03,
+  "dist": [
+    {
+      "label": "moved today",
+      "wallets": 343,
+      "wPct": 1.9,
+      "sPct": 15.3
+    },
+    {
+      "label": "this week",
+      "wallets": 919,
+      "wPct": 5.1,
+      "sPct": 22
+    },
+    {
+      "label": "this month",
+      "wallets": 2850,
+      "wPct": 15.9,
+      "sPct": 21.7
+    },
+    {
+      "label": "1-3 months",
+      "wallets": 636,
+      "wPct": 3.6,
+      "sPct": 7.5
+    },
+    {
+      "label": "3-6 months",
+      "wallets": 215,
+      "wPct": 1.2,
+      "sPct": 3.8
+    },
+    {
+      "label": "6-12 months",
+      "wallets": 1057,
+      "wPct": 5.9,
+      "sPct": 12
+    },
+    {
+      "label": "over a year",
+      "wallets": 11882,
+      "wPct": 66.4,
+      "sPct": 17.6
+    }
+  ],
+  "medianDays": 549
 }
