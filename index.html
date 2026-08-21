@@ -50,6 +50,16 @@
                      letter-spacing:.5px; color:var(--dimmer); opacity:0; transition:opacity .2s; }
         .conv-card:hover .conv-more, .conv-card:focus-visible .conv-more { opacity:1; }
 
+        /* headline window switcher — always visible, because it's a control, not a hint */
+        .win-seg { position:absolute; right:9px; top:7px; z-index:3; display:flex; gap:1px; padding:2px;
+                   border-radius:7px; background:var(--bg); border:1px solid var(--line); }
+        .ws { padding:2px 6px; border-radius:5px; background:transparent; border:none;
+              font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.3px;
+              color:var(--dimmer); cursor:pointer; transition:.13s; }
+        .ws:hover { color:var(--txt); }
+        .ws.on { background:var(--green-x); color:var(--green); box-shadow:0 0 8px rgba(74,222,128,0.25); }
+        @media (max-width:520px) { .win-seg { position:static; margin-left:auto; align-self:flex-start; } }
+
         .lb { position:fixed; inset:0; z-index:200; display:none; padding:clamp(12px,4vh,48px) 14px;
               overflow-y:auto; background:rgba(6,9,10,0.78); backdrop-filter:blur(6px);
               animation:lbIn .16s ease-out; }
@@ -83,44 +93,6 @@
                      border:1px solid var(--line); font-family:var(--mono); font-size:10.5px;
                      line-height:1.75; color:var(--txt); white-space:pre-wrap; word-break:break-word; }
 
-        .lb-head { display:flex; align-items:center; gap:15px; padding:17px 46px 15px 18px;
-                   border-bottom:1px solid var(--line); background:
-                   radial-gradient(120% 150% at 0% 0%, var(--cardGlow), transparent 62%); }
-        .lb-head .conv-ring { width:76px; height:76px; }
-        .lb-head .conv-ring span { font-size:19px; }
-        .lb-big { font-family:var(--mono); font-size:36px; font-weight:800; letter-spacing:-1px;
-                  color:var(--cardCol); line-height:1; }
-        .lb-ttl { font-size:14.5px; font-weight:800; letter-spacing:.2px; }
-        .lb-sub { margin-top:4px; font-size:11px; color:var(--dim); line-height:1.5; }
-        .lb-body { padding:15px 18px 18px; }
-        .lb-body p { font-size:12px; color:var(--dim); line-height:1.62; margin-bottom:11px; }
-        .lb-body p b, .lb-body p strong { color:var(--txt); font-weight:700; }
-        .lb-body p:last-child { margin-bottom:0; }
-        .lb-note { margin-top:13px; padding:9px 11px; border-radius:9px; background:var(--panel2);
-                   border:1px solid var(--line); font-size:10.5px; color:var(--dimmer); line-height:1.55; }
-        .lb-note b { color:var(--dim); }
-
-        .lb-h { margin:15px 0 8px; font-family:var(--mono); font-size:9.5px; font-weight:700;
-                letter-spacing:1px; color:var(--dimmer); }
-        .lb-rows { display:flex; flex-direction:column; gap:6px; }
-        .lb-row { display:grid; grid-template-columns:88px 1fr 52px; align-items:center; gap:9px;
-                  font-size:10.5px; }
-        .lb-row .rl { color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .lb-row .rb { height:6px; border-radius:99px; background:var(--panel2); overflow:hidden; }
-        .lb-row .rb i { display:block; height:100%; border-radius:99px; background:var(--cardCol);
-                        box-shadow:0 0 9px var(--cardGlow); }
-        .lb-row .rv { font-family:var(--mono); font-size:10px; color:var(--txt); text-align:right; }
-        .lb-kv { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
-                 border:1px solid var(--line); border-radius:9px; overflow:hidden; margin-top:4px; }
-        .lb-kv div { background:var(--panel); padding:8px 11px; }
-        .lb-kv label { display:block; font-family:var(--mono); font-size:8.5px; letter-spacing:.7px;
-                       color:var(--dimmer); margin-bottom:3px; }
-        .lb-kv b { font-family:var(--mono); font-size:13px; color:var(--txt); }
-        @media (max-width:420px) {
-            .lb-head { padding:14px 42px 13px 14px; gap:11px; }
-            .lb-big { font-size:28px; }
-            .lb-row { grid-template-columns:74px 1fr 46px; }
-        }
 
         /* ===== TOP BAR ===== */
         .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px;
@@ -387,7 +359,8 @@
         .conv-card { position:relative; padding:9px 14px; border-right:1px solid var(--line);
                      overflow:hidden; transition:background .25s; }
         .conv-card:last-child { border-right:none; }
-        .conv-card::after { content:''; position:absolute; inset:0; opacity:0; transition:opacity .25s;
+        /* pointer-events:none or this inset:0 hover wash swallows clicks meant for .win-seg */
+        .conv-card::after { content:''; position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .25s;
                             background:radial-gradient(120% 90% at 50% 0%, var(--cardGlow), transparent 70%); }
         .conv-card:hover::after { opacity:1; }
         /* wrap so the census stamp drops to its own line in the card exactly when it stops
@@ -395,7 +368,7 @@
         .conv-card { display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
         .conv-ring { position:relative; flex:0 0 auto; width:56px; height:56px; }
         /* the svg carries width/height="56" attrs — without this it ignores any resized
-           container (.conv-rail 44px, .lb-head 76px) and the % label centres somewhere else */
+           container (.conv-rail resizes it to 44px) and the % label centres somewhere else */
         .conv-ring svg { width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
         .conv-ring .trk { fill:none; stroke:var(--panel2); stroke-width:6; }
         .conv-ring .val { fill:none; stroke:var(--cardCol); stroke-width:6; stroke-linecap:round;
@@ -2234,18 +2207,49 @@
               </svg><span>${pct.toFixed(0)}%</span></div>`;
         };
 
-        // 6 months, not a week — a week is a low bar and most of the supply clears it.
-        // The scanner emits d180Pct now; older censuses don't have it, so fall back to the two
-        // buckets above 180 days, which is the identical cut (BUCKETS breaks at exactly 180).
-        const sixMo = c.d180Pct != null ? c.d180Pct
-            : +(c.dist || []).filter(b => b.label === '6-12 months' || b.label === 'over a year')
-                             .reduce((a, b) => a + (b.sPct || 0), 0).toFixed(1);
+        // ---- the headline window is switchable: 7d / 1mo / 2mo / 3mo / 6mo ----
+        // A window only gets a button if we can produce a REAL number for it, from one of:
+        //   1. c.hold — every window, emitted by holder-scan.js (the good path)
+        //   2. the legacy dNPct fields, for censuses scanned before that existed
+        //   3. summing distribution buckets, which is exact ONLY on a bucket boundary
+        //      (BUCKETS break at 1/7/30/90/180/365 — so 14d and 60d are not reconstructable)
+        // Anything we can't source is dropped rather than guessed.
+        const WINDOWS = [
+            { key: '7d',   days: 7,   btn: '7d',  say: 'a week' },
+            { key: '30d',  days: 30,  btn: '1mo', say: 'a month' },
+            { key: '60d',  days: 60,  btn: '2mo', say: '2 months' },
+            { key: '90d',  days: 90,  btn: '3mo', say: '3 months' },
+            { key: '180d', days: 180, btn: '6mo', say: '6 months' },
+        ];
+        const LEGACY = { '7d': c.d7Pct, '14d': c.d14Pct, '30d': c.d30Pct, '180d': c.d180Pct };
+        const BUCKET_EDGE = [1, 7, 30, 90, 180, 365];
+        function windowPct(w) {
+            const h = c.hold && c.hold[w.key];
+            if (h != null) return h;
+            if (LEGACY[w.key] != null) return LEGACY[w.key];
+            if (BUCKET_EDGE.includes(w.days)) {
+                const edges = [0, 1, 7, 30, 90, 180, 365];
+                const from = edges.indexOf(w.days);
+                if (from > 0) return +(c.dist || []).slice(from)
+                    .reduce((a, b) => a + (b.sPct || 0), 0).toFixed(1);
+            }
+            return null;
+        }
+        const AVAIL = WINDOWS.map(w => ({ ...w, pct: windowPct(w) })).filter(w => w.pct != null);
+        const DEFAULT_WIN = '7d';
+        let holdW = AVAIL.find(w => w.key === DEFAULT_WIN) || AVAIL[0] || { pct: 0, say: 'a week', key: '7d' };
+        try { const sv = localStorage.getItem('holdWin');
+              if (sv) holdW = AVAIL.find(w => w.key === sv) || holdW; } catch (e) {}
+        const HOLD_PCT = holdW.pct, HOLD_WIN = holdW.say;
 
         // supply-weighted first, because it's the only framing dust can't distort. the wallet
         // counts underneath exist to explain WHY the wallet-count version would mislead.
         const cards = [
-            { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: sixMo,
-              lab: 'of <b>all $ALON</b><br>hasn\'t moved in 6 months' },
+            { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: HOLD_PCT,
+              lab: `of <b>all $ALON</b><br>hasn't moved in ${HOLD_WIN}`,
+              winbar: AVAIL.length > 1 ? `<div class="win-seg">${AVAIL.map(w =>
+                  `<button class="ws${w.key === holdW.key ? ' on' : ''}" data-w="${w.key}" tabindex="-1">${w.btn}</button>`
+                ).join('')}</div>` : '' },
             { col: '#38bdf8', glow: 'rgba(56,189,248,.30)',
               big: nf(c.holders || 0),
               lab: `wallets hold $ALON at a<br><b>$${((c.mcap || 0) / 1e6).toFixed(2)}M</b> cap — ${nf(c.holdersPerM || 0)} per $1M` },
@@ -2262,7 +2266,7 @@
         const g = c.growth || {}, months = g.months || [];
         const SHARE_W = 1200, SHARE_H = 1000;        // slightly wider than square
         const shareLines = [
-            `${sixMo.toFixed(0)}% of all $alon hasn't moved in 6 months`,
+            `${HOLD_PCT.toFixed(0)}% of all $alon hasn't moved in ${HOLD_WIN}`,
             `${nf(c.holders || 0)} wallets hold it at a $${((c.mcap || 0) / 1e6).toFixed(2)}m cap`,
             `+${nf(g.d30 || 0)} new wallets in the last 30 days — +${(g.pct30 || 0).toFixed(0)}% holder growth`,
         ];
@@ -2280,10 +2284,18 @@
                         return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
                     })()}</div>` : ''}
                 </div>
-                <span class="conv-more">MORE ›</span>
+                ${k.winbar || '<span class="conv-more">SHARE ›</span>'}
                 ${k.live ? `<span class="conv-live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>` : ''}
             </div>`).join('');
         if (jupCount) set('convHolders', jupCount);
+
+        // both the ring arc and the spark bars render collapsed and are revealed on the next
+        // frame — that's what makes them animate in. Without this the arc sits at a full-
+        // circumference dashoffset (invisible) and every spark bar has zero height.
+        requestAnimationFrame(() => {
+            document.querySelectorAll('#convCards .conv-ring .val').forEach(e => { e.style.strokeDashoffset = e.dataset.off; });
+            document.querySelectorAll('#convCards .conv-spark i').forEach(e => { e.style.height = e.dataset.h + '%'; });
+        });
 
         // ---- share card: any of the three cards opens the same one ----
         const lb = document.getElementById('convLb');
@@ -2315,9 +2327,10 @@
             x.beginPath(); x.moveTo(L, 196); x.lineTo(SHARE_W - L, 196); x.stroke();
 
             const rows = [
-                { col: '#4ade80', ring: sixMo,
-                  big: sixMo.toFixed(0) + '%',
-                  l1: 'of all $ALON', l2: "hasn't moved in 6 months" },
+                // read holdW live, not the captured const — the window is switchable
+                { col: '#4ade80', ring: holdW.pct,
+                  big: holdW.pct.toFixed(0) + '%',
+                  l1: 'of all $ALON', l2: `hasn't moved in ${holdW.say}` },
                 { col: '#38bdf8', big: nf(c.holders || 0),
                   l1: 'wallets hold $ALON at a',
                   l2: `$${((c.mcap || 0) / 1e6).toFixed(2)}M cap — ${nf(c.holdersPerM || 0)} per $1M` },
@@ -2411,6 +2424,36 @@
         lb.addEventListener('mousedown', e => { if (e.target === lb) closeLb(); });
         document.getElementById('convLbX').addEventListener('click', closeLb);
         window.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+        // ---- headline window switcher, on the first card ----
+        function applyWindow(key) {
+            const w = AVAIL.find(x => x.key === key);
+            if (!w) return;
+            holdW = w;
+            try { localStorage.setItem('holdWin', key); } catch (e) {}
+            const card = document.querySelector('#convCards .conv-card');
+            if (!card) return;
+            card.querySelectorAll('.ws').forEach(b => b.classList.toggle('on', b.dataset.w === key));
+            const sp = card.querySelector('.conv-ring span');
+            if (sp) sp.textContent = w.pct.toFixed(0) + '%';
+            const val = card.querySelector('.conv-ring .val');
+            if (val) {
+                const circ = 2 * Math.PI * 23;                 // must match ring()'s r
+                val.dataset.off = (circ * (1 - w.pct / 100)).toFixed(1);
+                val.style.strokeDashoffset = val.dataset.off;
+            }
+            const lab = card.querySelector('.lab');
+            if (lab) lab.innerHTML = `of <b>all $ALON</b><br>hasn't moved in ${w.say}`;
+            shareLines[0] = `${w.pct.toFixed(0)}% of all $alon hasn't moved in ${w.say}`;
+            const st = document.getElementById('shareTxt');
+            if (st) st.textContent = shareLines.join('\n');
+            if (lb.classList.contains('show')) drawShare();
+        }
+        document.querySelectorAll('#convCards .ws').forEach(b => {
+            // the card itself opens the share card — a segment press must not do that too
+            b.addEventListener('click', e => { e.stopPropagation(); applyWindow(b.dataset.w); });
+            b.addEventListener('keydown', e => e.stopPropagation());
+        });
 
         // ---- copy / download / post ----
         const flash = (btn, msg) => {

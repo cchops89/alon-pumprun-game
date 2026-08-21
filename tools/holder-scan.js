@@ -192,11 +192,15 @@ async function lastActivity(accounts, prior) {
   // other trackers get wrong, and the reason we track direction at all.
   const DAY = 86400;
   const EXCLUDE = ['Pool', 'Amm', 'Vault'];
+  const HOLD_WINDOWS = [7, 14, 30, 60, 90, 180, 365];
+  const hSup = {}, hCnt = {};
+  for (const w of HOLD_WINDOWS) { hSup[w] = 0; hCnt[w] = 0; }
   const held = list.filter(h => h.amount > 0 &&
     !(h.tags || []).some(t => EXCLUDE.includes(t)));
   agg_excluded = list.length - held.length;
   const agg = { asOf: now, mint: CA, excluded: agg_excluded, holders: held.length, supplyTracked: 0,
-                d7: 0, d14: 0, d30: 0, d180: 0, n7: 0, n14: 0, n30: 0, n180: 0, dated: 0, accumulating: 0, distributing: 0, flat: 0, unknown: 0 };
+                d7: 0, d14: 0, d30: 0, d180: 0, n7: 0, n14: 0, n30: 0, n180: 0, dated: 0,
+                hold: {}, holdW: {}, accumulating: 0, distributing: 0, flat: 0, unknown: 0 };
   for (const h of held) {
     const w = state.wallets[h.account] || {};
     agg.supplyTracked += h.amount;
@@ -208,15 +212,21 @@ async function lastActivity(accounts, prior) {
     if (age >= 7 * DAY)  { agg.d7 += h.amount;  agg.n7++; }
     if (age >= 14 * DAY) { agg.d14 += h.amount; agg.n14++; }
     if (age >= 30 * DAY) { agg.d30 += h.amount; agg.n30++; }
-    // 6 months — the window the site actually headlines. Until a scan has run with this in,
-    // the page falls back to summing the 6-12mo and over-a-year buckets, which is the same cut.
     if (age >= 180 * DAY) { agg.d180 += h.amount; agg.n180++; }
+    // every window the site might headline, so switching it is a front-end change and never
+    // a rescan. The distribution buckets can only reconstruct 7/30/90/180/365 — 14 and 60
+    // fall between boundaries, which is the whole reason this lives here.
+    for (const w of HOLD_WINDOWS) if (age >= w * DAY) { hSup[w] += h.amount; hCnt[w]++; }
     if (w.dir === 'accumulating') agg.accumulating++;
     else if (w.dir === 'distributing') agg.distributing++;
     else agg.flat++;
   }
   for (const k of ['d7', 'd14', 'd30', 'd180']) agg[k + 'Pct'] = agg.supplyTracked ? +(agg[k] / agg.supplyTracked * 100).toFixed(2) : 0;
   for (const k of ['7', '14', '30', '180']) agg['w' + k + 'Pct'] = agg.dated ? +(agg['n' + k] / agg.dated * 100).toFixed(2) : 0;
+  for (const w of HOLD_WINDOWS) {
+    agg.hold[w + 'd']  = agg.supplyTracked ? +(hSup[w] / agg.supplyTracked * 100).toFixed(2) : 0;
+    agg.holdW[w + 'd'] = agg.dated ? +(hCnt[w] / agg.dated * 100).toFixed(2) : 0;
+  }
 
   // "when did each holder last touch their bag" — a plain distribution off the current census.
   // no survivorship problem here: it describes who holds now, which is the question people

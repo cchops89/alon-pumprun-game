@@ -24,6 +24,82 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   check('lightbox starts closed', !(await shown()));
 
+  // ---- switchable headline window ----
+  const wins = await page.$$eval('#convCards .ws', els => els.map(e => e.dataset.w));
+  check('window switcher offers more than one', wins.length > 1);
+  check('only sourceable windows offered', wins.every(w => {
+    if (c.hold && c.hold[w] != null) return true;
+    if (['7d', '14d', '30d', '180d'].includes(w)) return true;
+    return ['30d', '90d', '180d', '365d'].includes(w);   // reconstructable from bucket edges
+  }));
+
+  // "exists" is not "visible": the arc renders at a full-circumference dashoffset and the spark
+  // bars at zero height, then a rAF reveals both. Deleting that rAF leaves every element in the
+  // DOM and every earlier assertion green, with an invisible ring on screen.
+  const vis = await page.evaluate(() => {
+    const val = document.querySelector('#convCards .conv-ring .val');
+    const circ = parseFloat(val.getAttribute('stroke-dasharray'));
+    const off = parseFloat(getComputedStyle(val).strokeDashoffset);
+    return { arcPct: ((circ - off) / circ) * 100,
+             shown: parseFloat(document.querySelector('#convCards .conv-ring span').textContent),
+             bars: [...document.querySelectorAll('#convCards .conv-spark i')]
+                     .map(i => i.getBoundingClientRect().height) };
+  });
+  check('ring arc is actually drawn, not fully offset',
+        (CANARY ? vis.arcPct < 0.01 : vis.arcPct > 1));
+  check('ring arc matches the number it displays', Math.abs(vis.arcPct - vis.shown) < 1.5);
+  check('spark bars have real heights', vis.bars.length > 1 && vis.bars.every(h => h > 1));
+  check('spark bars are not all identical', new Set(vis.bars.map(Math.round)).size > 1);
+
+  const seen = [];
+  for (const w of wins) {
+    await page.click(`#convCards .ws[data-w="${w}"]`);
+    await sleep(300);
+    check(`window ${w} does NOT open the lightbox`, !(await shown()));
+    const ring = await page.$eval('#convCards .conv-ring span', e => e.textContent);
+    seen.push({ w, days: parseInt(w), pct: parseFloat(ring) });
+    // the arc has to follow the switch too, not just the label.
+    // .conv-ring .val transitions stroke-dashoffset over 1.2s — read before that settles and
+    // you measure the animation, not the result (300ms into a 62->29 switch reads 38.5).
+    await sleep(1400);
+    const arc = await page.evaluate(() => {
+      const v = document.querySelector('#convCards .conv-ring .val');
+      const circ = parseFloat(v.getAttribute('stroke-dasharray'));
+      return ((circ - parseFloat(getComputedStyle(v).strokeDashoffset)) / circ) * 100;
+    });
+    check(`window ${w} redraws the arc to match`, Math.abs(arc - parseFloat(ring)) < 1.5);
+    check(`window ${w} marks itself active`,
+          await page.$eval(`#convCards .ws[data-w="${w}"]`, e => e.classList.contains('on')));
+  }
+  // a wider window can only ever be a subset — if this ever rises, the windows are wired wrong
+  const ordered = [...seen].sort((a, b) => a.days - b.days);
+  check('pct falls as the window widens',
+        ordered.every((v, i) => i === 0 || (CANARY ? v.pct > ordered[i-1].pct : v.pct <= ordered[i-1].pct)));
+
+  // the selection has to reach the share copy AND the canvas, not just the card
+  const pick = wins[wins.length - 1];
+  await page.click(`#convCards .ws[data-w="${pick}"]`);
+  await sleep(300);
+  await page.click('#convCards .conv-card .lab');
+  await sleep(800);
+  check('card still opens the share card when not hitting a segment', await shown());
+  const pickPct = ordered.find(v => v.w === pick).pct;
+  check('share text follows the chosen window',
+        (await page.$eval('#shareTxt', e => e.textContent)).startsWith(pickPct + '%'));
+  await page.keyboard.press('Escape');
+  await sleep(300);
+
+  // and it survives a reload
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await sleep(4000);
+  check('chosen window persists across reload',
+        await page.$eval(`#convCards .ws[data-w="${pick}"]`, e => e.classList.contains('on')));
+  await page.evaluate(() => { try { localStorage.removeItem('holdWin'); } catch (e) {} });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await sleep(4000);
+  check('default for a first-time visitor is 7d',
+        await page.$eval('#convCards .ws.on', e => e.dataset.w) === (CANARY ? '180d' : '7d'));
+
   // every card opens the SAME card — that's the whole point of this revision
   for (let i = 0; i < 3; i++) {
     await (await page.$$('#convCards .conv-card'))[i].click();
@@ -54,14 +130,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const lines = txt.split('\n');
   check('exactly three lines', lines.length === 3);
   check('all lowercase', txt === txt.toLowerCase());
-  // the headline is the 6-month window; d180Pct once a scan has emitted it, else the two
-  // buckets above 180 days — the same cut, since BUCKETS breaks at exactly 180
-  const sixMo = c.d180Pct != null ? c.d180Pct
-      : +c.dist.filter(b => b.label === '6-12 months' || b.label === 'over a year')
-               .reduce((a, b) => a + b.sPct, 0).toFixed(1);
-  check('line 1 says 6 months, not a week', /6 months/.test(lines[0]) && !/a week/.test(lines[0]));
-  check('line 1 has the real 6-month figure', lines[0].includes(sixMo.toFixed(0) + '%'));
-  check('6-month figure is below the 7-day one', sixMo < c.d7Pct);
+  // default headline window is 7d, which the scanner emits directly
+  const dflt = (c.hold && c.hold['7d'] != null) ? c.hold['7d'] : c.d7Pct;
+  check('line 1 quotes the selected window', lines[0].includes(dflt.toFixed(0) + '%'));
+  check('line 1 names the window in words', /hasn't moved in a week/.test(lines[0]));
   check('line 2 has the real holder count', lines[1].includes(c.holders.toLocaleString()));
   check('line 3 has the real 30d growth', lines[2].includes(c.growth.d30.toLocaleString()));
 
