@@ -291,13 +291,19 @@
 
         /* ===== holder conviction ===== */
         .conv-band { max-width:1920px; margin:0 auto; padding:7px clamp(8px,1.4vw,14px) 0; }
-        .conv-head { display:flex; align-items:center; gap:9px; padding:5px 13px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-        .conv-head h3 { font-size:11.5px; font-weight:800; letter-spacing:.5px; color:var(--txt); }
-        .conv-head .live { display:flex; align-items:center; gap:5px; margin-left:auto;
-                           font-family:var(--mono); font-size:9.5px; color:var(--dimmer); }
-        .conv-head .live i { width:5px; height:5px; border-radius:50%; background:var(--green);
-                             box-shadow:0 0 7px var(--green); animation:convPulse 2s ease-in-out infinite; }
+        /* the census stamp used to be its own header row; it now sits in the corner of the last
+           card, which buys back the row without losing the "this is live" signal.
+           In FLOW, not absolute: it's a flex sibling of .body pushed right with margin-left:auto,
+           so it can't land on the sparkline. Absolute did, at every width where the third card
+           got narrow enough for the spark to reach the corner. */
+        .conv-live { margin-left:auto; align-self:flex-end; flex:0 0 auto;
+                     display:flex; align-items:center; gap:5px;
+                     font-family:var(--mono); font-size:9px; color:var(--dimmer); letter-spacing:.3px;
+                     white-space:nowrap; pointer-events:none; }
+        .conv-live i { width:5px; height:5px; border-radius:50%; background:var(--green);
+                       box-shadow:0 0 7px var(--green); animation:convPulse 1.9s ease-in-out infinite; }
         @keyframes convPulse { 50% { opacity:.35; } }
+        @media (max-width:520px) { .conv-live { margin-left:0; align-self:flex-start; font-size:8.5px; } }
         .conv-cards { display:grid; grid-template-columns:repeat(3,1fr); }
         .conv-card { position:relative; padding:9px 14px; border-right:1px solid var(--line);
                      overflow:hidden; transition:background .25s; }
@@ -305,7 +311,9 @@
         .conv-card::after { content:''; position:absolute; inset:0; opacity:0; transition:opacity .25s;
                             background:radial-gradient(120% 90% at 50% 0%, var(--cardGlow), transparent 70%); }
         .conv-card:hover::after { opacity:1; }
-        .conv-card { display:flex; align-items:center; gap:13px; }
+        /* wrap so the census stamp drops to its own line in the card exactly when it stops
+           fitting beside the label — no breakpoint guessing, and it can't clip out of the card */
+        .conv-card { display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
         .conv-ring { position:relative; flex:0 0 auto; width:56px; height:56px; }
         .conv-ring svg { transform:rotate(-90deg); overflow:visible; }
         .conv-ring .trk { fill:none; stroke:var(--panel2); stroke-width:6; }
@@ -512,10 +520,6 @@
     <!-- holder conviction — full-width band under the ticker -->
     <div class="conv-band">
         <div class="panel" id="convPanel">
-            <div class="conv-head">
-                <h3>who's actually holding $ALON</h3>
-                <span class="live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>
-            </div>
             <div class="conv-cards" id="convCards"></div>
         </div>
     </div>
@@ -2107,9 +2111,11 @@
     (async function conviction() {
         const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
         const nf = n => n.toLocaleString();
+        let jupCount = null;
         try {
             const j = await (await fetch(`https://datapi.jup.ag/v1/holders/${CA}`)).json();
-            if (j && j.count) set('convHolders', nf(j.count));
+            // stashed, not written: #convHolders lives inside the cards now and they render below
+            if (j && j.count) jupCount = nf(j.count);
         } catch (e) {}
 
         let c = null;
@@ -2138,7 +2144,9 @@
             { col: '#c084fc', glow: 'rgba(192,132,252,.30)',
               big: '+' + nf((c.growth || {}).d30 || 0),
               lab: `new wallets in 30 days —<br><b>+${((c.growth || {}).pct30 || 0).toFixed(0)}%</b> holder growth`,
-              spark: ((c.growth || {}).months || []) },
+              spark: ((c.growth || {}).months || []),
+              // census stamp rides in the corner of the last card — it used to be a header row
+              live: true },
         ];
         document.getElementById('convCards').innerHTML = cards.map(k => `
             <div class="conv-card" style="--cardCol:${k.col};--cardGlow:${k.glow}">
@@ -2153,7 +2161,9 @@
                         return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
                     })()}</div>` : ''}
                 </div>
+                ${k.live ? `<span class="conv-live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>` : ''}
             </div>`).join('');
+        if (jupCount) set('convHolders', jupCount);
         requestAnimationFrame(() => {
             document.querySelectorAll('.conv-ring .val').forEach(e => { e.style.strokeDashoffset = e.dataset.off; });
             document.querySelectorAll('.conv-spark i').forEach(e => { e.style.height = e.dataset.h + '%'; });
