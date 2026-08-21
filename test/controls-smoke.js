@@ -77,7 +77,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(4200);                       // POP_MS animation has to clear first
   const after = await st();
   check('pump sets boosting',     after.boosting === true);
-  check('pump turns alon on',     after.alonOn === true);
+  // pump is independent of the character: switching alon off and pumping must NOT drag him back
+  check('pump leaves alon off',   after.alonOn === (CANARY ? true : false));
   check('pump button lit',        after.lit === true);
   // the whole point: it RAMPS, it doesn't teleport. manifest stays out of it.
   check('pump does NOT manifest', after.manifesting === (CANARY ? true : false));

@@ -900,9 +900,9 @@
     let base = { rows: [], done: false };
     let fine = {};
 
-    async function fetchCandles(interval, to) {
+    async function fetchCandles(interval, to, count) {
         const end = (to || new Date()).toISOString();
-        const url = `${JUP_CHART}/${CA}?interval=${interval}&to=${encodeURIComponent(end)}&candles=${PAGE}`;
+        const url = `${JUP_CHART}/${CA}?interval=${interval}&to=${encodeURIComponent(end)}&candles=${count || PAGE}`;
         const gap = Date.now() - lastFetch;
         if (gap < 250) await new Promise(r => setTimeout(r, 250 - gap));
 
@@ -1374,6 +1374,27 @@
         } catch (e) {
             setStatus(/fetch/i.test(e.message) ? 'history unavailable · try again' : e.message, true);
         }
+    }
+
+    // The chart used to be a load-time snapshot: every other fetchCandles call pages BACKWARDS
+    // (loadMore/backfill/switching to a fine tf), so nothing ever re-read the newest candle.
+    // Header, strip and tab title refreshed off the token endpoint every 30s while the chart's
+    // last bar stayed frozen — so the two drifted apart all session and only a reload re-synced
+    // them. This re-reads the tail on the same 30s tick, so both are equally fresh.
+    const TAIL = 120;
+    async function refreshCandles() {
+        if (!chart || !tok || boosting) return;   // the pump owns the tail while it's running
+        try {
+            const tail = await fetchCandles('1_HOUR', null, TAIL);
+            if (tail.length) base.rows = mergeRows(base.rows, tail);
+            if (FINE[tf] && fine[tf] && fine[tf].rows.length) {
+                const ft = await fetchCandles(FINE[tf], null, TAIL);
+                if (ft.length) fine[tf].rows = mergeRows(fine[tf].rows, ft);
+            }
+            const rows = displayRows();
+            if (rows.length) applySeries(rows);   // setData only — the user's zoom/pan survives
+            paintAth();                           // a new high in the tail has to move the line
+        } catch (e) { /* keep the last good chart rather than blanking it */ }
     }
 
     function paintAth() {
@@ -2083,8 +2104,10 @@
         pumpPop();
         setTimeout(() => {
             popArming = false;
-            if (setAlonOn) setAlonOn(true);    // he rides the fake candles — that's the joke
-            alon.run(false);                   // drop run mode so he re-parks on the ripping tip
+            // PUMP UR SHIT is independent of the character on purpose — it used to force him
+            // on, which yanked him back onto the chart after you'd deliberately switched him off.
+            // If he IS on and running, drop run mode so he re-parks on the ripping tip.
+            alon.run(false);
             setBoost(true);                    // the ramp does the work — no teleport to $1B
 
             btn.title = 'back to reality';
@@ -2094,7 +2117,10 @@
     // test bridge — read-only view of the two chart-fake states for test/controls-smoke.js
     window.__ctl = { boosting: () => boosting, manifesting: () => manifesting,
                      elapsed: () => (boosting ? pumpElapsed() : null),
-                     mcap: () => (supply && boostRows.length ? boostRows[boostRows.length - 1].close * supply : null) };
+                     mcap: () => (supply && boostRows.length ? boostRows[boostRows.length - 1].close * supply : null),
+                     // what the CHART's newest bar is worth, for comparing against the header
+                     chartMcap: () => { const r = displayRows(); return r.length && supply ? r[r.length - 1].close * supply : null; },
+                     tokMcap: () => (tok ? tok.mcap : null) };
 
     // ===== market-cap axis: linear or logarithmic =====
     function applyScale(log) {
@@ -2501,10 +2527,13 @@
         try {
             tok = await fetchToken();
             supply = tok.supply || (tok.price > 0 ? tok.mcap / tok.price : 0);
-            // keep polling while backgrounded — the tab title is the whole point of this one
-            if (document.hidden) { const p = shown(); if (p && p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alonpump.run`; return; }
+            // renderCoin writes the title too, so run it even while backgrounded — the old
+            // early-return updated the title ALONE, which left the tab reading newer than the
+            // header until you came back and a refresh completed.
             renderCoin();
             renderMarquee();
+            if (document.hidden) return;          // but skip the chart work while hidden
+            await refreshCandles();
         } catch (e) { console.warn('[arcade]', e.message); }
     }
 
