@@ -58,7 +58,7 @@
               color:var(--dimmer); cursor:pointer; transition:.13s; }
         .ws:hover { color:var(--txt); }
         .ws.on { background:var(--green-x); color:var(--green); box-shadow:0 0 8px rgba(74,222,128,0.25); }
-        @media (max-width:520px) { .win-seg { position:static; margin-left:auto; align-self:flex-start; } }
+        @media (max-width:520px) { .win-seg { position:static; display:inline-flex; margin:8px 0 0 9px; } }
 
         .lb { position:fixed; inset:0; z-index:200; display:none; padding:clamp(12px,4vh,48px) 14px;
               overflow-y:auto; background:rgba(6,9,10,0.78); backdrop-filter:blur(6px);
@@ -347,6 +347,13 @@
 
         /* ===== holder conviction ===== */
         .conv-band { max-width:1920px; margin:0 auto; padding:7px clamp(8px,1.4vw,14px) 0; }
+        /* one window switcher for the whole band — it drives all three cards, so it can't live
+           in the corner of the first one or it reads as belonging to that card alone */
+        #convPanel { position:relative; }
+        /* the last card's corner is where the switcher lands, so its SHARE hint would sit under
+           it — the other two cards still teach that the cards are clickable */
+        .conv-card:last-child .conv-more { display:none; }
+        .win-seg:empty { display:none; }
         /* the census stamp used to be its own header row; it now sits in the corner of the last
            card, which buys back the row without losing the "this is live" signal.
            In FLOW, not absolute: it's a flex sibling of .body pushed right with margin-left:auto,
@@ -621,6 +628,7 @@
     <!-- holder conviction — full-width band under the ticker -->
     <div class="conv-band">
         <div class="panel" id="convPanel">
+            <div class="win-seg" id="convWin"></div>
             <div class="conv-cards" id="convCards"></div>
         </div>
     </div>
@@ -2450,7 +2458,7 @@
               </svg><span>${pct.toFixed(0)}%</span></div>`;
         };
 
-        // ---- the headline window is switchable: 7d / 1mo / 2mo / 3mo / 6mo ----
+        // ---- one window drives all three cards: 7 days / 3 months / 6 months ----
         // A window only gets a button if we can produce a REAL number for it, from one of:
         //   1. c.hold — every window, emitted by holder-scan.js (the good path)
         //   2. the legacy dNPct fields, for censuses scanned before that existed
@@ -2458,9 +2466,7 @@
         //      (BUCKETS break at 1/7/30/90/180/365 — so 14d and 60d are not reconstructable)
         // Anything we can't source is dropped rather than guessed.
         const WINDOWS = [
-            { key: '7d',   days: 7,   btn: '7d',  say: 'a week' },
-            { key: '30d',  days: 30,  btn: '1mo', say: 'a month' },
-            { key: '60d',  days: 60,  btn: '2mo', say: '2 months' },
+            { key: '7d',   days: 7,   btn: '7d',  say: '7 days' },
             { key: '90d',  days: 90,  btn: '3mo', say: '3 months' },
             { key: '180d', days: 180, btn: '6mo', say: '6 months' },
         ];
@@ -2478,41 +2484,82 @@
             }
             return null;
         }
-        const AVAIL = WINDOWS.map(w => ({ ...w, pct: windowPct(w) })).filter(w => w.pct != null);
+        // wallets that haven't moved in the window. The distribution buckets break at
+        // 1/7/30/90/180/365, so summing from an edge is exact — verified against the census's
+        // own n7 / n30 / n180 counters, which it reproduces to the wallet.
+        const DIST_EDGE = [0, 1, 7, 30, 90, 180, 365];
+        function windowWallets(w) {
+            const i = DIST_EDGE.indexOf(w.days);
+            if (i < 1 || !Array.isArray(c.dist)) return null;
+            return c.dist.slice(i).reduce((a, b) => a + (b.wallets || 0), 0);
+        }
+
+        // wallets that ARRIVED inside the window. d30/d90 come straight off the census; d7 and
+        // d180 were added to holder-scan.js on 2026-08-22 and appear with the next nightly run.
+        // Until then 6mo sums calendar months (≈175 days, not 180) and 7d borrows the 30-day
+        // figure — and says "30 days" when it does, rather than printing a number it can't back.
+        function windowNew(w) {
+            const g = c.growth || {};
+            if (g['d' + w.days] != null) return { n: g['d' + w.days], say: w.say };
+            if (w.days === 180 && (g.months || []).length >= 6)
+                return { n: g.months.slice(-6).reduce((a, m) => a + m.n, 0), say: w.say };
+            if (g.d30 != null) return { n: g.d30, say: '30 days' };
+            return null;
+        }
+        // growth % against the wallets that were already here — reproduces the census's own
+        // pct30 exactly, so the same arithmetic is safe to run for the other windows
+        const growthPct = n => { const was = (c.holders || 0) - n; return was > 0 ? n / was * 100 : 0; };
+
+        const AVAIL = WINDOWS.map(w => ({ ...w, pct: windowPct(w), wal: windowWallets(w), fresh: windowNew(w) }))
+                             .filter(w => w.pct != null);
         const DEFAULT_WIN = '7d';
         let holdW = AVAIL.find(w => w.key === DEFAULT_WIN) || AVAIL[0] || { pct: 0, say: 'a week', key: '7d' };
         try { const sv = localStorage.getItem('holdWin');
               if (sv) holdW = AVAIL.find(w => w.key === sv) || holdW; } catch (e) {}
         const HOLD_PCT = holdW.pct, HOLD_WIN = holdW.say;
 
-        // supply-weighted first, because it's the only framing dust can't distort. the wallet
-        // counts underneath exist to explain WHY the wallet-count version would mislead.
+        // the three cards read as one sentence about the same window: how much supply sat still,
+        // how many wallets sat still, how many turned up. Supply-weighted first, because it's the
+        // only framing dust can't distort — the wallet count underneath is the human version.
+        const card2Lab = w => w.wal != null
+            ? `wallets hold $ALON —<br><b>${nf(w.wal)}</b> haven't sold in ${w.say}`
+            : `wallets hold $ALON`;
+        const card3Big = w => '+' + nf((w.fresh || {}).n || 0);
+        const card3Lab = w => w.fresh
+            ? `new wallets in ${w.fresh.say} —<br><b>+${growthPct(w.fresh.n).toFixed(0)}%</b> holder growth`
+            : `new wallet data pending`;
+
         const cards = [
             { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: HOLD_PCT,
-              lab: `of <b>all $ALON</b><br>hasn't moved in ${HOLD_WIN}`,
-              winbar: AVAIL.length > 1 ? `<div class="win-seg">${AVAIL.map(w =>
-                  `<button class="ws${w.key === holdW.key ? ' on' : ''}" data-w="${w.key}" tabindex="-1">${w.btn}</button>`
-                ).join('')}</div>` : '' },
+              lab: `of <b>all $ALON</b><br>hasn't moved in ${HOLD_WIN}` },
             { col: '#38bdf8', glow: 'rgba(56,189,248,.30)',
               big: nf(c.holders || 0),
-              lab: `wallets hold $ALON at a<br><b>$${((c.mcap || 0) / 1e6).toFixed(2)}M</b> cap — ${nf(c.holdersPerM || 0)} per $1M` },
+              lab: card2Lab(holdW) },
             { col: '#c084fc', glow: 'rgba(192,132,252,.30)',
-              big: '+' + nf((c.growth || {}).d30 || 0),
-              lab: `new wallets in 30 days —<br><b>+${((c.growth || {}).pct30 || 0).toFixed(0)}%</b> holder growth`,
+              big: card3Big(holdW),
+              lab: card3Lab(holdW),
               spark: ((c.growth || {}).months || []),
               // census stamp rides in the corner of the last card — it used to be a header row
               live: true },
         ];
 
+        // the switcher is a band-level control, rendered once outside the cards
+        document.getElementById('convWin').innerHTML = AVAIL.length > 1 ? AVAIL.map(w =>
+            `<button class="ws${w.key === holdW.key ? ' on' : ''}" data-w="${w.key}" tabindex="-1">${w.btn}</button>`
+          ).join('') : '';
+
         // ---- share card: one card for all three numbers, drawn on a canvas so what you
         // ---- see is exactly what lands in the clipboard ----
         const g = c.growth || {}, months = g.months || [];
         const SHARE_W = 1200, SHARE_H = 1000;        // slightly wider than square
-        const shareLines = [
-            `${HOLD_PCT.toFixed(0)}% of all $alon hasn't moved in ${HOLD_WIN}`,
-            `${nf(c.holders || 0)} wallets hold it at a $${((c.mcap || 0) / 1e6).toFixed(2)}m cap`,
-            `+${nf(g.d30 || 0)} new wallets in the last 30 days — +${(g.pct30 || 0).toFixed(0)}% holder growth`,
+        const linesFor = w => [
+            `${w.pct.toFixed(0)}% of all $alon hasn't moved in ${w.say}`,
+            w.wal != null ? `${nf(c.holders || 0)} wallets hold it — ${nf(w.wal)} haven't sold in ${w.say}`
+                          : `${nf(c.holders || 0)} wallets hold it`,
+            w.fresh ? `+${nf(w.fresh.n)} new wallets in the last ${w.fresh.say} — +${growthPct(w.fresh.n).toFixed(0)}% holder growth`
+                    : `+${nf(g.d30 || 0)} new wallets in the last 30 days`,
         ];
+        const shareLines = linesFor(holdW);
 
         document.getElementById('convCards').innerHTML = cards.map(k => `
             <div class="conv-card" style="--cardCol:${k.col};--cardGlow:${k.glow}">
@@ -2527,7 +2574,7 @@
                         return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
                     })()}</div>` : ''}
                 </div>
-                ${k.winbar || '<span class="conv-more">SHARE ›</span>'}
+                <span class="conv-more">SHARE ›</span>
                 ${k.live ? `<span class="conv-live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>` : ''}
             </div>`).join('');
         if (jupCount) set('convHolders', jupCount);
@@ -2575,11 +2622,12 @@
                   big: holdW.pct.toFixed(0) + '%',
                   l1: 'of all $ALON', l2: `hasn't moved in ${holdW.say}` },
                 { col: '#38bdf8', big: nf(c.holders || 0),
-                  l1: 'wallets hold $ALON at a',
-                  l2: `$${((c.mcap || 0) / 1e6).toFixed(2)}M cap — ${nf(c.holdersPerM || 0)} per $1M` },
-                { col: '#c084fc', big: '+' + nf(g.d30 || 0),
-                  l1: 'new wallets in 30 days —',
-                  l2: `+${(g.pct30 || 0).toFixed(0)}% holder growth`, spark: months },
+                  l1: 'wallets hold $ALON —',
+                  l2: holdW.wal != null ? `${nf(holdW.wal)} haven't sold in ${holdW.say}`
+                                        : `at a $${((c.mcap || 0) / 1e6).toFixed(2)}M cap` },
+                { col: '#c084fc', big: '+' + nf((holdW.fresh || {}).n || g.d30 || 0),
+                  l1: `new wallets in ${(holdW.fresh || {}).say || '30 days'} —`,
+                  l2: `+${growthPct((holdW.fresh || {}).n || g.d30 || 0).toFixed(0)}% holder growth`, spark: months },
             ];
             let y = 336;
             for (const r of rows) {
@@ -2668,31 +2716,41 @@
         document.getElementById('convLbX').addEventListener('click', closeLb);
         window.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
 
-        // ---- headline window switcher, on the first card ----
+        // ---- one switcher, all three cards ----
         function applyWindow(key) {
             const w = AVAIL.find(x => x.key === key);
             if (!w) return;
             holdW = w;
             try { localStorage.setItem('holdWin', key); } catch (e) {}
-            const card = document.querySelector('#convCards .conv-card');
-            if (!card) return;
-            card.querySelectorAll('.ws').forEach(b => b.classList.toggle('on', b.dataset.w === key));
-            const sp = card.querySelector('.conv-ring span');
+            const cds = document.querySelectorAll('#convCards .conv-card');
+            if (cds.length < 3) return;
+            document.querySelectorAll('#convWin .ws').forEach(b => b.classList.toggle('on', b.dataset.w === key));
+
+            const sp = cds[0].querySelector('.conv-ring span');
             if (sp) sp.textContent = w.pct.toFixed(0) + '%';
-            const val = card.querySelector('.conv-ring .val');
+            const val = cds[0].querySelector('.conv-ring .val');
             if (val) {
                 const circ = 2 * Math.PI * 23;                 // must match ring()'s r
                 val.dataset.off = (circ * (1 - w.pct / 100)).toFixed(1);
                 val.style.strokeDashoffset = val.dataset.off;
             }
-            const lab = card.querySelector('.lab');
-            if (lab) lab.innerHTML = `of <b>all $ALON</b><br>hasn't moved in ${w.say}`;
-            shareLines[0] = `${w.pct.toFixed(0)}% of all $alon hasn't moved in ${w.say}`;
+            const l0 = cds[0].querySelector('.lab');
+            if (l0) l0.innerHTML = `of <b>all $ALON</b><br>hasn't moved in ${w.say}`;
+
+            const l1 = cds[1].querySelector('.lab');
+            if (l1) l1.innerHTML = card2Lab(w);
+
+            const n2 = cds[2].querySelector('.num');
+            if (n2) n2.textContent = card3Big(w);
+            const l2 = cds[2].querySelector('.lab');
+            if (l2) l2.innerHTML = card3Lab(w);
+
+            linesFor(w).forEach((ln, i) => { shareLines[i] = ln; });
             const st = document.getElementById('shareTxt');
             if (st) st.textContent = shareLines.join('\n');
             if (lb.classList.contains('show')) drawShare();
         }
-        document.querySelectorAll('#convCards .ws').forEach(b => {
+        document.querySelectorAll('#convWin .ws').forEach(b => {
             // the card itself opens the share card — a segment press must not do that too
             b.addEventListener('click', e => { e.stopPropagation(); applyWindow(b.dataset.w); });
             b.addEventListener('keydown', e => e.stopPropagation());

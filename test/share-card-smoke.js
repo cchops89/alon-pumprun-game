@@ -25,8 +25,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('lightbox starts closed', !(await shown()));
 
   // ---- switchable headline window ----
-  const wins = await page.$$eval('#convCards .ws', els => els.map(e => e.dataset.w));
+  const wins = await page.$$eval('#convWin .ws', els => els.map(e => e.dataset.w));
   check('window switcher offers more than one', wins.length > 1);
+  check('windows are 7d / 3mo / 6mo', JSON.stringify(wins) === JSON.stringify(['7d', '90d', '180d']));
+  check('switcher lives on the band, not inside a card',
+        await page.$eval('#convWin', el => el.closest('.conv-card') === null));
   check('only sourceable windows offered', wins.every(w => {
     if (c.hold && c.hold[w] != null) return true;
     if (['7d', '14d', '30d', '180d'].includes(w)) return true;
@@ -53,7 +56,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   const seen = [];
   for (const w of wins) {
-    await page.click(`#convCards .ws[data-w="${w}"]`);
+    await page.click(`#convWin .ws[data-w="${w}"]`);
     await sleep(300);
     check(`window ${w} does NOT open the lightbox`, !(await shown()));
     const ring = await page.$eval('#convCards .conv-ring span', e => e.textContent);
@@ -69,7 +72,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     });
     check(`window ${w} redraws the arc to match`, Math.abs(arc - parseFloat(ring)) < 1.5);
     check(`window ${w} marks itself active`,
-          await page.$eval(`#convCards .ws[data-w="${w}"]`, e => e.classList.contains('on')));
+          await page.$eval(`#convWin .ws[data-w="${w}"]`, e => e.classList.contains('on')));
   }
   // a wider window can only ever be a subset — if this ever rises, the windows are wired wrong
   const ordered = [...seen].sort((a, b) => a.days - b.days);
@@ -78,7 +81,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   // the selection has to reach the share copy AND the canvas, not just the card
   const pick = wins[wins.length - 1];
-  await page.click(`#convCards .ws[data-w="${pick}"]`);
+  await page.click(`#convWin .ws[data-w="${pick}"]`);
   await sleep(300);
   await page.click('#convCards .conv-card .lab');
   await sleep(800);
@@ -93,12 +96,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.reload({ waitUntil: 'domcontentloaded' });
   await sleep(4000);
   check('chosen window persists across reload',
-        await page.$eval(`#convCards .ws[data-w="${pick}"]`, e => e.classList.contains('on')));
+        await page.$eval(`#convWin .ws[data-w="${pick}"]`, e => e.classList.contains('on')));
   await page.evaluate(() => { try { localStorage.removeItem('holdWin'); } catch (e) {} });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await sleep(4000);
   check('default for a first-time visitor is 7d',
-        await page.$eval('#convCards .ws.on', e => e.dataset.w) === (CANARY ? '180d' : '7d'));
+        await page.$eval('#convWin .ws.on', e => e.dataset.w) === (CANARY ? '180d' : '7d'));
 
   // every card opens the SAME card — that's the whole point of this revision
   for (let i = 0; i < 3; i++) {
@@ -133,7 +136,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // default headline window is 7d, which the scanner emits directly
   const dflt = (c.hold && c.hold['7d'] != null) ? c.hold['7d'] : c.d7Pct;
   check('line 1 quotes the selected window', lines[0].includes(dflt.toFixed(0) + '%'));
-  check('line 1 names the window in words', /hasn't moved in a week/.test(lines[0]));
+  check('line 1 names the window in words', /hasn't moved in 7 days/.test(lines[0]));
   check('line 2 has the real holder count', lines[1].includes(c.holders.toLocaleString()));
   check('line 3 has the real 30d growth', lines[2].includes(c.growth.d30.toLocaleString()));
 

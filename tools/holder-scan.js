@@ -280,7 +280,7 @@ async function lastActivity(accounts, prior) {
   // had time to leave, so the recent months are accurate even though older ones undercount.
   const firsts = held.map(h => (state.wallets[h.account] || {}).first).filter(Boolean);
   const since = d => firsts.filter(f => (now - f) / DAY <= d).length;
-  agg.growth = { d30: since(30), d90: since(90),
+  agg.growth = { d7: since(7), d30: since(30), d90: since(90), d180: since(180),
                  pct30: +(since(30) / Math.max(agg.holders - since(30), 1) * 100).toFixed(1) };
   const months = {};
   for (const f of firsts) {
