@@ -203,6 +203,16 @@
         .article:hover .article-sub { color:var(--green); border-color:var(--green-d); }
 
         /* rotating shill line, centred between the pfp and the market cap */
+        .cmp-toggle { display:flex; align-items:center; gap:6px; flex:0 0 auto; padding:5px 10px 5px 7px;
+                      border-radius:8px; background:var(--panel2); border:1px solid var(--line2);
+                      cursor:pointer; color:var(--dimmer); transition:.16s;
+                      font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.4px; }
+        .cmp-toggle img { width:15px; height:15px; opacity:.5; filter:grayscale(1); transition:.16s; }
+        .cmp-toggle:hover { border-color:#7c3aed; color:#c084fc; }
+        .cmp-toggle.on { border-color:#7c3aed; background:rgba(192,132,252,0.13); color:#c084fc;
+                         box-shadow:0 0 14px rgba(192,132,252,0.3); }
+        .cmp-toggle.on img { opacity:1; filter:none; }
+        @media (max-width:520px) { .cmp-toggle span { display:none; } }
         .ct-shill { flex:1; text-align:center; min-width:0; padding:0 12px;
                     font-size:15px; font-weight:900; letter-spacing:-0.2px; text-transform:uppercase;
                     color:var(--green); text-shadow:0 0 16px rgba(74,222,128,0.35);
@@ -674,6 +684,10 @@
                         <div class="ct-name">ALON<em>/SOL</em></div>
                         <div class="ct-chain">solana · raydium · market cap</div>
                     </div>
+                    <button class="cmp-toggle" id="cmpBtn" title="overlay $PUMP, rebased to where $ALON started">
+                        <img src="pump-logomark.svg" alt="">
+                        <span>vs $PUMP</span>
+                    </button>
                     <div class="ct-shill" id="shillLine">stop being poor</div>
                     <div class="ct-price">
                         <div class="v" id="headMc">—</div>
@@ -940,9 +954,9 @@
     let base = { rows: [], done: false };
     let fine = {};
 
-    async function fetchCandles(interval, to, count) {
+    async function fetchCandles(interval, to, count, mint) {
         const end = (to || new Date()).toISOString();
-        const url = `${JUP_CHART}/${CA}?interval=${interval}&to=${encodeURIComponent(end)}&candles=${count || PAGE}`;
+        const url = `${JUP_CHART}/${mint || CA}?interval=${interval}&to=${encodeURIComponent(end)}&candles=${count || PAGE}`;
         const gap = Date.now() - lastFetch;
         if (gap < 250) await new Promise(r => setTimeout(r, 250 - gap));
 
@@ -1264,6 +1278,95 @@
         }
     }
 
+    // ===== $PUMP overlay =====
+    // pump.fun's own coin is the sector's beta: when it runs, the whole pad runs, and the
+    // question worth answering on this page is "is $ALON moving with it or on its own?".
+    // A ratio chart (alon priced in pump) answers a DIFFERENT question and answers it backwards
+    // — it prints red on exactly the days chris calls good days — so this is an overlay, not a
+    // pair. $PUMP is REBASED: replotted as "what $ALON's mcap would be if it had tracked $PUMP
+    // from the first bar the two share". Same axis, so a 10% move looks like a 10% move on both.
+    const CMP = { ca: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn', tick: '$PUMP', col: '#c084fc' };
+    let cmpOn = false, cmpBase = [], cmpFine = {}, cmpLoading = false, cmpS = null;
+
+    function cmpRows(timeframe) {
+        if (BUCKET[timeframe]) return aggregate(cmpBase, BUCKET[timeframe]);
+        if (timeframe === '1h') return cmpBase;
+        return cmpFine[timeframe] || [];
+    }
+
+    // the anchor is the leftmost bar you can SEE, not the leftmost bar loaded — anchoring
+    // off-screen is what makes a compare overlay look like it starts at the wrong price, and
+    // the whole point is that the two lines leave the left edge together
+    let cmpKey = '', cmpRaf = 0, cmpDebug = null;
+    function paintCmp(rows) {
+        if (!cmpS) return;
+        if (!cmpOn) { cmpS.setData([]); cmpS.applyOptions({ visible: false }); cmpKey = ''; return; }
+        const a = rows || displayRows(), p = cmpRows(tf);
+        if (!a.length || !p.length) { cmpS.setData([]); cmpKey = ''; return; }
+        const r = chart ? chart.timeScale().getVisibleLogicalRange() : null;
+        const from = r ? Math.max(0, Math.min(a.length - 1, Math.ceil(r.from))) : 0;
+        const pm = new Map(p.map(c => [c.time, c.close]));
+        const mult = supply || 1;
+        let aA = null, pA = null, at = 0;
+        for (let i = from; i < a.length; i++) {
+            const q = pm.get(a[i].time);
+            if (q != null) { aA = a[i].close * mult; pA = q; at = a[i].time; break; }
+        }
+        // nothing shared to the right of the left edge — fall back to the oldest shared bar
+        if (!aA) for (const c of a) { const q = pm.get(c.time); if (q != null) { aA = c.close * mult; pA = q; at = c.time; break; } }
+        if (!aA || !pA) { cmpS.setData([]); cmpKey = ''; return; }
+
+        // setData itself fires a visible-range change, so without this the repaint recurses
+        const key = tf + ':' + a.length + ':' + at + ':' + aA;
+        if (key === cmpKey) return;
+        cmpKey = key;
+
+        // the overlay spans every shared bar, not just the visible ones — the anchor is the
+        // bar it's PINNED to, which is why the probe below reads the point at `at`, not pts[0]
+        const pts = [];
+        let atVal = null;
+        for (const c of a) {
+            const q = pm.get(c.time);
+            if (q == null) continue;
+            const v = aA * (q / pA);
+            if (c.time === at) atVal = v;
+            pts.push({ time: c.time, value: v });
+        }
+        cmpS.setData(pts);
+        cmpS.applyOptions({ visible: true });
+        // the rebase is only correct if the overlay's value AT the anchor is the candle's mcap
+        cmpDebug = { t: at, cmp: atVal, alon: aA, n: pts.length };
+    }
+
+    function queueCmp() {
+        if (!cmpOn || cmpRaf) return;
+        cmpRaf = requestAnimationFrame(() => { cmpRaf = 0; paintCmp(); });
+    }
+
+    async function loadCmp() {
+        if (!cmpOn || cmpLoading) return;
+        cmpLoading = true;
+        const myTf = tf;
+        try {
+            if (FINE[tf]) { if (!(cmpFine[tf] || []).length) cmpFine[tf] = await fetchCandles(FINE[tf], null, null, CMP.ca); }
+            else if (!cmpBase.length) cmpBase = await fetchCandles('1_HOUR', null, null, CMP.ca);
+            if (myTf === tf) paintCmp();
+        } catch (e) {
+            // the overlay is a nicety — a rate limit on it must never take the chart down
+            setStatus('$PUMP overlay unavailable', true);
+            setTimeout(() => setStatus(''), 2600);
+        } finally { cmpLoading = false; }
+    }
+
+    function setCmp(on) {
+        cmpOn = on;
+        try { localStorage.setItem('cmpPump', on ? 'yes' : 'no'); } catch (e) {}
+        const b = document.getElementById('cmpBtn');
+        if (b) b.classList.toggle('on', on);
+        cmpKey = '';
+        if (on) loadCmp(); else paintCmp();
+    }
+
     function viewRows(timeframe) {
         if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe]);
         if (timeframe === '1h') return base.rows;
@@ -1335,12 +1438,22 @@
         });
         chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.87, bottom: 0 }, visible: false });
 
+        // rebased $PUMP rides the SAME price scale as $ALON — that's the whole point, the two
+        // are directly comparable. No last-value tag: the number would be an $ALON mcap that
+        // $PUMP never had.
+        cmpS = chart.addLineSeries({
+            color: CMP.col, lineWidth: 2, visible: false, priceLineVisible: false,
+            lastValueVisible: false, crosshairMarkerVisible: false,
+            priceFormat: { type: 'custom', formatter: mcFmt, minMove: 1 },
+        });
+
         new ResizeObserver(() => {
             if (chart) chart.applyOptions({ width: box.clientWidth, height: box.clientHeight });
         }).observe(box);
 
         chart.timeScale().subscribeVisibleLogicalRangeChange(r => {
             if (r && r.from < 12) loadMore();
+            queueCmp();
         });
 
         // draw tool: click drops a horizontal level at that market cap
@@ -1368,6 +1481,7 @@
         })));
         candleS.applyOptions({ visible: ctype === 'candle' });
         lineS.applyOptions({ visible: ctype === 'line' });
+        paintCmp(rows);
     }
 
     async function loadChart() {
@@ -1623,8 +1737,10 @@
     document.querySelectorAll('.tf').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.tf').forEach(x => x.classList.remove('on'));
         // the fake candles are pinned to the old timeframe's step — restart them on the new one
-        b.classList.add('on'); tf = b.dataset.tf; boostRows = []; loadChart();
+        b.classList.add('on'); tf = b.dataset.tf; boostRows = []; loadChart(); loadCmp();
     }));
+
+    document.getElementById('cmpBtn').addEventListener('click', () => setCmp(!cmpOn));
 
     document.querySelectorAll('.tool[data-type]').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.tool[data-type]').forEach(x => x.classList.remove('on'));
@@ -1914,6 +2030,20 @@
                 c.restore();
             }
 
+            // ---- watermark, centred over the chart ----
+            // sized off the card width so it reads the same on a phone capture and a 4K one,
+            // and kept faint enough that it never hides a candle
+            c.save();
+            c.textAlign = 'center';
+            const wm = Math.max(15, Math.min(30, W / 34));
+            c.globalAlpha = 0.19;
+            c.fillStyle = '#e9f2ec'; c.font = '800 ' + wm.toFixed(1) + 'px ' + MONO;
+            c.fillText('CHARTED ON ALONPUMP.RUN', W / 2, HEAD + CH / 2 - wm * 0.25);
+            c.globalAlpha = 0.16;
+            c.font = '700 ' + (wm * 0.78).toFixed(1) + 'px ' + MONO;
+            c.fillText('BY @THEJPEGJUNKIE', W / 2, HEAD + CH / 2 + wm * 0.95);
+            c.restore();
+
             // ---- footer ----
             const fy = HEAD + CH;
             c.fillStyle = '#131718'; c.fillRect(0, fy, W, FOOT);
@@ -1923,7 +2053,7 @@
             c.fillText('alonpump.run', 16, base);
             const brand = c.measureText('alonpump.run').width;
             c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
-            c.fillText('  ·  $ALON  ·  ' + tf.toUpperCase(), 16 + brand, base);
+            c.fillText('  ·  @thejpegjunkie  ·  $ALON  ·  ' + tf.toUpperCase(), 16 + brand, base);
             const d = new Date();
             const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '  ·  ' +
                          d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -2337,7 +2467,8 @@
                      chartMcap: () => { const r = displayRows(); return r.length && supply ? r[r.length - 1].close * supply : null; },
                      tokMcap: () => (tok ? tok.mcap : null),
                      // the share card, for the smoke test to eyeball
-                     paintShot: () => shot.paint().toDataURL('image/png') };
+                     paintShot: () => shot.paint().toDataURL('image/png'),
+                     cmp: () => ({ on: cmpOn, rows: cmpRows(tf).length, dbg: cmpDebug }) };
 
     // ===== market-cap axis: linear or logarithmic =====
     function applyScale(log) {
@@ -2613,6 +2744,14 @@
             x.fillStyle = '#e9f2ec'; x.font = F(52, 800);
             x.fillText('$ALON', L, 152);
 
+            // credit block, top right — the card travels without the page around it
+            x.textAlign = 'right';
+            x.fillStyle = '#4ade80'; x.font = F(20, 800, true);
+            x.fillText('analyzed on alonpump.run', SHARE_W - L, 86);
+            x.fillStyle = '#5a6862'; x.font = F(18, 700, true);
+            x.fillText('by @thejpegjunkie', SHARE_W - L, 114);
+            x.textAlign = 'left';
+
             x.strokeStyle = '#232a2b'; x.lineWidth = 1;
             x.beginPath(); x.moveTo(L, 196); x.lineTo(SHARE_W - L, 196); x.stroke();
 
@@ -2821,6 +2960,10 @@
             } catch (e) { setStatus('chart data unavailable', true); }
             await loadChart();
             if (window.__applyScaleOnInit) { window.__applyScaleOnInit(); delete window.__applyScaleOnInit; }
+            // restore only once the series exists — paintCmp with no cmpS is a silent no-op
+            let cmpSaved = false;
+            try { cmpSaved = localStorage.getItem('cmpPump') === 'yes'; } catch (e) {}
+            if (cmpSaved) setCmp(true);
             paintAth();
             renderMarquee();
             backfill();

@@ -39,6 +39,22 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // "exists" is not "visible": the arc renders at a full-circumference dashoffset and the spark
   // bars at zero height, then a rAF reveals both. Deleting that rAF leaves every element in the
   // DOM and every earlier assertion green, with an invisible ring on screen.
+  // the arc animates over 1.2s and the band only renders after two network calls, so a fixed
+  // sleep reads it mid-flight — wait for the offset to stop moving instead (this was flaky)
+  // ⚠ "stable" alone is a false positive: before the rAF reveal fires the offset sits at full
+  // circumference and is perfectly stable, which is the un-revealed state this test exists to
+  // catch. Require it to have MOVED off the full offset first, then to hold still.
+  await page.waitForFunction(() => {
+    const v = document.querySelector('#convCards .conv-ring .val');
+    if (!v) return false;
+    const circ = parseFloat(v.getAttribute('stroke-dasharray'));
+    const now = parseFloat(getComputedStyle(v).strokeDashoffset);
+    if (!(circ - now > 0.01)) { v.__last = null; return false; }   // not revealed yet
+    const settled = v.__last != null && Math.abs(v.__last - now) < 0.01;
+    v.__last = now;
+    return settled;
+  }, null, { polling: 250, timeout: 20000 });
+
   const vis = await page.evaluate(() => {
     const val = document.querySelector('#convCards .conv-ring .val');
     const circ = parseFloat(val.getAttribute('stroke-dasharray'));
