@@ -230,13 +230,13 @@
                       filter:drop-shadow(0 3px 7px rgba(0,0,0,0.65)); will-change:transform; }
         @media (max-width:820px) { #alonCursor { width:44px; height:44px; } }
 
-        .chart-bar { display:flex; align-items:center; gap:3px; padding:7px 10px;
+        .chart-bar { display:flex; align-items:center; gap:2px; padding:7px 8px;
                      border-bottom:1px solid var(--line); flex-wrap:wrap; }
-        .tf { padding:5px 10px; border-radius:7px; background:transparent; border:1px solid transparent;
+        .tf { padding:5px 8px; border-radius:7px; background:transparent; border:1px solid transparent;
               color:var(--dim); font-family:var(--mono); font-size:11.5px; font-weight:700; cursor:pointer; transition:.12s; }
         .tf:hover { color:var(--txt); background:var(--panel2); }
         .tf.on { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
-        .vsep { width:1px; height:17px; background:var(--line2); margin:0 5px; }
+        .vsep { width:1px; height:17px; background:var(--line2); margin:0 4px; }
         .tool { width:29px; height:26px; display:grid; place-items:center; border-radius:7px; cursor:pointer;
                 background:transparent; border:1px solid transparent; color:var(--dim); transition:.12s; }
         .tool:hover { background:var(--panel2); color:var(--txt); }
@@ -329,7 +329,8 @@
         .manifest.boost.on { animation:boostPulse .62s ease-in-out infinite; }
         @keyframes boostPulse { 50% { box-shadow:0 0 30px rgba(74,222,128,0.9); } }
 
-        .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+        .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px;
+                     flex-wrap:nowrap; min-width:0; }
         /* linear vs log market-cap axis */
         .segbar { display:flex; gap:2px; padding:2px; border-radius:8px;
                   background:var(--panel2); border:1px solid var(--line2); }
@@ -338,7 +339,11 @@
                color:var(--dimmer); transition:.14s; }
         .seg:hover { color:var(--txt); }
         .seg.on { background:var(--green-x); color:var(--green); box-shadow:0 0 12px rgba(74,222,128,0.35); }
-        .chart-status { font-family:var(--mono); font-size:10.5px; color:var(--dimmer); padding-right:3px; }
+        .chart-status { position:absolute; left:10px; top:10px; z-index:20; padding:4px 9px;
+                        border-radius:7px; pointer-events:none; white-space:nowrap;
+                        background:rgba(13,20,21,0.9); border:1px solid var(--line2);
+                        font-family:var(--mono); font-size:10px; color:var(--dim); }
+        .chart-status:empty { display:none; }
 
         /* ===== holder conviction ===== */
         .conv-band { max-width:1920px; margin:0 auto; padding:7px clamp(8px,1.4vw,14px) 0; }
@@ -413,7 +418,7 @@
             .conv-col { border-right:none; border-top:1px solid var(--line); }
             .conv-colA { border-top:none; }
         }
-        .chart-status.err { color:var(--red); }
+        .chart-status.err { color:var(--red); border-color:var(--red-d); }
         .chart-stage { position:relative; }
         #chart { width:100%; height:clamp(320px,54vh,520px); }
         #chart.drawing { cursor:crosshair; }
@@ -444,6 +449,28 @@
         .erase:hover { color:var(--green); border-color:var(--green-d);
                        box-shadow:0 0 12px rgba(74,222,128,0.25); }
         .erase.show { display:inline-block; }
+
+        /* screenshot toast — a clipboard copy has no other way to say it worked */
+        .shot-toast { position:absolute; left:50%; top:14px; z-index:30; transform:translate(-50%,-8px);
+                      padding:7px 14px; border-radius:9px; pointer-events:none; opacity:0; transition:.18s;
+                      background:rgba(13,20,21,0.95); border:1px solid var(--green-d); color:var(--green);
+                      font-family:var(--mono); font-size:11px; font-weight:800; letter-spacing:0.5px;
+                      box-shadow:0 0 22px rgba(74,222,128,0.3); white-space:nowrap; }
+        .shot-toast.show { opacity:1; transform:translate(-50%,0); }
+        .shot-toast.err { border-color:var(--red-d); color:var(--red);
+                          box-shadow:0 0 22px rgba(248,113,113,0.25); }
+        .chart-panel { container-type:inline-size; }
+        .shotbtn { display:flex; align-items:center; gap:6px; padding:5px 10px 5px 8px; border-radius:8px;
+                   background:var(--panel2); border:1px solid var(--line2); color:var(--dim); cursor:pointer;
+                   font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.5px;
+                   transition:.14s; }
+        .shotbtn:hover { color:var(--green); border-color:var(--green-d);
+                         box-shadow:0 0 12px rgba(74,222,128,0.25); }
+        .shotbtn.flash { background:var(--green-x); border-color:var(--green-d); color:var(--green);
+                         box-shadow:0 0 16px rgba(74,222,128,0.4); }
+        /* icon-only when the bar genuinely can't hold the label on one row */
+        @container (max-width:790px) { .shotbtn { font-size:0; gap:0; padding:5px 7px; } }
+        @media (max-width:560px) { .shotbtn { font-size:0; gap:0; padding:5px 7px; } }
 
         .strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); border-top:1px solid var(--line); }
         .strip div { padding:9px 11px; border-right:1px solid var(--line); }
@@ -632,7 +659,7 @@
 
         <!-- ================= CENTER: CHART + TXNS ================= -->
         <main class="center">
-            <div class="panel">
+            <div class="panel chart-panel">
                 <div class="chart-top">
                     <img src="alon-pfp.jpg?v=1" alt="alon">
                     <div>
@@ -681,7 +708,10 @@
                         PUMP UR SHIT
                     </button>
                     <div class="bar-right">
-                        <span class="chart-status" id="chartStatus"></span>
+                        <button class="shotbtn" id="shotBtn" title="copy a screenshot of the chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            COPY CHART
+                        </button>
                         <div class="segbar" id="scaleToggle">
                             <button class="seg on" data-mode="reg">REG</button>
                             <button class="seg" data-mode="log">LOG</button>
@@ -692,6 +722,8 @@
                 <div class="chart-stage" id="chartStage">
                     <div id="chart"></div>
                     <canvas id="draw"></canvas>
+                    <span class="chart-status" id="chartStatus"></span>
+                    <div class="shot-toast" id="shotToast"></div>
                     <div class="pump-pop" id="pumpPop"><img src="pumpurshit.png?v=1" alt="alon if you dont pump ur shit ill call my mom"></div>
                     <div id="stick"><i></i><b>DRAG TO RUN</b></div>
                     <div class="run-hint" id="runHint"><div class="card">
@@ -1772,6 +1804,181 @@
         redoStack = redoStack.filter(h => h.t !== 'stroke');
     });
 
+    // ===== shot: one-click share card of the chart =====
+    // the chart is a lightweight-charts canvas, so a DOM screenshot lib would miss it entirely.
+    // takeScreenshot() hands back the chart bitmap at whatever pixel ratio it drew at; the header,
+    // the brush layer, alon and the footer get composited on top by hand at that same ratio, so
+    // nothing is resampled and the text stays crisp.
+    const shot = (function () {
+        const MONO = "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+        const SHEET = new Image(); SHEET.src = 'alon-sprite-sheet.png?v=1';
+        const PFP = new Image();   PFP.src   = 'alon-pfp.jpg?v=1';
+        let busy = false;
+
+        function rr(c, x, y, w, h, r) {
+            c.beginPath();
+            c.moveTo(x + r, y);
+            c.arcTo(x + w, y, x + w, y + h, r);
+            c.arcTo(x + w, y + h, x, y + h, r);
+            c.arcTo(x, y + h, x, y, r);
+            c.arcTo(x, y, x + w, y, r);
+            c.closePath();
+        }
+
+        function txt(id) { const e = document.getElementById(id); return e ? e.textContent.trim() : ''; }
+
+        function paint() {
+            const box = document.getElementById('chart');
+            const pic = chart.takeScreenshot();
+            const W = box.clientWidth || pic.width;
+            const S = pic.width / W;               // 1 on a plain display, 2 on retina
+            const CH = pic.height / S;
+            const HEAD = 96, FOOT = 34, H = HEAD + CH + FOOT;
+
+            const out = document.createElement('canvas');
+            out.width = Math.round(W * S); out.height = Math.round(H * S);
+            const c = out.getContext('2d');
+            c.setTransform(S, 0, 0, S, 0, 0);
+            c.textBaseline = 'alphabetic';
+
+            c.fillStyle = '#131718'; c.fillRect(0, 0, W, H);
+
+            // ---- header ----
+            if (PFP.complete && PFP.naturalWidth) {
+                c.save(); rr(c, 16, 20, 56, 56, 13); c.clip();
+                c.drawImage(PFP, 16, 20, 56, 56); c.restore();
+                c.strokeStyle = '#0e3d23'; c.lineWidth = 1.5;
+                rr(c, 16, 20, 56, 56, 13); c.stroke();
+            }
+            c.font = '800 21px Inter, sans-serif'; c.fillStyle = '#e9f2ec';
+            c.fillText('ALON', 86, 46);
+            const nameW = c.measureText('ALON').width;
+            c.font = '600 21px Inter, sans-serif'; c.fillStyle = '#7d8b83';
+            c.fillText('/SOL', 86 + nameW, 46);
+            c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
+            const chain = 'solana · raydium · market cap';
+            c.fillText(chain, 86, 66);
+            const leftEdge = 86 + Math.max(nameW + c.measureText('/SOL').width, c.measureText(chain).width);
+
+            const mc = txt('headMc') || '—';
+            const chg = txt('headChg');
+            const up = !document.getElementById('headChg').classList.contains('down');
+            c.textAlign = 'right';
+            c.font = '800 40px ' + MONO; c.fillStyle = '#e9f2ec';
+            c.fillText(mc, W - 18, 52);
+            const mcW = c.measureText(mc).width;
+            c.font = '700 13px ' + MONO; c.fillStyle = up ? '#4ade80' : '#f87171';
+            c.fillText(chg, W - 18, 73);
+            c.textAlign = 'left';
+
+            // the shill line only goes in if it genuinely fits between the two blocks
+            const shill = txt('shillLine').toUpperCase();
+            if (shill) {
+                c.font = '800 15px ' + MONO;
+                const sw = c.measureText(shill).width;
+                const a = leftEdge + 22, b = W - 18 - mcW - 22;
+                if (b - a > sw) {
+                    c.textAlign = 'center'; c.fillStyle = '#4ade80';
+                    c.fillText(shill, (a + b) / 2, 53);
+                    c.textAlign = 'left';
+                }
+            }
+            c.fillStyle = '#232a2b'; c.fillRect(0, HEAD - 1, W, 1);
+
+            // ---- chart, brush layer, alon ----
+            c.drawImage(pic, 0, HEAD, W, CH);
+            const dv = document.getElementById('draw');
+            if (dv && dv.width) c.drawImage(dv, 0, HEAD, W, CH);
+
+            const av = document.getElementById('alonCursor');
+            if (av && av.style.display === 'block' && SHEET.complete && SHEET.naturalWidth) {
+                const ar = av.getBoundingClientRect(), br = box.getBoundingClientRect();
+                const fw = SHEET.naturalWidth / 6;
+                const fi = Math.min(5, Math.max(0, Math.round((parseFloat(av.style.backgroundPosition) || 0) / 20)));
+                const flip = /scaleX\(-1\)/.test(av.style.transform);
+                const dx = ar.left - br.left, dy = HEAD + (ar.top - br.top);
+                c.save();
+                c.beginPath(); c.rect(0, HEAD, W, CH); c.clip();
+                c.imageSmoothingEnabled = false;
+                if (flip) { c.translate(dx + ar.width, dy); c.scale(-1, 1); }
+                else { c.translate(dx, dy); }
+                c.drawImage(SHEET, fi * fw, 0, fw, SHEET.naturalHeight, 0, 0, ar.width, ar.height);
+                c.restore();
+            }
+
+            // ---- footer ----
+            const fy = HEAD + CH;
+            c.fillStyle = '#131718'; c.fillRect(0, fy, W, FOOT);
+            c.fillStyle = '#232a2b'; c.fillRect(0, fy, W, 1);
+            const base = fy + 22;
+            c.font = '800 12px ' + MONO; c.fillStyle = '#4ade80';
+            c.fillText('alonpump.run', 16, base);
+            const brand = c.measureText('alonpump.run').width;
+            c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
+            c.fillText('  ·  $ALON  ·  ' + tf.toUpperCase(), 16 + brand, base);
+            const d = new Date();
+            const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '  ·  ' +
+                         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            c.textAlign = 'right';
+            c.fillText('charts by TradingView  ·  ' + when, W - 16, base);
+            c.textAlign = 'left';
+
+            return out;
+        }
+
+        async function build() {
+            try { await document.fonts.ready; } catch (e) {}
+            const cv = paint();
+            return new Promise((res, rej) =>
+                cv.toBlob(b => b ? res(b) : rej(new Error('no blob')), 'image/png'));
+        }
+
+        function toast(msg, isErr) {
+            const t = document.getElementById('shotToast');
+            t.textContent = msg;
+            t.className = 'shot-toast show' + (isErr ? ' err' : '');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { t.className = 'shot-toast' + (isErr ? ' err' : ''); }, 1900);
+        }
+
+        function save(blob) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'alon-' + tf + '-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '') + '.png';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+
+        // clipboard.write() has to be reached from inside the click, so the blob goes in as a
+        // promise rather than being awaited first — that's the only shape Safari accepts.
+        async function grab() {
+            if (busy || !chart) return;
+            busy = true;
+            const btn = document.getElementById('shotBtn');
+            btn.classList.remove('breathe');
+            try { localStorage.setItem('shotSeen', 'yes'); } catch (e) {}
+            btn.classList.add('flash');
+            try {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': build() })]);
+                    toast('CHART COPIED ✓');
+                } else {
+                    save(await build());
+                    toast('CHART SAVED ✓');
+                }
+            } catch (e) {
+                try { save(await build()); toast('CHART SAVED ✓'); }
+                catch (e2) { toast('SCREENSHOT FAILED', true); }
+            } finally {
+                busy = false;
+                setTimeout(() => btn.classList.remove('flash'), 220);
+            }
+        }
+
+        document.getElementById('shotBtn').addEventListener('click', grab);
+        return { grab, paint };
+    })();
+
     // ===== alon lives on the chart =====
     // off until you switch him on. Once he's on he jogs along the tip of the price line;
     // point at the chart (or drag a finger across it) and he breaks off to chase the pointer,
@@ -2120,7 +2327,9 @@
                      mcap: () => (supply && boostRows.length ? boostRows[boostRows.length - 1].close * supply : null),
                      // what the CHART's newest bar is worth, for comparing against the header
                      chartMcap: () => { const r = displayRows(); return r.length && supply ? r[r.length - 1].close * supply : null; },
-                     tokMcap: () => (tok ? tok.mcap : null) };
+                     tokMcap: () => (tok ? tok.mcap : null),
+                     // the share card, for the smoke test to eyeball
+                     paintShot: () => shot.paint().toDataURL('image/png') };
 
     // ===== market-cap axis: linear or logarithmic =====
     function applyScale(log) {
@@ -2193,6 +2402,14 @@
         let seen = false;
         try { seen = localStorage.getItem('pumpSeen') === 'yes'; } catch (e) {}
         if (!seen) document.getElementById('boostBtn').classList.add('breathe');
+    })();
+
+    // copying a chart off a site isn't a thing people expect, so the camera breathes until
+    // it's been used once — same affordance as the alon toggle and the pump button
+    (function shotBreathe() {
+        let seen = false;
+        try { seen = localStorage.getItem('shotSeen') === 'yes'; } catch (e) {}
+        if (!seen) document.getElementById('shotBtn').classList.add('breathe');
     })();
 
     // shill rotator
