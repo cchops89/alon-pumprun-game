@@ -152,7 +152,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('line 1 quotes the selected window', lines[0].includes(dflt.toFixed(0) + '%'));
   check('line 1 names the window in words', /hasn't moved in 7 days/.test(lines[0]));
   check('line 2 has the real holder count', lines[1].includes(c.holders.toLocaleString()));
-  check('line 3 has the real 30d growth', lines[2].includes(c.growth.d30.toLocaleString()));
+  const gDflt = c.growth.d7 != null ? c.growth.d7 : c.growth.d30;
+  check('line 3 has the real arrivals for the selected window',
+        lines[2].includes(gDflt.toLocaleString()));
+  check('line 3 names the same window as line 1',
+        c.growth.d7 != null ? /in the last 7 days/.test(lines[2]) : /in the last 30 days/.test(lines[2]));
 
   // copy text really lands on the clipboard
   await page.click('#shareCopy');
@@ -177,6 +181,26 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.mouse.click(20, 20); await sleep(300);
   check('backdrop click closes it', !(await shown()));
   check('body scroll restored', await page.$eval('body', el => el.style.overflow) === '');
+  // ---- the card's chart backdrop follows the selected window ----
+  // ⚠ switch the window BEFORE opening the card: the lightbox covers #convWin, so a click on a
+  // segment while it's open never lands.
+  for (const [w, span, days] of [['7d', '7d', 7], ['90d', '3mo', 90], ['180d', '6mo', 180]]) {
+    await page.keyboard.press('Escape');
+    await sleep(300);
+    await page.click(`#convWin .ws[data-w="${w}"]`);
+    await sleep(300);
+    await page.click('#convCards .conv-card');
+    await sleep(7000);                    // 3mo/6mo page extra history in, a few throttled fetches
+    const bd = await page.evaluate(() => ({ dbg: window.__conv.backdrop(), span: window.__conv.span() }));
+    console.log(`backdrop ${w}: ${JSON.stringify(bd)}`);
+    check(`backdrop follows the ${w} window`, bd.dbg && bd.dbg.days === days);
+    check(`backdrop ${w} actually covers that span`, bd.dbg && bd.dbg.covered >= days * 0.9);
+    check(`backdrop ${w} is labelled "${span}"`, bd.span === span);
+    check(`backdrop ${w} has enough points to draw`, bd.dbg && bd.dbg.pts >= 8);
+  }
+  await page.keyboard.press('Escape');
+  await sleep(300);
+
   check('no page errors', errors.length === 0);
 
   await browser.close();

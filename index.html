@@ -2821,6 +2821,25 @@
         const pfp = new Image();
         pfp.src = 'alon-pfp.jpg?v=1';
 
+        let backdropSpan = '', backdropDbg = null;
+
+        // base.rows only holds PAGE (1500) hourly candles on a fresh load — 62 days — so a 3mo
+        // or 6mo card has to page more in before its backdrop can honestly claim that window.
+        // Capped: this runs on a card open, it must not turn into a fetch storm.
+        async function ensureBackdrop(days) {
+            const need = Math.floor(Date.now() / 1000) - days * 24 * 3600;
+            for (let i = 0; i < 5; i++) {
+                if (!base.rows.length || base.done || base.rows[0].time <= need) break;
+                if (!await extendHistory('1h')) break;
+            }
+        }
+        function refreshBackdrop() {
+            const d = (holdW && holdW.days) || 30;
+            ensureBackdrop(d)
+                .then(() => { if (lb.classList.contains('show')) drawShare(); })
+                .catch(() => {});
+        }
+
         function drawShare() {
             const x = cv.getContext('2d');
             const F = (sz, w, mono) => `${w} ${sz}px ${mono ? "ui-monospace,'SF Mono',Menlo,Consolas,monospace"
@@ -2838,9 +2857,19 @@
             (function backdrop() {
                 const all = (typeof base !== 'undefined' && base.rows) || [];
                 if (all.length < 8) return;
-                const cut = all[all.length - 1].time - 30 * 24 * 3600;
-                const win = aggregate(all.filter(r => r.time >= cut), 24 * 3600);
+                // follows the selected window, so the line and the numbers describe the same
+                // period. 7d gets 4-hourly buckets (a week of daily closes is 7 points);
+                // 3mo and 6mo get daily.
+                const days = (holdW && holdW.days) || 30;
+                const cut = all[all.length - 1].time - days * 24 * 3600;
+                const win = aggregate(all.filter(r => r.time >= cut), days <= 14 ? 4 * 3600 : 24 * 3600);
                 if (win.length < 8) return;
+                // if the census window reaches further back than the candles we hold, say how
+                // far the line ACTUALLY goes rather than mislabelling a short line as 6mo
+                const covered = (all[all.length - 1].time - Math.max(all[0].time, cut)) / 86400;
+                backdropSpan = covered >= days * 0.9 ? (holdW.btn || days + 'd')
+                                                     : Math.round(covered) + 'd';
+                backdropDbg = { days, covered: Math.round(covered), pts: win.length };
                 // LOG scale. 30 days of $ALON contains a single spike to ~$14M against a ~$2M
                 // baseline; on a linear axis that one wick owns the range and flattens the rest
                 // into a hairline along the bottom. Same reason the chart itself offers LOG.
@@ -2959,9 +2988,11 @@
             const when = new Date((c.asOf || 0) * 1000).toISOString().slice(0, 10);
             x.fillStyle = '#5a6862'; x.font = F(20, 500, true);
             x.fillText(`on-chain holder census · ${when}`, L, SHARE_H - 46);
-            x.textAlign = 'right'; x.fillStyle = '#3f4c46'; x.font = F(17, 700, true);
-            x.fillText('$ALON market cap · 30d', SHARE_W - L, SHARE_H - 46);
-            x.textAlign = 'left';
+            if (backdropSpan) {
+                x.textAlign = 'right'; x.fillStyle = '#3f4c46'; x.font = F(17, 700, true);
+                x.fillText('$ALON market cap · ' + backdropSpan, SHARE_W - L, SHARE_H - 46);
+                x.textAlign = 'left';
+            }
         }
 
         function openLb() {
@@ -2970,6 +3001,7 @@
             document.body.style.overflow = 'hidden';
             document.getElementById('shareTxt').textContent = shareLines.join('\n');
             requestAnimationFrame(() => { drawShare(); document.getElementById('convLbX').focus(); });
+            refreshBackdrop();          // draws now with what's loaded, repaints when more lands
         }
         function closeLb() {
             if (!lb.classList.contains('show')) return;
@@ -3025,8 +3057,10 @@
             linesFor(w).forEach((ln, i) => { shareLines[i] = ln; });
             const st = document.getElementById('shareTxt');
             if (st) st.textContent = shareLines.join('\n');
-            if (lb.classList.contains('show')) drawShare();
+            if (lb.classList.contains('show')) { drawShare(); refreshBackdrop(); }
         }
+        window.__conv = { backdrop: () => backdropDbg, span: () => backdropSpan };
+
         document.querySelectorAll('#convWin .ws').forEach(b => {
             // the card itself opens the share card — a segment press must not do that too
             b.addEventListener('click', e => { e.stopPropagation(); applyWindow(b.dataset.w); });
