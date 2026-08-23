@@ -1365,7 +1365,8 @@
         cmpS.setData(pts);
         cmpS.applyOptions({ visible: true });
         // the rebase is only correct if the overlay's value AT the anchor is the candle's mcap
-        cmpDebug = { t: at, cmp: atVal, alon: aA, n: pts.length };
+        cmpDebug = { t: at, cmp: atVal, alon: aA, n: pts.length,
+                     last: pts.length ? pts[pts.length - 1].value : null };
     }
 
     function queueCmp() {
