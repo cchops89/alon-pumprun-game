@@ -208,9 +208,9 @@
                       cursor:pointer; color:var(--dimmer); transition:.16s;
                       font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.4px; }
         .cmp-toggle img { width:15px; height:15px; opacity:.5; filter:grayscale(1); transition:.16s; }
-        .cmp-toggle:hover { border-color:#7c3aed; color:#c084fc; }
-        .cmp-toggle.on { border-color:#7c3aed; background:rgba(192,132,252,0.13); color:#c084fc;
-                         box-shadow:0 0 14px rgba(192,132,252,0.3); }
+        .cmp-toggle:hover { border-color:var(--dim); color:var(--txt); }
+        .cmp-toggle.on { border-color:#8a9a92; background:rgba(233,242,236,0.10); color:var(--txt);
+                         box-shadow:0 0 14px rgba(233,242,236,0.22); }
         .cmp-toggle.on img { opacity:1; filter:none; }
         @media (max-width:520px) { .cmp-toggle span { display:none; } }
         .ct-shill { flex:1; text-align:center; min-width:0; padding:0 12px;
@@ -684,9 +684,9 @@
                         <div class="ct-name">ALON<em>/SOL</em></div>
                         <div class="ct-chain">solana · raydium · market cap</div>
                     </div>
-                    <button class="cmp-toggle" id="cmpBtn" title="overlay $PUMP, rebased to where $ALON started">
+                    <button class="cmp-toggle" id="cmpBtn" title="lay $PUMP over the chart — pump.fun's coin, rebased so both start together">
                         <img src="pump-logomark.svg" alt="">
-                        <span>vs $PUMP</span>
+                        <span>+ $PUMP</span>
                     </button>
                     <div class="ct-shill" id="shillLine">stop being poor</div>
                     <div class="ct-price">
@@ -1285,13 +1285,43 @@
     // — it prints red on exactly the days chris calls good days — so this is an overlay, not a
     // pair. $PUMP is REBASED: replotted as "what $ALON's mcap would be if it had tracked $PUMP
     // from the first bar the two share". Same axis, so a 10% move looks like a 10% move on both.
-    const CMP = { ca: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn', tick: '$PUMP', col: '#c084fc' };
-    let cmpOn = false, cmpBase = [], cmpFine = {}, cmpLoading = false, cmpS = null;
+    const CMP = { ca: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn', tick: '$PUMP', col: '#ffffff' };
+    let cmpOn = false, cmpLoading = false, cmpS = null;
+    const cmpStore = { base: { rows: [], done: false }, fine: {} };
 
+    function cmpStoreFor(timeframe) {
+        return FINE[timeframe]
+            ? (cmpStore.fine[timeframe] = cmpStore.fine[timeframe] || { rows: [], done: false })
+            : cmpStore.base;
+    }
     function cmpRows(timeframe) {
-        if (BUCKET[timeframe]) return aggregate(cmpBase, BUCKET[timeframe]);
-        if (timeframe === '1h') return cmpBase;
-        return cmpFine[timeframe] || [];
+        if (BUCKET[timeframe]) return aggregate(cmpStore.base.rows, BUCKET[timeframe]);
+        if (timeframe === '1h') return cmpStore.base.rows;
+        return (cmpStore.fine[timeframe] || { rows: [] }).rows;
+    }
+
+    // $ALON pages history in as you scroll and $PUMP has to follow it back, or the overlay just
+    // stops halfway across the chart. Walks one page at a time until it covers whatever $ALON
+    // already has loaded — capped, because a rate limit here must not become an infinite loop.
+    async function extendCmp(timeframe) {
+        const st = cmpStoreFor(timeframe);
+        if (!st.rows.length || st.done) return 0;
+        const oldest = st.rows[0].time;
+        const page = await fetchCandles(FINE[timeframe] || '1_HOUR', new Date(oldest * 1000), null, CMP.ca);
+        if (!page.some(c => c.time < oldest)) { st.done = true; return 0; }
+        st.rows = mergeRows(st.rows, page);
+        return st.rows[0].time < oldest ? 1 : 0;
+    }
+    async function syncCmpHistory(timeframe) {
+        const a = viewRows(timeframe);
+        if (!a.length) return;
+        const need = a[0].time;
+        for (let i = 0; i < 10; i++) {
+            const st = cmpStoreFor(timeframe);
+            if (!st.rows.length || st.done || st.rows[0].time <= need) break;
+            if (!await extendCmp(timeframe)) break;
+            if (timeframe !== tf || !cmpOn) break;
+        }
     }
 
     // the anchor is the leftmost bar you can SEE, not the leftmost bar loaded — anchoring
@@ -1348,9 +1378,11 @@
         cmpLoading = true;
         const myTf = tf;
         try {
-            if (FINE[tf]) { if (!(cmpFine[tf] || []).length) cmpFine[tf] = await fetchCandles(FINE[tf], null, null, CMP.ca); }
-            else if (!cmpBase.length) cmpBase = await fetchCandles('1_HOUR', null, null, CMP.ca);
+            const st = cmpStoreFor(tf);
+            if (!st.rows.length) st.rows = await fetchCandles(FINE[tf] || '1_HOUR', null, null, CMP.ca);
             if (myTf === tf) paintCmp();
+            await syncCmpHistory(myTf);
+            if (myTf === tf) { cmpKey = ''; paintCmp(); }
         } catch (e) {
             // the overlay is a nicety — a rate limit on it must never take the chart down
             setStatus('$PUMP overlay unavailable', true);
@@ -1441,8 +1473,11 @@
         // rebased $PUMP rides the SAME price scale as $ALON — that's the whole point, the two
         // are directly comparable. No last-value tag: the number would be an $ALON mcap that
         // $PUMP never had.
+        // white and DASHED on purpose: a second green line on a green/red candle chart reads as
+        // price, and dashed says "this is a reference, not $ALON" without needing a legend
         cmpS = chart.addLineSeries({
-            color: CMP.col, lineWidth: 2, visible: false, priceLineVisible: false,
+            color: CMP.col, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed,
+            visible: false, priceLineVisible: false,
             lastValueVisible: false, crosshairMarkerVisible: false,
             priceFormat: { type: 'custom', formatter: mcFmt, minMove: 1 },
         });
@@ -1525,6 +1560,11 @@
             }
             shiftView(added);
             setStatus('');
+            // the overlay has to walk back with it or it stops mid-chart
+            if (cmpOn) {
+                try { await syncCmpHistory(myTf); } catch (e) {}
+                if (myTf === tf) { cmpKey = ''; paintCmp(); }
+            }
         } catch (e) {
             setStatus(/fetch/i.test(e.message) ? 'history unavailable · try again' : e.message, true);
         }

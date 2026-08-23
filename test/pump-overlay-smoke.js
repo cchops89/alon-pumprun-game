@@ -1,5 +1,5 @@
 // $PUMP comparison overlay: it draws, it's rebased to the visible left edge, it survives a
-// timeframe switch, and it goes away again. Counts violet pixels in the chart canvas rather
+// timeframe switch, and it goes away again. Counts overlay pixels in the chart pane rather
 // than trusting a flag — a series that exists but renders nothing would pass a flag check.
 const { chromium } = require('/Users/christianmetaversal/tibanne-3d/test/node_modules/playwright-core');
 const URL = process.env.URL || 'http://localhost:8131/index.html';
@@ -8,16 +8,21 @@ const fails = [], ok = [];
 const check = (n, c) => { (c ? ok : fails).push(n); console.log((c ? 'PASS ' : 'FAIL ') + n); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// #c084fc on a near-black chart — count pixels within tolerance of it
-const VIOLET = `() => {
+// the overlay is pure white (#ffffff) and nothing else on this chart is — the candles are
+// #4ade80/#f87171, the axis text is grey #7d8b83, the price badge is dark-on-green. So near-pure
+// white pixels inside the #chart canvases are the overlay and only the overlay.
+const WHITE = `() => {
+  // lightweight-charts renders the pane, the price scale and the time scale as SEPARATE
+  // canvases. Scan only the pane — the price scale carries the last-value badge, whose white
+  // text was showing up as ~100 baseline pixels and swamping the off-state check.
   const cs = [...document.querySelectorAll('#chart canvas')];
+  if (!cs.length) return -1;
+  const pane = cs.reduce((a, b) => (a.width * a.height >= b.width * b.height ? a : b));
+  let d;
+  try { d = pane.getContext('2d').getImageData(0, 0, pane.width, pane.height).data; } catch (e) { return -1; }
   let n = 0;
-  for (const cv of cs) {
-    let d;
-    try { d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; } catch (e) { continue; }
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i] > 150 && d[i] < 225 && d[i+1] > 95 && d[i+1] < 175 && d[i+2] > 210 && d[i+3] > 120) n++;
-    }
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] > 235 && d[i+1] > 235 && d[i+2] > 235 && d[i+3] > 140) n++;
   }
   return n;
 }`;
@@ -34,20 +39,20 @@ const VIOLET = `() => {
   await sleep(4500);
 
   // evaluate() needs an expression, and a bare arrow literal is a function OBJECT, not a call
-  const violet = () => page.evaluate(`(${VIOLET})()`);
+  const white = () => page.evaluate(`(${WHITE})()`);
 
   check('toggle present', await page.$('#cmpBtn') !== null);
   check('off by default', !(await page.$eval('#cmpBtn', el => [...el.classList])).includes('on'));
-  const before = await violet();
-  console.log('violet px before: ' + before);
-  check('nothing violet on the chart while off', before < 40);
+  const before = await white();
+  console.log('overlay px before: ' + before);
+  check('nothing white on the chart while off', before < 40);
 
   if (!CANARY) await page.click('#cmpBtn');      // CANARY never turns it on -> the draw checks go red
-  await sleep(3500);
+  await sleep(7000);
 
   check('button lights up', (await page.$eval('#cmpBtn', el => [...el.classList])).includes('on') === !CANARY);
-  const after = await violet();
-  console.log('violet px after: ' + after);
+  const after = await white();
+  console.log('overlay px after: ' + after);
   check('overlay actually draws', after > before + 300);
 
   const st = await page.evaluate(() => window.__ctl.cmp());
@@ -67,17 +72,17 @@ const VIOLET = `() => {
 
   // a timeframe switch must not drop it
   await page.click('.tf[data-tf="4h"]');
-  await sleep(3500);
-  const after4h = await violet();
-  console.log('violet px on 4H: ' + after4h);
+  await sleep(7000);   // the 4H view re-pages $PUMP history, one throttled fetch at a time
+  const after4h = await white();
+  console.log('overlay px on 4H: ' + after4h);
   check('survives a timeframe switch', CANARY ? after4h < 40 : after4h > 300);
 
   // and it must come back off
   if (!CANARY) {
     await page.click('#cmpBtn');
     await sleep(1200);
-    const off = await violet();
-    console.log('violet px after off: ' + off);
+    const off = await white();
+    console.log('overlay px after off: ' + off);
     check('toggling off clears it', off < 40);
     check('choice persists', await page.evaluate(() => localStorage.getItem('cmpPump')) === 'no');
   }
