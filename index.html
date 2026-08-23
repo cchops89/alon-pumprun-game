@@ -1053,6 +1053,31 @@
     const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
     const POP_MS = 1400, HINT_MS = 2300;   // must match the .pump-pop animation duration in CSS
     const PUMP_SECONDS = 30, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
+
+    // ===== LIQUIDITY DURING A PUMP =====
+    // A pool does not sit still while the market cap runs to a billion. The boost path
+    // used to scale price and mcap by the pump gain and leave liquidity alone apart
+    // from a 4% slice of simulated volume, so PUMP UR SHIT showed a $2B market cap on
+    // ~$700K of LP. That is 0.03%, no real pool is that thin, and LP is the first
+    // number anyone who actually trades looks at — so the whole fantasy falls over on
+    // the one stat that gives it away.
+    //
+    // Real tokens run an LP/mcap ratio that SHRINKS as they grow: $ALON is ~12% today
+    // at ~$7M, while a $1-2B memecoin runs nearer 2-4%. So liquidity scales as
+    // gain^k with k < 1. Rather than hard-code k — which quietly goes wrong as the real
+    // market cap drifts, which is exactly how the old fixed 0.85 got stale — solve for
+    // the k that lands LIQ_RATIO_AT_TARGET at PUMP_TARGET_MC from whatever the live
+    // numbers are right now.
+    const LIQ_RATIO_AT_TARGET = 0.032;          // ~3.2% of mcap at a billion
+    function liqExponent(baseLiq, baseMc) {
+        if (!(baseLiq > 0) || !(baseMc > 0)) return 0.85;
+        const gT = PUMP_TARGET_MC / baseMc;
+        if (gT <= 1.05) return 0.85;            // already at/over target: nothing to solve
+        const k = 1 + Math.log(LIQ_RATIO_AT_TARGET * baseMc / baseLiq) / Math.log(gT);
+        return Math.min(1, Math.max(0.5, k));   // never grow faster than mcap, never flat
+    }
+    const liqAtGain = (baseLiq, baseMc, gain) =>
+        baseLiq * Math.pow(Math.max(gain, 1), liqExponent(baseLiq, baseMc));
     const MAX_TICK_DROP = 0.22, MAX_CANDLE_DROP = 0.5;
     let boostT0 = 0, boostHitTarget = false;
     const pumpElapsed = () => (performance.now() - boostT0) / 1000;
@@ -1683,14 +1708,13 @@
             const target = 1e9;
             const mult = target / tok.mcap;
             // liquidity and volume don't scale 1:1 with market cap — big caps run a thinner ratio.
-            // damping the multiplier lands ~3-4% of mcap in liquidity, which is the right ballpark
-            // for a billion-dollar memecoin.
             const deep = Math.pow(mult, 0.85);
             p = Object.assign({}, tok, {
                 mcap: target, fdv: target,
                 price: tok.price * mult,
                 h24: (mult - 1) * 100,
-                liquidity: tok.liquidity * deep,
+                // same solved ratio the pump uses, so the two paths can't disagree
+                liquidity: liqAtGain(tok.liquidity, tok.mcap, mult),
                 volume: tok.volume * deep,
                 buyVol: tok.buyVol * deep,
                 sellVol: tok.sellVol * deep,
@@ -1703,7 +1727,9 @@
                 price: p.price * g, mcap: p.mcap * g, fdv: p.fdv * g,
                 volume: p.volume + boostVolUsd,
                 buyVol: p.buyVol + bVol, sellVol: p.sellVol + sVol,
-                liquidity: p.liquidity + boostVolUsd * 0.04,
+                // scales with the pump, plus a slice of the simulated buy flow: buys
+                // genuinely deepen a pool, they just aren't where the growth comes from
+                liquidity: liqAtGain(p.liquidity, p.mcap, g) + boostVolUsd * 0.04,
                 buys: p.buys + boostBuys, sells: p.sells + boostSells,
                 m5: p.m5 + up, h1: p.h1 + up, h6: p.h6 + up, h24: p.h24 + up,
             });
@@ -2804,6 +2830,46 @@
             const gl = x.createRadialGradient(120, 60, 0, 120, 60, 900);
             gl.addColorStop(0, 'rgba(74,222,128,0.13)'); gl.addColorStop(1, 'rgba(74,222,128,0)');
             x.fillStyle = gl; x.fillRect(0, 0, SHARE_W, SHARE_H);
+            // ---- the $ALON price line as a backdrop ----
+            // LAST 30 DAYS ONLY. base.rows runs back past the $249M ATH, and normalising over
+            // that whole range squashes everything recent into a flat line along the bottom —
+            // a backdrop that says nothing. 30d is enough shape to read at a glance.
+            // Closes, not candles: chris wants the line, not the bars.
+            (function backdrop() {
+                const all = (typeof base !== 'undefined' && base.rows) || [];
+                if (all.length < 8) return;
+                const cut = all[all.length - 1].time - 30 * 24 * 3600;
+                const win = aggregate(all.filter(r => r.time >= cut), 24 * 3600);
+                if (win.length < 8) return;
+                // LOG scale. 30 days of $ALON contains a single spike to ~$14M against a ~$2M
+                // baseline; on a linear axis that one wick owns the range and flattens the rest
+                // into a hairline along the bottom. Same reason the chart itself offers LOG.
+                const cl = win.map(r => Math.log10(Math.max(r.close, 1e-12)));
+                const lo = Math.min(...cl), hi = Math.max(...cl);
+                if (!(hi > lo)) return;
+                const TOP = SHARE_H - 236, BOT = SHARE_H - 26;
+                const px = i => (i / (win.length - 1)) * SHARE_W;
+                const py = v => BOT - ((v - lo) / (hi - lo)) * (BOT - TOP);
+                const trace = () => {
+                    x.beginPath();
+                    x.moveTo(0, py(cl[0]));
+                    for (let i = 1; i < cl.length; i++) x.lineTo(px(i), py(cl[i]));
+                };
+                x.save();
+                trace();
+                x.lineTo(SHARE_W, SHARE_H); x.lineTo(0, SHARE_H); x.closePath();
+                const fg = x.createLinearGradient(0, TOP, 0, SHARE_H);
+                fg.addColorStop(0, 'rgba(74,222,128,0.22)');
+                fg.addColorStop(1, 'rgba(74,222,128,0)');
+                x.fillStyle = fg; x.fill();
+                trace();
+                x.strokeStyle = 'rgba(74,222,128,0.55)'; x.lineWidth = 3;
+                x.lineJoin = 'round'; x.lineCap = 'round';
+                x.shadowColor = 'rgba(74,222,128,0.45)'; x.shadowBlur = 18;
+                x.stroke();
+                x.restore();
+            })();
+
             x.strokeStyle = '#232a2b'; x.lineWidth = 2; x.strokeRect(1, 1, SHARE_W - 2, SHARE_H - 2);
 
             const L = 68, RIGHT = 930;                 // left text column, right identity column
@@ -2893,6 +2959,9 @@
             const when = new Date((c.asOf || 0) * 1000).toISOString().slice(0, 10);
             x.fillStyle = '#5a6862'; x.font = F(20, 500, true);
             x.fillText(`on-chain holder census · ${when}`, L, SHARE_H - 46);
+            x.textAlign = 'right'; x.fillStyle = '#3f4c46'; x.font = F(17, 700, true);
+            x.fillText('$ALON market cap · 30d', SHARE_W - L, SHARE_H - 46);
+            x.textAlign = 'left';
         }
 
         function openLb() {
