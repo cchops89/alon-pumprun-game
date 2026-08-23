@@ -203,16 +203,21 @@
         .article:hover .article-sub { color:var(--green); border-color:var(--green-d); }
 
         /* rotating shill line, centred between the pfp and the market cap */
-        .cmp-toggle { display:flex; align-items:center; gap:6px; flex:0 0 auto; padding:5px 10px 5px 7px;
-                      border-radius:8px; background:var(--panel2); border:1px solid var(--line2);
-                      cursor:pointer; color:var(--dimmer); transition:.16s;
-                      font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.4px; }
-        .cmp-toggle img { width:15px; height:15px; opacity:.5; filter:grayscale(1); transition:.16s; }
+        /* sits right against ALON/SOL now that the chain line is two short words */
+        .cmp-toggle { display:flex; align-items:center; gap:5px; flex:0 0 auto; padding:3px 8px 3px 5px;
+                      margin-left:-2px; border-radius:7px; background:var(--panel2);
+                      border:1px solid var(--line2); cursor:pointer; color:var(--dimmer); transition:.16s;
+                      font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:0.3px;
+                      text-align:left; line-height:1.25; }
+        .cmp-toggle img { width:13px; height:13px; opacity:.5; filter:grayscale(1); transition:.16s; }
+        .cmp-lab em { display:block; font-style:normal; font-size:7.5px; font-weight:600;
+                      letter-spacing:0.2px; color:var(--dimmer); }
+        .cmp-toggle.on .cmp-lab em { color:var(--dim); }
         .cmp-toggle:hover { border-color:var(--dim); color:var(--txt); }
         .cmp-toggle.on { border-color:#8a9a92; background:rgba(233,242,236,0.10); color:var(--txt);
                          box-shadow:0 0 14px rgba(233,242,236,0.22); }
         .cmp-toggle.on img { opacity:1; filter:none; }
-        @media (max-width:520px) { .cmp-toggle span { display:none; } }
+        @media (max-width:520px) { .cmp-lab em { display:none; } }
         .ct-shill { flex:1; text-align:center; min-width:0; padding:0 12px;
                     font-size:15px; font-weight:900; letter-spacing:-0.2px; text-transform:uppercase;
                     color:var(--green); text-shadow:0 0 16px rgba(74,222,128,0.35);
@@ -223,14 +228,15 @@
         /* ===== CENTER: CHART + TXNS ===== */
         .center { display:flex; flex-direction:column; gap:10px; min-width:0; }
         .chart-top { display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-        .chart-top img { width:55px; height:55px; border-radius:13px; border:1.5px solid var(--green-x); }
+        .chart-top > img { width:55px; height:55px; border-radius:13px; border:1.5px solid var(--green-x); }
         .ct-name { font-size:18px; font-weight:800; letter-spacing:-0.3px; }
         .ct-name em { font-style:normal; color:var(--dim); font-weight:600; }
-        .ct-chain { font-family:var(--mono); font-size:11px; color:var(--dimmer); margin-top:2px; }
+        .ct-chain { font-family:var(--mono); font-size:11px; color:var(--dimmer); margin-top:2px; line-height:1.4; }
+        .ct-cap { font-family:var(--mono); font-size:9.5px; letter-spacing:0.6px; color:var(--dimmer); margin-top:3px; }
         .ct-price { text-align:right; flex-shrink:0; }
         .ct-price .v { font-family:var(--mono); font-size:39px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; }
         .ct-price .c { font-family:var(--mono); font-size:13px; font-weight:700; }
-        @media (max-width:520px) { .ct-price .v { font-size:30px; } .chart-top img { width:46px; height:46px; } }
+        @media (max-width:520px) { .ct-price .v { font-size:30px; } .chart-top > img { width:46px; height:46px; } }
 
         /* ===== ALON runs after your cursor on the chart ===== */
         .chart-stage.alon-cur, .chart-stage.alon-cur canvas, .chart-stage.alon-cur #chart { cursor:none !important; }
@@ -682,16 +688,17 @@
                     <img src="alon-pfp.jpg?v=1" alt="alon">
                     <div>
                         <div class="ct-name">ALON<em>/SOL</em></div>
-                        <div class="ct-chain">solana · raydium · market cap</div>
+                        <div class="ct-chain">solana<br>raydium</div>
                     </div>
-                    <button class="cmp-toggle" id="cmpBtn" title="lay $PUMP over the chart — pump.fun's coin, rebased so both start together">
+                    <button class="cmp-toggle" id="cmpBtn" title="lay $PUMP over the chart — pump.fun's coin, rebased so both start from the same point">
                         <img src="pump-logomark.svg" alt="">
-                        <span>+ $PUMP</span>
+                        <span class="cmp-lab">+ $PUMP<em>pump.fun trend line</em></span>
                     </button>
                     <div class="ct-shill" id="shillLine">stop being poor</div>
                     <div class="ct-price">
                         <div class="v" id="headMc">—</div>
                         <div class="c" id="headChg">—</div>
+                        <div class="ct-cap">market cap</div>
                     </div>
                     <button class="erase" id="eraseBtn" title="erase the drawing">erase ✕</button>
                 </div>
@@ -1330,9 +1337,9 @@
     let cmpKey = '', cmpRaf = 0, cmpDebug = null;
     function paintCmp(rows) {
         if (!cmpS) return;
-        if (!cmpOn) { cmpS.setData([]); cmpS.applyOptions({ visible: false }); cmpKey = ''; return; }
+        if (!cmpOn) { cmpS.setData([]); cmpS.applyOptions({ visible: false }); cmpKey = ''; cmpDebug = null; return; }
         const a = rows || displayRows(), p = cmpRows(tf);
-        if (!a.length || !p.length) { cmpS.setData([]); cmpKey = ''; return; }
+        if (!a.length || !p.length) { cmpS.setData([]); cmpKey = ''; cmpDebug = null; return; }
         const r = chart ? chart.timeScale().getVisibleLogicalRange() : null;
         const from = r ? Math.max(0, Math.min(a.length - 1, Math.ceil(r.from))) : 0;
         const pm = new Map(p.map(c => [c.time, c.close]));
@@ -1344,7 +1351,7 @@
         }
         // nothing shared to the right of the left edge — fall back to the oldest shared bar
         if (!aA) for (const c of a) { const q = pm.get(c.time); if (q != null) { aA = c.close * mult; pA = q; at = c.time; break; } }
-        if (!aA || !pA) { cmpS.setData([]); cmpKey = ''; return; }
+        if (!aA || !pA) { cmpS.setData([]); cmpKey = ''; cmpDebug = null; return; }
 
         // setData itself fires a visible-range change, so without this the repaint recurses
         const key = tf + ':' + a.length + ':' + at + ':' + aA;
@@ -1998,7 +2005,7 @@
             const W = box.clientWidth || pic.width;
             const S = pic.width / W;               // 1 on a plain display, 2 on retina
             const CH = pic.height / S;
-            const HEAD = 96, FOOT = 34, H = HEAD + CH + FOOT;
+            const HEAD = 102, FOOT = 34, H = HEAD + CH + FOOT;
 
             const out = document.createElement('canvas');
             out.width = Math.round(W * S); out.height = Math.round(H * S);
@@ -2020,10 +2027,29 @@
             const nameW = c.measureText('ALON').width;
             c.font = '600 21px Inter, sans-serif'; c.fillStyle = '#7d8b83';
             c.fillText('/SOL', 86 + nameW, 46);
+            // measure it HERE, while the 21px face is still set — measuring after the font
+            // switch below returns an 11px-mono width and the legend lands on top of the name
+            const slashW = c.measureText('/SOL').width;
             c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
-            const chain = 'solana · raydium · market cap';
-            c.fillText(chain, 86, 66);
-            const leftEdge = 86 + Math.max(nameW + c.measureText('/SOL').width, c.measureText(chain).width);
+            c.fillText('solana', 86, 65);
+            c.fillText('raydium', 86, 79);
+            let leftEdge = 86 + Math.max(nameW + slashW,
+                                         c.measureText('solana').width, c.measureText('raydium').width);
+
+            // the overlay has to travel with the image or the second line is unexplained
+            if (cmpOn && cmpDebug && cmpDebug.n > 0) {
+                const lx = leftEdge + 20;
+                c.save();
+                c.strokeStyle = CMP.col; c.lineWidth = 2; c.setLineDash([5, 4]);
+                c.beginPath(); c.moveTo(lx, 47); c.lineTo(lx + 26, 47); c.stroke();
+                c.restore();
+                c.font = '800 12px ' + MONO; c.fillStyle = '#e9f2ec';
+                c.fillText('$PUMP', lx + 33, 51);
+                const lw = c.measureText('$PUMP').width;
+                c.font = '9.5px ' + MONO; c.fillStyle = '#5a6862';
+                c.fillText('pump.fun · same start', lx, 68);
+                leftEdge = Math.max(leftEdge, lx + Math.max(33 + lw, c.measureText('pump.fun · same start').width));
+            }
 
             const mc = txt('headMc') || '—';
             const chg = txt('headChg');
@@ -2034,6 +2060,8 @@
             const mcW = c.measureText(mc).width;
             c.font = '700 13px ' + MONO; c.fillStyle = up ? '#4ade80' : '#f87171';
             c.fillText(chg, W - 18, 73);
+            c.font = '9.5px ' + MONO; c.fillStyle = '#5a6862';
+            c.fillText('market cap', W - 18, 89);
             c.textAlign = 'left';
 
             // the shill line only goes in if it genuinely fits between the two blocks
@@ -2044,7 +2072,7 @@
                 const a = leftEdge + 22, b = W - 18 - mcW - 22;
                 if (b - a > sw) {
                     c.textAlign = 'center'; c.fillStyle = '#4ade80';
-                    c.fillText(shill, (a + b) / 2, 53);
+                    c.fillText(shill, (a + b) / 2, 56);
                     c.textAlign = 'left';
                 }
             }

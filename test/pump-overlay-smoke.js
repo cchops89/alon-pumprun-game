@@ -87,6 +87,35 @@ const WHITE = `() => {
     check('choice persists', await page.evaluate(() => localStorage.getItem('cmpPump')) === 'no');
   }
 
+  // the exported image has to say the overlay is on, or the second line is unexplained
+  // (the legend swatch is the ONLY pure-white thing drawn; site text is #e9f2ec, r=233)
+  const legend = async () => page.evaluate(() => new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = im.width; c.height = im.height;
+      const g = c.getContext('2d');
+      g.drawImage(im, 0, 0);
+      const S = im.width / document.getElementById('chart').clientWidth;
+      const d = g.getImageData(0, 0, c.width, Math.round(102 * S)).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 250 && d[i+1] > 250 && d[i+2] > 250) n++;
+      res(n);
+    };
+    im.src = window.__ctl.paintShot();
+  }));
+  if (!CANARY) {
+    await page.click('#cmpBtn');            // back on for the card check
+    await sleep(4000);
+    const withOverlay = await legend();
+    await page.click('#cmpBtn');
+    await sleep(1500);
+    const without = await legend();
+    console.log(`card header white px: on=${withOverlay} off=${without}`);
+    check('copied card shows a $PUMP legend when the overlay is on', withOverlay > 10);
+    check('and no legend when it is off', without === 0);
+  }
+
   check('no page errors', errors.length === 0);
   console.log(`\n${ok.length} passed, ${fails.length} failed`);
   if (fails.length) console.log('FAILED: ' + fails.join(', '));

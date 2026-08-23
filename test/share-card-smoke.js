@@ -41,19 +41,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // DOM and every earlier assertion green, with an invisible ring on screen.
   // the arc animates over 1.2s and the band only renders after two network calls, so a fixed
   // sleep reads it mid-flight — wait for the offset to stop moving instead (this was flaky)
-  // ⚠ "stable" alone is a false positive: before the rAF reveal fires the offset sits at full
-  // circumference and is perfectly stable, which is the un-revealed state this test exists to
-  // catch. Require it to have MOVED off the full offset first, then to hold still.
+  // Wait for the arc to reach its KNOWN target, not for it to "stop changing".
+  // ⚠ Two false positives killed earlier versions of this wait: a fixed sleep read it
+  // mid-transition, and a stability check ("same value twice") passes on the slow tail of the
+  // 1.2s ease-out while the arc is still a percent or two short — and passes instantly before
+  // the rAF reveal, when the offset sits at full circumference and is perfectly stable.
+  // dataset.off is the value the reveal sets, so comparing against it can't do either.
   await page.waitForFunction(() => {
     const v = document.querySelector('#convCards .conv-ring .val');
-    if (!v) return false;
-    const circ = parseFloat(v.getAttribute('stroke-dasharray'));
-    const now = parseFloat(getComputedStyle(v).strokeDashoffset);
-    if (!(circ - now > 0.01)) { v.__last = null; return false; }   // not revealed yet
-    const settled = v.__last != null && Math.abs(v.__last - now) < 0.01;
-    v.__last = now;
-    return settled;
-  }, null, { polling: 250, timeout: 20000 });
+    if (!v || !v.dataset.off) return false;
+    return Math.abs(parseFloat(getComputedStyle(v).strokeDashoffset) - parseFloat(v.dataset.off)) < 0.5;
+  }, null, { polling: 100, timeout: 20000 });
 
   const vis = await page.evaluate(() => {
     const val = document.querySelector('#convCards .conv-ring .val');

@@ -74,6 +74,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   fs.writeFileSync(OUT, Buffer.from(info.url.split(',')[1], 'base64'));
   console.log('wrote ' + OUT);
 
+  // header layout chris asked for: chain stacked, "market cap" moved under the numbers
+  check('chain is stacked, not one line',
+        await page.$eval('.ct-chain', el => el.querySelectorAll('br').length === 1 && !/·/.test(el.textContent)));
+  check('market cap label sits under the price column',
+        await page.$eval('.ct-price .ct-cap', el => el.textContent.trim()) === 'market cap');
+  check('pump toggle is compact',
+        await page.$eval('#cmpBtn', el => el.getBoundingClientRect().height) < 36);
+
   check('card width matches chart width', Math.abs(info.w - info.chartCss * info.S) < 2);
   check('card is taller than the chart alone', info.h > Math.round(130 * info.S));
   check('header band is not blank', info.headColours > 4);
