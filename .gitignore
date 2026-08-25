@@ -16,3 +16,4 @@ holders/state.json
 holders/activity.json
 owners-*.json
 holders/daymap.json
+holders/.traders-ckpt.json

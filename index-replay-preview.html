@@ -1,0 +1,3339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="ALON'S ARCADE — play Alon's Pump Run and Alon's Pump Castle, and watch the $ALON chart. Canonical coin.">
+    <meta name="theme-color" content="#0b0d0e">
+    <link rel="icon" href="alon-pfp.jpg?v=1">
+    <link rel="apple-touch-icon" href="alon-pfp.jpg?v=1">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ALON'S ARCADE">
+    <meta property="og:url" content="https://alonpump.run/">
+    <meta property="og:title" content="ALON'S ARCADE — alonpump.run">
+    <meta property="og:description" content="Two games, one bull run — plus the live $ALON chart, trades and ATH. Play Alon's Pump Run and Alon's Pump Castle.">
+    <meta property="og:image" content="https://alonpump.run/og-basement.jpg?v=1">
+    <meta property="og:image:secure_url" content="https://alonpump.run/og-basement.jpg?v=1">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1600">
+    <meta property="og:image:height" content="800">
+    <meta property="og:image:alt" content="ALON'S BASEMENT — the $ALON arcade">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ALON'S ARCADE — alonpump.run">
+    <meta name="twitter:description" content="Two games, one bull run — plus the live $ALON chart, trades and ATH. Play Alon's Pump Run and Alon's Pump Castle.">
+    <meta name="twitter:image" content="https://alonpump.run/og-basement.jpg?v=1">
+    <meta name="twitter:image:alt" content="ALON'S BASEMENT — the $ALON arcade">
+    <title>ALONPUMP.RUN — the ALON arcade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="lightweight-charts.js?v=421"></script>
+    <script src="tools/pnl.js?v=1"></script>
+    <script src="replay-engine.js?v=2"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --mono: ui-monospace,'SF Mono','Menlo','Consolas',monospace;
+            --bg:#0b0d0e; --panel:#131718; --panel2:#191e1f; --line:#232a2b; --line2:#2e3637;
+            --txt:#e9f2ec; --dim:#7d8b83; --dimmer:#5a6862;
+            --green:#4ade80; --green-d:#16a34a; --green-x:#0e3d23;
+            --red:#f87171; --red-d:#b91c1c;
+        }
+        html { overflow-x:hidden; -webkit-text-size-adjust:100%; }
+        body { min-height:100vh; overflow-x:hidden; background:var(--bg); color:var(--txt);
+               font-family:Inter,-apple-system,'Segoe UI',sans-serif; font-size:13px; }
+        a { color:inherit; text-decoration:none; }
+        .up { color:var(--green); } .down { color:var(--red); }
+
+        /* ===== conviction lightbox ===== */
+        .conv-card { cursor:pointer; }
+        .conv-card:focus-visible { outline:2px solid var(--green); outline-offset:-2px; }
+        .conv-more { position:absolute; right:10px; top:8px; font-family:var(--mono); font-size:8.5px;
+                     letter-spacing:.5px; color:var(--dimmer); opacity:0; transition:opacity .2s; }
+        .conv-card:hover .conv-more, .conv-card:focus-visible .conv-more { opacity:1; }
+
+        /* headline window switcher — always visible, because it's a control, not a hint */
+        .win-seg { position:absolute; right:9px; top:7px; z-index:3; display:flex; gap:1px; padding:2px;
+                   border-radius:7px; background:var(--bg); border:1px solid var(--line); }
+        .ws { padding:2px 6px; border-radius:5px; background:transparent; border:none;
+              font-family:var(--mono); font-size:8.5px; font-weight:700; letter-spacing:.3px;
+              color:var(--dimmer); cursor:pointer; transition:.13s; }
+        .ws:hover { color:var(--txt); }
+        .ws.on { background:var(--green-x); color:var(--green); box-shadow:0 0 8px rgba(74,222,128,0.25); }
+        @media (max-width:520px) { .win-seg { position:static; display:inline-flex; margin:8px 0 0 9px; } }
+
+        .lb { position:fixed; inset:0; z-index:200; display:none; padding:clamp(12px,4vh,48px) 14px;
+              overflow-y:auto; background:rgba(6,9,10,0.78); backdrop-filter:blur(6px);
+              animation:lbIn .16s ease-out; }
+        .lb.show { display:flex; align-items:flex-start; justify-content:center; }
+        @keyframes lbIn { from { opacity:0; } }
+        .lb-card { position:relative; width:min(620px,100%); margin:auto; background:var(--panel);
+                   border:1px solid var(--line2); border-radius:14px; overflow:hidden;
+                   box-shadow:0 24px 70px rgba(0,0,0,0.6); animation:lbUp .2s cubic-bezier(.2,.8,.3,1); }
+        @keyframes lbUp { from { transform:translateY(10px); opacity:0; } }
+        @media (prefers-reduced-motion:reduce) { .lb, .lb-card { animation:none; } }
+
+        .lb-x { position:absolute; right:9px; top:9px; z-index:2; width:24px; height:24px; display:grid;
+                place-items:center; border-radius:7px; background:var(--panel2);
+                border:1px solid var(--line2); color:var(--dim); cursor:pointer; transition:.15s; }
+        .lb-x:hover { color:var(--txt); border-color:var(--green-d); }
+        .lb-x svg { width:11px; height:11px; }
+
+        #shareCv { display:block; width:100%; height:auto; border-bottom:1px solid var(--line); }
+        .share-tools { padding:13px 14px 15px; }
+        .share-btns { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+        .sb { padding:9px 10px; border-radius:9px; background:var(--panel2); border:1px solid var(--line2);
+              color:var(--dim); font-family:var(--mono); font-size:10.5px; font-weight:700;
+              letter-spacing:.4px; cursor:pointer; transition:.15s; }
+        .sb:hover { color:var(--txt); border-color:var(--green-d); }
+        .sb.primary { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
+        .sb.ok { background:var(--green-x); border-color:var(--green); color:var(--green); }
+        .sb.wide { width:100%; margin-top:7px; }
+        .share-cap { margin:13px 0 5px; font-family:var(--mono); font-size:9px; letter-spacing:.7px;
+                     color:var(--dimmer); }
+        .share-txt { padding:10px 11px; border-radius:9px; background:var(--bg);
+                     border:1px solid var(--line); font-family:var(--mono); font-size:10.5px;
+                     line-height:1.75; color:var(--txt); white-space:pre-wrap; word-break:break-word; }
+
+
+        /* ===== TOP BAR ===== */
+        .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px;
+                  padding:8px clamp(10px,2vw,18px); background:rgba(11,13,14,0.95);
+                  backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+                  overflow-x:auto; overflow-y:hidden; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+        .topbar::-webkit-scrollbar { display:none; }
+        .topbar > * { flex-shrink:0; }
+        .brand { display:flex; flex-direction:column; align-items:flex-start; gap:4px; flex-shrink:0; }
+        .brand img { width:36px; height:36px; border-radius:10px; border:1.5px solid var(--green-x); }
+        .brand b { font-size:13.5px; font-weight:900; letter-spacing:-0.4px; line-height:1; }
+        .brand b i { font-style:normal; color:var(--green); }
+        .arcade-btn { display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px;
+                      background:var(--green-x); border:1px solid var(--green-d); color:var(--green);
+                      font-weight:800; font-size:13px; white-space:nowrap; transition:.14s; }
+        .arcade-btn:hover { background:#14522f; box-shadow:0 0 16px rgba(74,222,128,0.25); }
+        .arcade-btn { animation:arcadePulse 2.4s ease-in-out infinite; }
+        .arcade-btn svg { width:17px; height:17px; }
+        /* only earns its place on mobile — above 820px the arcade column is already on screen */
+        @media (min-width:821px) { .arcade-btn { display:none; } }
+        .topnav { display:flex; gap:2px; }
+        .topnav a { padding:6px 11px; border-radius:8px; color:var(--dim); font-weight:600; font-size:12.5px;
+                    transition:.14s; white-space:nowrap; }
+        .topnav a:hover { color:var(--txt); background:var(--panel2); }
+        .topnav a.soc { display:grid; place-items:center; width:32px; height:30px; padding:0; }
+        .topnav a.soc svg { width:15px; height:15px; }
+        .topnav a.soc.pf img { width:19px; height:19px; display:block; transition:.14s; }
+        .topnav a.soc.pf:hover img { filter:drop-shadow(0 0 7px rgba(74,222,128,0.65)); }
+        .topnav a.soc:hover { color:var(--green); background:var(--panel2); }
+        .topbar-right { margin-left:auto; display:flex; align-items:center; gap:9px; }
+        .dot { width:6px; height:6px; border-radius:50%; background:var(--green);
+               box-shadow:0 0 8px var(--green); animation:blink 2s infinite; }
+        @keyframes blink { 50% { opacity:0.2; } }
+        .btn-buy { padding:8px 18px; border-radius:9px; background:var(--green); color:#062012;
+                   font-weight:800; font-size:13px; border:none; box-shadow:0 3px 0 var(--green-d);
+                   cursor:pointer; transition:.12s; white-space:nowrap; font-family:inherit; }
+        .btn-buy:hover { background:#6ee7a0; transform:translateY(-1px); }
+        .btn-buy:active { transform:translateY(2px); box-shadow:0 1px 0 var(--green-d); }
+
+        /* ===== ROLLING BANNER — every coin is alon ===== */
+        .marquee { overflow:hidden; border-bottom:1px solid var(--line); background:#0e1112;
+                   padding:11px 0; white-space:nowrap; position:relative; }
+        .marquee::before, .marquee::after { content:''; position:absolute; top:0; bottom:0; width:72px; z-index:2; pointer-events:none; }
+        .marquee::before { left:0; background:linear-gradient(90deg,#0e1112,rgba(14,17,18,0)); }
+        .marquee::after { right:0; background:linear-gradient(270deg,#0e1112,rgba(14,17,18,0)); }
+        .marquee-track { display:inline-block; animation:scroll 69s linear infinite; will-change:transform; }
+        .marquee:hover .marquee-track { animation-play-state:paused; }
+        @keyframes scroll { to { transform:translateX(-50%); } }
+        .m-item { display:inline-flex; align-items:center; gap:9px; margin:0 10px; padding:5px 16px 5px 6px;
+                  border-radius:999px; background:var(--panel); border:1px solid var(--line);
+                  font-family:var(--mono); font-size:18px; }
+        .m-item img { width:27px; height:27px; border-radius:8px; }
+        .m-rank { color:var(--dimmer); font-weight:700; }
+        .m-sym { color:var(--txt); font-weight:700; }
+        .m-val { color:var(--dim); }
+        .m-item.up .m-chg { color:var(--green); } .m-item.down .m-chg { color:var(--red); }
+        .m-item.gag { border-color:var(--green-x); color:var(--green); }
+
+        /* ===== DEXSCREENER-SHAPED GRID ===== */
+        .shell { display:grid; grid-template-columns:274px minmax(0,1fr) 336px; gap:10px;
+                 padding:10px clamp(8px,1.4vw,14px) 26px; align-items:start; max-width:1920px; margin:0 auto; }
+        @media (max-width:1280px) { .shell { grid-template-columns:250px minmax(0,1fr); } .rail { grid-column:1/-1; } }
+        @media (max-width:820px)  {
+            .shell { grid-template-columns:1fr; }
+            .arcade { grid-column:1/-1; }
+            /* chart first — it's what people come for — then the games, then the token panel */
+            .center { order:1; } .arcade { order:2; } .rail { order:3; }
+        }
+
+        .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+        .phead { display:flex; align-items:center; gap:8px; padding:9px 12px; border-bottom:1px solid var(--line); }
+        .ic { width:17px; height:17px; flex-shrink:0; color:var(--green); }
+        .phead h2 { font-size:11.5px; font-weight:800; letter-spacing:0.7px; text-transform:uppercase; color:var(--dim); }
+        .phead .cnt { margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--dimmer); }
+
+        /* ===== LEFT: THE ARCADE, STACKED ===== */
+        /* the arcade has to announce itself — it's the reason the site exists */
+        @keyframes arcadePulse {
+            0%,100% { border-color:#3ee888;
+                      box-shadow:0 0 0 1px rgba(110,255,170,0.28), 0 0 22px rgba(110,255,170,0.30),
+                                 0 0 44px rgba(74,222,128,0.16); }
+            50%     { border-color:#8bffc4;
+                      box-shadow:0 0 0 1px rgba(140,255,195,0.65), 0 0 34px rgba(110,255,170,0.62),
+                                 0 0 74px rgba(74,222,128,0.40); }
+        }
+        .arcade-panel { border-color:#3ee888; animation:arcadePulse 2.4s ease-in-out infinite; }
+        .arcade-panel .phead { border-bottom-color:rgba(110,255,170,0.35);
+                               background:linear-gradient(90deg,rgba(110,255,170,0.22),rgba(110,255,170,0)); }
+        .arcade-panel .phead h2 { color:#a9ffd0; font-size:13px; letter-spacing:1px;
+                                  text-shadow:0 0 12px rgba(110,255,170,0.75); }
+        .arcade-panel .phead .ic { color:#8bffc4; filter:drop-shadow(0 0 6px rgba(110,255,170,0.8)); }
+        .arcade-panel .phead .cnt { color:#8bffc4; font-weight:700; }
+        .arcade-panel .phead .dot { background:#a9ffd0; box-shadow:0 0 12px #6effaa; }
+        .arcade-panel .phead .dot { margin-left:auto; }
+        .arcade-panel .phead .cnt { margin-left:6px; }
+        @media (prefers-reduced-motion:reduce) {
+            .arcade-panel, .arcade-btn { animation:none; border-color:#6effaa;
+                box-shadow:0 0 0 1px rgba(140,255,195,0.5), 0 0 30px rgba(110,255,170,0.5); }
+        }
+        .arcade { display:flex; flex-direction:column; gap:10px; position:sticky; top:104px; }
+        @media (max-width:820px) { .arcade { position:static; } }
+        .glist { display:flex; flex-direction:column; padding:8px; gap:8px; }
+        .gcard { display:block; border-radius:10px; overflow:hidden; background:var(--panel2);
+                 border:1px solid var(--line); transition:.16s; position:relative; }
+        .gcard:hover { border-color:var(--green-d); transform:translateY(-2px);
+                       box-shadow:0 10px 22px rgba(74,222,128,0.13); }
+        .gart { aspect-ratio:3/2; background-size:cover; background-position:center; position:relative; }
+        .gart::after { content:''; position:absolute; inset:0;
+                       background:linear-gradient(180deg,rgba(11,13,14,0) 42%,rgba(11,13,14,0.92)); }
+        .art-run { background-image:url('run-card.jpg?v=1'); }
+        .art-castle { background-image:url('castle-card.jpg?v=1'); }
+        .gbadge { position:absolute; top:8px; right:8px; z-index:2; padding:3px 9px; border-radius:999px;
+                  font-family:var(--mono); font-size:9.5px; letter-spacing:0.8px; font-weight:700;
+                  background:rgba(6,20,12,0.88); color:var(--green); border:1px solid var(--green-x); }
+        .gname { position:absolute; left:10px; bottom:8px; z-index:2; font-size:17px; font-weight:900;
+                 letter-spacing:-0.3px; text-shadow:0 2px 8px rgba(0,0,0,0.9); }
+        .gfoot { display:flex; align-items:center; gap:7px; padding:9px 11px 10px; }
+        .gtag { font-family:var(--mono); font-size:10px; color:var(--dimmer); }
+        .gplay { margin-left:auto; padding:6px 17px; border-radius:8px; background:var(--green); color:#062012;
+                 font-weight:900; font-size:13px; letter-spacing:0.3px; box-shadow:0 2px 0 var(--green-d); }
+        .gcard:hover .gplay { background:#6ee7a0; }
+
+        /* article card — the whole tile is the link */
+        .article { display:block; padding:8px; }
+        .article img { width:100%; display:block; border-radius:9px; border:1px solid var(--line);
+                       transition:.15s; }
+        .article:hover img { border-color:var(--green-d); box-shadow:0 0 18px rgba(74,222,128,0.2); }
+        .article-sub { display:block; margin-top:9px; padding:8px 10px; border-radius:8px; text-align:center;
+                       background:var(--panel2); border:1px solid var(--line); color:var(--dim);
+                       font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:0.3px;
+                       line-height:1.4; transition:.12s; }
+        .article:hover .article-sub { color:var(--green); border-color:var(--green-d); }
+
+        /* rotating shill line, centred between the pfp and the market cap */
+        /* sits right against ALON/SOL now that the chain line is two short words */
+        .cmp-toggle { display:flex; align-items:center; gap:5px; flex:0 0 auto; padding:3px 8px 3px 5px;
+                      margin-left:-2px; border-radius:7px; background:var(--panel2);
+                      border:1px solid var(--line2); cursor:pointer; color:var(--dimmer); transition:.16s;
+                      font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:0.3px;
+                      text-align:left; line-height:1.25; }
+        .cmp-toggle img { width:13px; height:13px; opacity:.5; filter:grayscale(1); transition:.16s; }
+        .cmp-lab em { display:block; font-style:normal; font-size:7.5px; font-weight:600;
+                      letter-spacing:0.2px; color:var(--dimmer); }
+        .cmp-toggle.on .cmp-lab em { color:var(--dim); }
+        .cmp-toggle:hover { border-color:var(--dim); color:var(--txt); }
+        .cmp-toggle.on { border-color:#8a9a92; background:rgba(233,242,236,0.10); color:var(--txt);
+                         box-shadow:0 0 14px rgba(233,242,236,0.22); }
+        .cmp-toggle.on img { opacity:1; filter:none; }
+        @media (max-width:520px) { .cmp-lab em { display:none; } }
+        .ct-shill { flex:1; text-align:center; min-width:0; padding:0 12px;
+                    font-size:15px; font-weight:900; letter-spacing:-0.2px; text-transform:uppercase;
+                    color:var(--green); text-shadow:0 0 16px rgba(74,222,128,0.35);
+                    animation:shillIn .5s ease-out; }
+        @keyframes shillIn { from { opacity:0; transform:translateY(-5px); } }
+        @media (max-width:900px) { .ct-shill { display:none; } }
+
+        /* ===== CENTER: CHART + TXNS ===== */
+        .center { display:flex; flex-direction:column; gap:10px; min-width:0; }
+        .chart-top { display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+        .chart-top > img { width:55px; height:55px; border-radius:13px; border:1.5px solid var(--green-x); }
+        .ct-name { font-size:18px; font-weight:800; letter-spacing:-0.3px; }
+        .ct-name em { font-style:normal; color:var(--dim); font-weight:600; }
+        .ct-chain { font-family:var(--mono); font-size:11px; color:var(--dimmer); margin-top:2px; line-height:1.4; }
+        .ct-cap { font-family:var(--mono); font-size:9.5px; letter-spacing:0.6px; color:var(--dimmer); margin-top:3px; }
+        .ct-price { text-align:right; flex-shrink:0; }
+        .ct-price .v { font-family:var(--mono); font-size:39px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; }
+        .ct-price .c { font-family:var(--mono); font-size:13px; font-weight:700; }
+        @media (max-width:520px) { .ct-price .v { font-size:30px; } .chart-top > img { width:46px; height:46px; } }
+
+        /* ===== ALON runs after your cursor on the chart ===== */
+        .chart-stage.alon-cur, .chart-stage.alon-cur canvas, .chart-stage.alon-cur #chart { cursor:none !important; }
+        #alonCursor { position:fixed; left:0; top:0; width:54px; height:54px; z-index:45;
+                      pointer-events:none; display:none; image-rendering:pixelated;
+                      background:url('alon-sprite-sheet.png?v=1') 0 0 / 600% 100% no-repeat;
+                      filter:drop-shadow(0 3px 7px rgba(0,0,0,0.65)); will-change:transform; }
+        @media (max-width:820px) { #alonCursor { width:44px; height:44px; } }
+
+        .chart-bar { display:flex; align-items:center; gap:2px; padding:7px 8px;
+                     border-bottom:1px solid var(--line); flex-wrap:wrap; }
+        .tf { padding:5px 8px; border-radius:7px; background:transparent; border:1px solid transparent;
+              color:var(--dim); font-family:var(--mono); font-size:11.5px; font-weight:700; cursor:pointer; transition:.12s; }
+        .tf:hover { color:var(--txt); background:var(--panel2); }
+        .tf.on { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
+        .vsep { width:1px; height:17px; background:var(--line2); margin:0 4px; }
+        .tool { width:29px; height:26px; display:grid; place-items:center; border-radius:7px; cursor:pointer;
+                background:transparent; border:1px solid transparent; color:var(--dim); transition:.12s; }
+        .tool:hover { background:var(--panel2); color:var(--txt); }
+        .tool.on { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
+        /* alon on/off — neon when he's running, greyed out when he isn't */
+        .alon-toggle { display:flex; align-items:center; gap:6px; padding:4px 9px 4px 5px; border-radius:8px;
+                       background:var(--panel2); border:1px solid var(--line2); cursor:pointer;
+                       font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.5px;
+                       color:var(--dimmer); transition:.16s; }
+        .alon-toggle:hover { border-color:var(--green-d); }
+        .alon-face { width:21px; height:21px; flex-shrink:0; image-rendering:pixelated; transition:.16s;
+                     background:url('alon-sprite-sheet.png?v=1') 20% 0 / 600% 100% no-repeat;
+                     filter:grayscale(1) brightness(0.65); }
+        .sw { width:23px; height:12px; border-radius:999px; background:#2e3637; position:relative; transition:.16s; }
+        .sw i { position:absolute; top:2px; left:2px; width:8px; height:8px; border-radius:50%;
+                background:var(--dimmer); transition:.16s; }
+        .alon-toggle.on { border-color:var(--green-d); background:var(--green-x); color:var(--green);
+                          box-shadow:0 0 14px rgba(74,222,128,0.35); }
+        .alon-toggle.on .alon-face { filter:none; }
+        .alon-toggle.on .sw { background:var(--green-d); box-shadow:0 0 8px rgba(74,222,128,0.5); }
+        .alon-toggle.on .sw i { left:13px; background:#eafff2; }
+
+        /* run mode has no button — arrows, the thumbstick, or clicking alon wake him up.
+           .running just tints the toggle cyan so you can tell you're driving him. */
+        .alon-toggle.on.running { border-color:#38bdf8; background:rgba(56,189,248,0.13); color:#7dd3fc;
+                                  box-shadow:0 0 14px rgba(56,189,248,0.35); }
+        .alon-toggle.on.running .sw { background:#0ea5e9; box-shadow:0 0 8px rgba(56,189,248,0.5); }
+        .alon-toggle.on.running .sw i { background:#e0f2fe; }
+
+        /* breathing = "this is clickable, you haven't tried it yet". Killed for good on
+           first click (localStorage) — a permanently pulsing button reads as an unread badge. */
+        .breathe .alon-face, .breathe svg { animation:breathe 2s ease-in-out infinite; }
+        @keyframes breathe { 50% { transform:scale(1.16); opacity:0.72; } }
+        @media (prefers-reduced-motion:reduce) { .breathe .alon-face, .breathe svg { animation:none; } }
+
+        /* thumbstick — touch pointers only, so it never shows up on desktop */
+        #stick { position:absolute; left:14px; bottom:14px; width:98px; height:98px; z-index:12;
+                 display:none; border-radius:50%; touch-action:none; background:rgba(10,16,17,0.55);
+                 border:1.5px solid rgba(56,189,248,0.5); box-shadow:0 0 18px rgba(56,189,248,0.22); }
+        #stick i { position:absolute; left:50%; top:50%; width:40px; height:40px; margin:-20px 0 0 -20px;
+                   border-radius:50%; background:rgba(56,189,248,0.85);
+                   box-shadow:0 0 14px rgba(56,189,248,0.6); }
+        #stick b { position:absolute; left:0; right:0; bottom:-19px; text-align:center;
+                   font-family:var(--mono); font-size:9px; letter-spacing:0.6px; color:#7dd3fc; opacity:.8; }
+        @media (pointer:coarse) { #stick.show { display:block; } }
+
+        /* onboarding card — most people never guessed the arrows do anything */
+        .run-hint { position:absolute; inset:0; z-index:10; display:none; pointer-events:none;
+                    align-items:center; justify-content:center; background:rgba(6,10,10,0.42); }
+        .run-hint.show { display:flex; animation:hintVeil 2.3s ease-out forwards; }
+        .run-hint .card { display:flex; flex-direction:column; align-items:center; gap:11px;
+                          padding:20px 30px; border-radius:14px; background:rgba(13,20,21,0.95);
+                          border:1.5px solid #38bdf8; box-shadow:0 0 44px rgba(56,189,248,0.45);
+                          animation:hintPop 2.3s cubic-bezier(.2,1.5,.4,1) forwards; }
+        .run-hint .keys { display:flex; align-items:flex-end; gap:8px; }
+        .run-hint .kcol { display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .run-hint kbd { width:40px; height:40px; display:grid; place-items:center; border-radius:9px;
+                        background:#182225; border:1.5px solid #38bdf8; border-bottom-width:3.5px;
+                        color:#7dd3fc; font-size:19px; line-height:1; font-family:var(--mono); }
+        .run-hint kbd.tap { animation:hintTap 0.62s ease-in-out infinite; }
+        .run-hint kbd.tap:nth-of-type(2) { animation-delay:.31s; }
+        .run-hint .cap { font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:1.1px;
+                         color:var(--dimmer); text-transform:uppercase; }
+        .run-hint .lede { font-family:var(--mono); font-size:12.5px; font-weight:800; letter-spacing:.8px;
+                          color:#e6f6ff; }
+        .run-hint .touch-only { display:none; }
+        @media (pointer:coarse) { .run-hint .key-only { display:none; } .run-hint .touch-only { display:block; } }
+        @keyframes hintVeil { 0%{opacity:0} 9%,70%{opacity:1} 100%{opacity:0} }
+        @keyframes hintPop {
+            0%   { transform:scale(.7) translateY(14px); opacity:0; }
+            12%  { transform:scale(1.04) translateY(0); opacity:1; }
+            20%  { transform:scale(1); }
+            70%  { transform:scale(1); opacity:1; }
+            100% { transform:scale(1.12); opacity:0; }
+        }
+        @keyframes hintTap { 50% { transform:translateY(-5px); background:#38bdf8; color:#06212e; } }
+
+        .manifest { display:flex; align-items:center; gap:6px; padding:5px 11px; border-radius:8px;
+                    background:var(--panel2); border:1px solid var(--line2); cursor:pointer;
+                    font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
+                    color:var(--dimmer); transition:.16s; }
+        .manifest svg { width:14px; height:14px; }
+        .manifest:hover { color:var(--green); border-color:var(--green-d); }
+        .manifest.on { background:var(--green-x); border-color:var(--green); color:var(--green);
+                       box-shadow:0 0 18px rgba(74,222,128,0.55); animation:manifestPulse 1.5s ease-in-out infinite; }
+        @keyframes manifestPulse { 50% { box-shadow:0 0 26px rgba(74,222,128,0.85); } }
+
+        /* PUMP UR SHIT is the only lit button on the bar now, so it takes the green back —
+           it manifests $1B and fakes the volume in one press. */
+        .manifest.boost.on { animation:boostPulse .62s ease-in-out infinite; }
+        @keyframes boostPulse { 50% { box-shadow:0 0 30px rgba(74,222,128,0.9); } }
+
+        .bar-right { margin-left:auto; display:flex; align-items:center; gap:8px;
+                     flex-wrap:nowrap; min-width:0; }
+        /* linear vs log market-cap axis */
+        .segbar { display:flex; gap:2px; padding:2px; border-radius:8px;
+                  background:var(--panel2); border:1px solid var(--line2); }
+        .seg { padding:3px 10px; border-radius:6px; background:none; border:none; cursor:pointer;
+               font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.6px;
+               color:var(--dimmer); transition:.14s; }
+        .seg:hover { color:var(--txt); }
+        .seg.on { background:var(--green-x); color:var(--green); box-shadow:0 0 12px rgba(74,222,128,0.35); }
+        .chart-status { position:absolute; left:10px; top:10px; z-index:20; padding:4px 9px;
+                        border-radius:7px; pointer-events:none; white-space:nowrap;
+                        background:rgba(13,20,21,0.9); border:1px solid var(--line2);
+                        font-family:var(--mono); font-size:10px; color:var(--dim); }
+        .chart-status:empty { display:none; }
+
+        /* ===== holder conviction ===== */
+        .conv-band { max-width:1920px; margin:0 auto; padding:7px clamp(8px,1.4vw,14px) 0; }
+        /* one window switcher for the whole band — it drives all three cards, so it can't live
+           in the corner of the first one or it reads as belonging to that card alone */
+        #convPanel { position:relative; }
+        /* the last card's corner is where the switcher lands, so its SHARE hint would sit under
+           it — the other two cards still teach that the cards are clickable */
+        .conv-card:last-child .conv-more { display:none; }
+        .win-seg:empty { display:none; }
+        /* the census stamp used to be its own header row; it now sits in the corner of the last
+           card, which buys back the row without losing the "this is live" signal.
+           In FLOW, not absolute: it's a flex sibling of .body pushed right with margin-left:auto,
+           so it can't land on the sparkline. Absolute did, at every width where the third card
+           got narrow enough for the spark to reach the corner. */
+        .conv-live { margin-left:auto; align-self:flex-end; flex:0 0 auto;
+                     display:flex; align-items:center; gap:5px;
+                     font-family:var(--mono); font-size:9px; color:var(--dimmer); letter-spacing:.3px;
+                     white-space:nowrap; pointer-events:none; }
+        .conv-live i { width:5px; height:5px; border-radius:50%; background:var(--green);
+                       box-shadow:0 0 7px var(--green); animation:convPulse 1.9s ease-in-out infinite; }
+        @keyframes convPulse { 50% { opacity:.35; } }
+        @media (max-width:520px) { .conv-live { margin-left:0; align-self:flex-start; font-size:8.5px; } }
+        .conv-cards { display:grid; grid-template-columns:repeat(3,1fr); }
+        .conv-card { position:relative; padding:9px 14px; border-right:1px solid var(--line);
+                     overflow:hidden; transition:background .25s; }
+        .conv-card:last-child { border-right:none; }
+        /* pointer-events:none or this inset:0 hover wash swallows clicks meant for .win-seg */
+        .conv-card::after { content:''; position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .25s;
+                            background:radial-gradient(120% 90% at 50% 0%, var(--cardGlow), transparent 70%); }
+        .conv-card:hover::after { opacity:1; }
+        /* wrap so the census stamp drops to its own line in the card exactly when it stops
+           fitting beside the label — no breakpoint guessing, and it can't clip out of the card */
+        .conv-card { display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
+        .conv-ring { position:relative; flex:0 0 auto; width:56px; height:56px; }
+        /* the svg carries width/height="56" attrs — without this it ignores any resized
+           container (.conv-rail resizes it to 44px) and the % label centres somewhere else */
+        .conv-ring svg { width:100%; height:100%; transform:rotate(-90deg); overflow:visible; }
+        .conv-ring .trk { fill:none; stroke:var(--panel2); stroke-width:6; }
+        .conv-ring .val { fill:none; stroke:var(--cardCol); stroke-width:6; stroke-linecap:round;
+                          filter:drop-shadow(0 0 6px var(--cardGlow));
+                          transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.3,1); }
+        .conv-ring span { position:absolute; inset:0; display:grid; place-items:center;
+                          font-family:var(--mono); font-size:14px; font-weight:800; color:var(--cardCol); }
+        .conv-card .body { min-width:0; }
+        .conv-card .num { position:relative; flex:0 0 auto; font-family:var(--mono); font-size:27px; font-weight:800;
+                          line-height:1; letter-spacing:-1.5px; color:var(--cardCol);
+                          text-shadow:0 0 26px var(--cardGlow); }
+        .conv-card .num em { font-style:normal; font-size:17px; letter-spacing:0; margin-left:2px; opacity:.85; }
+        .conv-card .lab { position:relative; font-size:10.5px; color:var(--dim); line-height:1.4; }
+        .conv-card .lab b { color:var(--txt); font-weight:700; }
+        .conv-card .mini { position:relative; margin-top:9px; height:3px; border-radius:99px;
+                           background:var(--panel2); overflow:hidden; }
+        .conv-card .mini i { display:block; height:100%; width:0; border-radius:99px;
+                             background:var(--cardCol); box-shadow:0 0 9px var(--cardGlow);
+                             transition:width 1.1s cubic-bezier(.2,.8,.3,1); }
+        .conv-spark { position:relative; margin-top:6px; display:flex; align-items:flex-end; gap:2px; height:16px; }
+        .conv-spark i { flex:1; min-width:2px; border-radius:1.5px 1.5px 0 0; background:var(--cardCol);
+                        opacity:.45; height:0; transition:height .9s cubic-bezier(.2,.8,.3,1); }
+        .conv-spark i:last-child { opacity:1; box-shadow:0 0 8px var(--cardGlow); }
+        @media (max-width:900px) {
+            .conv-cards { grid-template-columns:1fr 1fr; }
+            .conv-card:nth-child(2) { border-right:none; }
+            .conv-card:nth-child(3) { border-top:1px solid var(--line); }
+        }
+        @media (max-width:520px) {
+            .conv-cards { grid-template-columns:1fr; }
+            .conv-card { border-right:none; border-top:1px solid var(--line); }
+            .conv-card:first-child { border-top:none; }
+        }
+        .conv-foot { padding:5px 13px; font-family:var(--mono); font-size:8.5px; color:var(--dimmer);
+                     line-height:1.55; border-top:1px solid var(--line); white-space:pre-line; }
+        @media (max-width:1080px) {
+            .conv-grid { grid-template-columns:1fr 1fr; }
+            .conv-colC { grid-column:1/-1; border-top:1px solid var(--line); border-right:none; }
+        }
+        @media (max-width:640px) {
+            .conv-grid { grid-template-columns:1fr; }
+            .conv-col { border-right:none; border-top:1px solid var(--line); }
+            .conv-colA { border-top:none; }
+        }
+        .chart-status.err { color:var(--red); border-color:var(--red-d); }
+        .chart-stage { position:relative; }
+
+        /* ===== WALLET REPLAY entry point (PREVIEW — generated, not in index.html) ===== */
+        .wr-wrap { padding:10px 12px; border-bottom:1px solid var(--line); display:flex;
+                   flex-direction:column; gap:9px; }
+        .wr-btn { display:flex; align-items:center; gap:9px; align-self:flex-start; cursor:pointer;
+                  font-family:var(--mono); font-size:11.5px; font-weight:800; letter-spacing:.13em;
+                  padding:9px 14px; border-radius:9px; background:var(--panel2);
+                  border:1px solid var(--line2); color:var(--txt); transition:.15s; }
+        .wr-btn:hover { border-color:var(--green-d); color:var(--green); }
+        .wr-btn.on { background:var(--green-x); border-color:var(--green-d); color:var(--green);
+                     box-shadow:0 0 18px rgba(74,222,128,.22); }
+        .wr-btn .c { color:var(--dimmer); transition:.15s; font-size:9px; }
+        .wr-btn.on .c { transform:rotate(180deg); color:var(--green); }
+        /* while a replay owns the chart the same button is the way out, so it says so */
+        .wr-live .wr-btn { background:var(--green-x); border-color:var(--green-d); color:var(--green); }
+        .wr-live .wr-btn .c { display:none; }
+        .wr-drop { display:none; flex-direction:column; gap:8px; }
+        .wr-drop.on { display:flex; animation:wrin .2s ease-out; }
+        @keyframes wrin { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+        .wr-row { display:flex; gap:7px; align-items:center; flex-wrap:wrap; }
+        .wr-row input { flex:1; min-width:220px; background:var(--bg); border:1px solid var(--line2);
+                        border-radius:7px; color:var(--txt); font-family:var(--mono); font-size:12px;
+                        padding:10px 12px; outline:none; }
+        .wr-row input:focus { border-color:var(--green-d); }
+        .wr-row input::placeholder { color:var(--dimmer); }
+        .wr-row button { font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; font-weight:700;
+                         padding:10px 15px; border-radius:7px; cursor:pointer;
+                         background:var(--green-d); border:1px solid var(--green-d); color:#04150c; }
+        .wr-row button:hover { background:var(--green); }
+        .wr-micro { font-family:var(--mono); font-size:9.5px; color:var(--dimmer); letter-spacing:.05em; }
+        .wr-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+                    font-family:var(--mono); font-size:10.5px; }
+        .wr-chips .l { color:var(--dimmer); letter-spacing:.1em; }
+        .wr-chip { background:var(--panel2); border:1px solid var(--line2); color:var(--dim);
+                   padding:5px 10px; border-radius:999px; cursor:pointer; transition:.14s; }
+        .wr-chip:hover { border-color:var(--green-d); color:var(--green); }
+        .wr-live .chart-bar > * { opacity:.32; pointer-events:none; }
+        /* the site's own chart status sits top-left, exactly where the replay HUD does */
+        .wr-live .chart-status { display:none; }
+
+        #chart { width:100%; height:clamp(320px,54vh,520px); }
+        #chart.drawing { cursor:crosshair; }
+        /* brush layer sits over the chart but stays transparent to clicks until armed */
+        #draw { position:absolute; inset:0; z-index:5; pointer-events:none; touch-action:none; }
+        #draw.on { pointer-events:auto; cursor:crosshair; }
+
+        /* the mom threat, slammed over the chart on the way into a pump */
+        .pump-pop { position:absolute; inset:0; z-index:9; display:none; pointer-events:none;
+                    align-items:center; justify-content:center; background:rgba(6,10,10,0.55); }
+        .pump-pop.show { display:flex; animation:popVeil 1.4s ease-out forwards; }
+        .pump-pop img { width:min(90%,720px); border-radius:10px; border:2px solid #fbbf24;
+                        box-shadow:0 0 70px rgba(251,191,36,0.6);
+                        animation:popSlam 1.4s cubic-bezier(.18,1.5,.4,1) forwards; }
+        @keyframes popVeil { 0%{opacity:0} 10%,66%{opacity:1} 100%{opacity:0} }
+        @keyframes popSlam {
+            0%   { transform:scale(.25) rotate(-9deg); opacity:0; }
+            16%  { transform:scale(1.12) rotate(2.5deg); opacity:1; }
+            26%  { transform:scale(.98) rotate(-1.5deg); }
+            36%  { transform:scale(1) rotate(0deg); }
+            66%  { transform:scale(1) rotate(0deg); opacity:1; }
+            100% { transform:scale(1.55) rotate(0deg); opacity:0; }
+        }
+
+        .erase { display:none; margin-left:12px; padding:6px 13px; border-radius:8px; cursor:pointer;
+                 background:var(--panel2); border:1px solid var(--line2); color:var(--dim);
+                 font-family:var(--mono); font-size:11.5px; font-weight:700; transition:.12s; }
+        .erase:hover { color:var(--green); border-color:var(--green-d);
+                       box-shadow:0 0 12px rgba(74,222,128,0.25); }
+        .erase.show { display:inline-block; }
+
+        /* screenshot toast — a clipboard copy has no other way to say it worked */
+        .shot-toast { position:absolute; left:50%; top:14px; z-index:30; transform:translate(-50%,-8px);
+                      padding:7px 14px; border-radius:9px; pointer-events:none; opacity:0; transition:.18s;
+                      background:rgba(13,20,21,0.95); border:1px solid var(--green-d); color:var(--green);
+                      font-family:var(--mono); font-size:11px; font-weight:800; letter-spacing:0.5px;
+                      box-shadow:0 0 22px rgba(74,222,128,0.3); white-space:nowrap; }
+        .shot-toast.show { opacity:1; transform:translate(-50%,0); }
+        .shot-toast.err { border-color:var(--red-d); color:var(--red);
+                          box-shadow:0 0 22px rgba(248,113,113,0.25); }
+        .chart-panel { container-type:inline-size; }
+        .shotbtn { display:flex; align-items:center; gap:6px; padding:5px 10px 5px 8px; border-radius:8px;
+                   background:var(--panel2); border:1px solid var(--line2); color:var(--dim); cursor:pointer;
+                   font-family:var(--mono); font-size:10.5px; font-weight:800; letter-spacing:0.5px;
+                   transition:.14s; }
+        .shotbtn:hover { color:var(--green); border-color:var(--green-d);
+                         box-shadow:0 0 12px rgba(74,222,128,0.25); }
+        .shotbtn.flash { background:var(--green-x); border-color:var(--green-d); color:var(--green);
+                         box-shadow:0 0 16px rgba(74,222,128,0.4); }
+        /* icon-only when the bar genuinely can't hold the label on one row */
+        @container (max-width:790px) { .shotbtn { font-size:0; gap:0; padding:5px 7px; } }
+        @media (max-width:560px) { .shotbtn { font-size:0; gap:0; padding:5px 7px; } }
+
+        .strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); border-top:1px solid var(--line); }
+        .strip div { padding:9px 11px; border-right:1px solid var(--line); }
+        .strip div:last-child { border-right:none; }
+        .strip label { display:block; font-size:9.5px; color:var(--dimmer); text-transform:uppercase;
+                       letter-spacing:0.6px; font-weight:700; margin-bottom:3px; }
+        .strip b { font-family:var(--mono); font-size:13px; font-weight:700; }
+
+        /* transactions */
+        .tx-tabs { display:flex; align-items:center; gap:9px; width:100%; padding:8px 11px; cursor:pointer;
+                   background:none; border:none; border-bottom:1px solid var(--line);
+                   font-family:inherit; color:var(--dim); transition:.12s; }
+        .tx-tabs:hover { background:var(--panel2); }
+        .tx-tab { padding:5px 11px; border-radius:7px; font-size:11.5px; font-weight:700; color:var(--dimmer); white-space:nowrap; }
+        .tx-tab.on { background:var(--panel2); color:var(--txt); }
+        .tx-live { display:flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+                   color:var(--green); text-transform:uppercase; letter-spacing:0.6px; }
+        .tx-live .dot { width:5px; height:5px; }
+        .tx-count { margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--dimmer); }
+        .chev { width:16px; height:16px; flex-shrink:0; transition:transform .22s; }
+        /* collapsed by default — the chart is the headline, trades are the deep dive */
+        .tx-wrap { overflow:hidden; max-height:0; transition:max-height .28s ease; }
+        .panel.open .tx-wrap { overflow-x:auto; overflow-y:auto; max-height:330px; }
+        .panel.open .chev { transform:rotate(180deg); }
+        table.tx { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11.5px; }
+        table.tx th { position:sticky; top:0; background:var(--panel); text-align:right; padding:7px 11px;
+                      font-size:9.5px; letter-spacing:0.6px; text-transform:uppercase; color:var(--dimmer);
+                      font-weight:700; border-bottom:1px solid var(--line); z-index:1; }
+        table.tx th:first-child, table.tx td:first-child { text-align:left; }
+        table.tx td { padding:6px 11px; text-align:right; border-bottom:1px solid rgba(35,42,43,0.55); white-space:nowrap; }
+        table.tx tr:hover td { background:var(--panel2); }
+        .tx-type { font-weight:800; text-transform:uppercase; font-size:10.5px; }
+        .tx-addr { color:var(--dim); }
+        .tx-addr:hover { color:var(--green); }
+        .tx-new { animation:flash 1.1s ease-out; }
+        @keyframes flash { from { background:rgba(74,222,128,0.16); } }
+
+        /* ===== RIGHT RAIL — dexscreener token panel ===== */
+        .rail { display:flex; flex-direction:column; gap:10px; min-width:0; }
+        .banner { width:100%; display:block; border-radius:12px 12px 0 0; }
+        .tk-head { display:flex; align-items:center; gap:9px; padding:11px 12px 9px; }
+        .tk-head img { width:34px; height:34px; border-radius:9px; border:1.5px solid var(--green-x); }
+        .tk-pair { font-size:15px; font-weight:800; }
+        .tk-pair em { font-style:normal; color:var(--dim); }
+        .tk-chain { font-family:var(--mono); font-size:10.5px; color:var(--dimmer); margin-top:1px; }
+        .tk-links { display:flex; gap:6px; padding:0 12px 11px; }
+        .tk-links a { flex:1; text-align:center; padding:7px 0; border-radius:8px; background:var(--panel2);
+                      border:1px solid var(--line); color:var(--dim); font-size:11.5px; font-weight:700; transition:.12s; }
+        .tk-links a:hover { color:var(--txt); border-color:var(--green-d); }
+        .tk-links a { display:flex; align-items:center; justify-content:center; gap:6px; }
+        .pf-mark { width:15px; height:15px; }
+
+        .grid2 { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line); }
+        .grid3 { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line); }
+        .grid4 { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line); }
+        .cell { padding:8px 10px; border-right:1px solid var(--line); }
+        .cell:last-child { border-right:none; }
+        .cell label { display:block; font-size:9px; color:var(--dimmer); text-transform:uppercase;
+                      letter-spacing:0.6px; font-weight:700; margin-bottom:3px; }
+        .cell b { font-family:var(--mono); font-size:12.5px; font-weight:700; display:block; }
+        .cell.chg { text-align:center; }
+        .cell.chg b { font-size:12px; }
+
+        .barpair { padding:8px 10px; border-right:1px solid var(--line); }
+        .barpair:last-child { border-right:none; }
+        .barpair .two { display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; margin-bottom:4px; }
+        .minibar { height:4px; border-radius:999px; overflow:hidden; display:flex; background:var(--panel2); }
+        .minibar i { display:block; height:100%; }
+        .mb-buy { background:var(--green); } .mb-sell { background:var(--red); }
+
+        .trade-row { padding:11px 12px; }
+        .btn-trade { display:block; text-align:center; padding:13px; border-radius:10px; font-weight:800; font-size:15px; transition:.12s; }
+        .btn-t-buy { background:var(--green); color:#062012; box-shadow:0 3px 0 var(--green-d); }
+        .btn-t-buy:hover { background:#6ee7a0; transform:translateY(-1px); }
+        .rail-note { padding:0 12px 11px; font-size:10.5px; color:var(--dimmer); text-align:center; line-height:1.5; }
+
+        .row { display:flex; justify-content:space-between; align-items:center; padding:7px 12px;
+               border-top:1px solid rgba(35,42,43,0.55); font-size:12px; }
+        .row span { color:var(--dim); }
+        .row b { font-family:var(--mono); font-weight:600; }
+
+        .ca-copy { display:flex; align-items:center; gap:8px; width:100%; cursor:pointer; text-align:left;
+                   padding:9px 11px; background:none; border:none; border-top:1px solid var(--line);
+                   font-family:var(--mono); color:var(--dim); transition:.12s; }
+        .ca-copy:hover { color:var(--txt); }
+        .ca-copy .val { font-size:10.5px; word-break:break-all; line-height:1.35; flex:1; min-width:0; }
+        .ca-copy .ico { color:var(--green); font-size:14px; flex-shrink:0; }
+        .ca-copy.copied { color:var(--green); }
+        .ca-copy.copied .ico::after { content:' copied'; font-size:10px; }
+
+        footer { text-align:center; padding:18px 16px 30px; color:var(--dimmer); font-size:11.5px; font-family:var(--mono); }
+        footer a { color:var(--green); }
+        footer a:hover { text-decoration:underline; }
+        .disclaimer { max-width:760px; margin:9px auto 0; color:#41504a; font-size:10.5px; line-height:1.6; }
+    </style>
+</head>
+<body>
+    <!-- ===== TOP BAR ===== -->
+    <div class="topbar">
+        <a class="brand" href="/">
+            <img src="alon-pfp.jpg?v=1" alt="ALON">
+            <b>alonpump<i>.run</i></b>
+        </a>
+        <a class="arcade-btn" href="#arcade">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4"/><circle cx="15.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/><circle cx="17.8" cy="13" r=".9" fill="currentColor" stroke="none"/><path d="M17.5 6h-11a4.5 4.5 0 0 0-4.5 4.5v3A4.5 4.5 0 0 0 6.5 18h11a4.5 4.5 0 0 0 4.5-4.5v-3A4.5 4.5 0 0 0 17.5 6Z"/></svg>
+            arcade
+        </a>
+        <nav class="topnav">
+            <a class="soc pf" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener" title="$ALON on pump.fun" aria-label="$ALON on pump.fun"><img src="pump-logomark.svg?v=1" alt="pump.fun"></a>
+            <a class="soc" href="https://x.com/a1lon9" target="_blank" rel="noopener" title="alon on X" aria-label="alon on X">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </a>
+            <a class="soc" href="https://t.me/aloncoinsol" target="_blank" rel="noopener" title="$ALON telegram" aria-label="$ALON telegram">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.07 3.42a1.5 1.5 0 0 0-1.53-.26L1.7 10.9a1.5 1.5 0 0 0 .1 2.83l4.48 1.4 2.02 5.9a1 1 0 0 0 1.7.35l2.72-2.87 4.53 3.33a1.5 1.5 0 0 0 2.36-.9l4.03-15.9a1.5 1.5 0 0 0-.57-1.62zM9.6 14.03l-.44 4.1-1.35-3.95 9.4-6.6z"/></svg>
+            </a>
+        </nav>
+        <div class="topbar-right">
+            <a class="btn-buy" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener">buy $ALON</a>
+        </div>
+    </div>
+
+    <!-- ===== ROLLING BANNER ===== -->
+    <div class="marquee"><div class="marquee-track" id="marqueeTrack"></div></div>
+
+    <!-- alon, sprinting after the cursor -->
+    <div id="alonCursor"></div>
+
+    <!-- conviction lightbox — filled by conviction(), backdrop click / × / Esc all close it -->
+    <div class="lb" id="convLb" role="dialog" aria-modal="true" aria-labelledby="convLbTtl">
+        <div class="lb-card" id="convLbCard">
+            <button class="lb-x" id="convLbX" aria-label="close">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+            </button>
+            <canvas id="shareCv" width="1200" height="1000" aria-label="shareable $ALON holder card"></canvas>
+            <div class="share-tools">
+                <div class="share-btns">
+                    <button class="sb primary" id="shareImg">copy image</button>
+                    <button class="sb" id="shareDl">download</button>
+                    <button class="sb" id="shareX">post on X</button>
+                </div>
+                <div class="share-cap">the three lines, lowercase, ready to paste</div>
+                <pre class="share-txt" id="shareTxt"></pre>
+                <button class="sb wide" id="shareCopy">copy text</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- holder conviction — full-width band under the ticker -->
+    <div class="conv-band">
+        <div class="panel" id="convPanel">
+            <div class="win-seg" id="convWin"></div>
+            <div class="conv-cards" id="convCards"></div>
+        </div>
+    </div>
+
+    <div class="shell">
+        <!-- ================= LEFT: THE ARCADE ================= -->
+        <aside class="arcade" id="arcade">
+            <div class="panel arcade-panel">
+                <div class="phead"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4"/><circle cx="15.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/><circle cx="17.8" cy="13" r=".9" fill="currentColor" stroke="none"/><path d="M17.5 6h-11a4.5 4.5 0 0 0-4.5 4.5v3A4.5 4.5 0 0 0 6.5 18h11a4.5 4.5 0 0 0 4.5-4.5v-3A4.5 4.5 0 0 0 17.5 6Z"/></svg><h2>the arcade</h2><span class="dot"></span><span class="cnt">2 live · free</span></div>
+                <div class="glist">
+                    <a class="gcard" href="run">
+                        <div class="gart art-run">
+                            <span class="gbadge">THE ORIGINAL</span>
+                            <span class="gname">Pump Run</span>
+                        </div>
+                        <div class="gfoot"><span class="gtag">2D · endless</span><span class="gplay">PLAY ▸</span></div>
+                    </a>
+                    <a class="gcard" href="castle">
+                        <div class="gart art-castle">
+                            <span class="gbadge">NEW</span>
+                            <span class="gname">Pump Castle</span>
+                        </div>
+                        <div class="gfoot"><span class="gtag">3D · survival</span><span class="gplay">PLAY ▸</span></div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="phead"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.5 3.5 10.5a4.95 4.95 0 0 0 7 7l7-7a4.95 4.95 0 0 0-7-7Z"/><path d="M7 7l7 7"/></svg><h2>canonical coin</h2><span class="cnt">read</span></div>
+                <a class="article" href="https://x.com/thejpegjunkie/status/2012637417451233638" target="_blank" rel="noopener">
+                    <img src="article-banner.jpg?v=1" alt="alon confirming the canonical $ALON coin">
+                    <span class="article-sub">THE CANONICAL $ALON COIN X ARTICLE</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- ================= CENTER: CHART + TXNS ================= -->
+        <main class="center">
+            <div class="panel chart-panel">
+                <div class="chart-top">
+                    <img src="alon-pfp.jpg?v=1" alt="alon">
+                    <div>
+                        <div class="ct-name">ALON<em>/SOL</em></div>
+                        <div class="ct-chain">solana<br>raydium</div>
+                    </div>
+                    <button class="cmp-toggle" id="cmpBtn" title="$PUMP token price action over the chart — rebased so both start from the same point">
+                        <img src="pump-logomark.svg" alt="">
+                        <span class="cmp-lab">+ $PUMP<em>token price action</em></span>
+                    </button>
+                    <div class="ct-shill" id="shillLine">stop being poor</div>
+                    <div class="ct-price">
+                        <div class="v" id="headMc">—</div>
+                        <div class="c" id="headChg">—</div>
+                        <div class="ct-cap">market cap</div>
+                    </div>
+                    <button class="erase" id="eraseBtn" title="erase the drawing">erase ✕</button>
+                </div>
+
+                <div class="chart-bar">
+                    <button class="tf" data-tf="5m">5m</button>
+                    <button class="tf" data-tf="15m">15m</button>
+                    <button class="tf on" data-tf="1h">1H</button>
+                    <button class="tf" data-tf="4h">4H</button>
+                    <button class="tf" data-tf="1d">1D</button>
+                    <span class="vsep"></span>
+                    <button class="tool on" data-type="candle" title="candles">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="7" y="1" width="2" height="14" opacity="0.45"/><rect x="4.5" y="4" width="7" height="8" rx="1"/></svg>
+                    </button>
+                    <button class="tool" data-type="line" title="line">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="1,12 5,6 9,9 15,3"/></svg>
+                    </button>
+                    <span class="vsep"></span>
+                    <button class="tool" id="drawBtn" title="drop a price level — click the chart">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="1" y1="8" x2="15" y2="8" stroke-dasharray="3 2"/><circle cx="4" cy="8" r="1.6" fill="currentColor" stroke="none"/></svg>
+                    </button>
+                    <button class="tool" id="brushBtn" title="brush — click and drag to draw on the chart">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 14c2.2.3 3.6-.6 4.2-2.2"/><path d="M6.4 11.5 12.6 3.4a1.6 1.6 0 0 1 2.4 2L7.9 12.6"/></svg>
+                    </button>
+                    <button class="tool" id="clearBtn" title="clear levels and drawing">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/></svg>
+                    </button>
+                    <span class="vsep"></span>
+                    <button class="alon-toggle" id="alonToggle" title="put alon on the chart">
+                        <span class="alon-face"></span>
+                        <span class="sw"><i></i></span>
+                        <span class="alon-state">OFF</span>
+                    </button>
+                    <button class="manifest boost" id="boostBtn" title="pump ur shit">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V13"/><path d="M9 20V9"/><path d="M14 20V6"/><path d="M19 20V3"/></svg>
+                        PUMP UR SHIT
+                    </button>
+                    <div class="bar-right">
+                        <button class="shotbtn" id="shotBtn" title="copy a screenshot of the chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            COPY CHART
+                        </button>
+                        <div class="segbar" id="scaleToggle">
+                            <button class="seg on" data-mode="reg">REG</button>
+                            <button class="seg" data-mode="log">LOG</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wr-wrap">
+                    <div class="wr-btn" id="wrBtn"><span style="font-size:9px">&#9654;</span> <span id="wrLabel">WALLET REPLAY</span> <span class="c">&#9662;</span></div>
+                    <div class="wr-drop" id="wrDrop">
+                        <div class="wr-row">
+                            <input type="text" id="wrAddr" spellcheck="false" autocomplete="off" placeholder="paste a wallet &mdash; Geu1&hellip;aHNc">
+                            <button id="wrGo">ENTER</button>
+                        </div>
+                        <div class="wr-micro">read only &middot; never asks you to connect a wallet or share keys</div>
+                        <div class="wr-chips" id="wrChips"></div>
+                    </div>
+                </div>
+                <div class="chart-stage" id="chartStage">
+                    <div id="chart"></div>
+                    <canvas id="draw"></canvas>
+                    <span class="chart-status" id="chartStatus"></span>
+                    <div class="shot-toast" id="shotToast"></div>
+                    <div class="pump-pop" id="pumpPop"><img src="pumpurshit.png?v=1" alt="alon if you dont pump ur shit ill call my mom"></div>
+                    <div id="stick"><i></i><b>DRAG TO RUN</b></div>
+                    <div class="run-hint" id="runHint"><div class="card">
+                        <div class="lede key-only">ALON RUNS THE CHART</div>
+                        <div class="lede touch-only">ALON RUNS THE CHART</div>
+                        <div class="keys key-only">
+                            <div class="kcol"><kbd>&#8593;</kbd><span class="cap">jump</span></div>
+                            <div class="kcol"><div style="display:flex;gap:8px"><kbd class="tap">&#8592;</kbd><kbd class="tap">&#8594;</kbd></div><span class="cap">run</span></div>
+                        </div>
+                        <div class="keys touch-only">
+                            <div class="kcol"><kbd>&#9678;</kbd><span class="cap">drag the stick to run</span></div>
+                        </div>
+                    </div></div>
+                </div>
+
+                <div class="strip">
+                    <div><label>price</label><b id="sPrice">—</b></div>
+                    <div><label>mkt cap</label><b id="sMcap">—</b></div>
+                    <div><label>24h vol</label><b id="sVol">—</b></div>
+                    <div><label>liquidity</label><b id="sLiq">—</b></div>
+                    <div><label>ath mcap</label><b id="sAth">—</b></div>
+                    <div><label>holders</label><b id="sHolders">—</b></div>
+                </div>
+            </div>
+
+
+            <div class="panel">
+                <button class="tx-tabs" id="txToggle" aria-expanded="false">
+                    <span class="tx-tab on">transactions</span>
+                    <span class="tx-live"><i class="dot"></i>live</span>
+                    <span class="tx-count" id="txCount"></span>
+                    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="tx-wrap">
+                    <table class="tx">
+                        <thead><tr>
+                            <th>age</th><th>type</th><th>usd</th><th>alon</th><th>sol</th><th>price</th><th>trader</th>
+                        </tr></thead>
+                        <tbody id="txBody">
+                            <tr><td colspan="7" style="text-align:center;color:#5a6862;padding:22px">loading trades…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- ================= RIGHT: TOKEN PANEL ================= -->
+        <aside class="rail">
+            <div class="panel" style="overflow:hidden">
+                <img class="banner" src="alon-header.jpg?v=1" alt="$ALON">
+                <div class="tk-head">
+                    <img src="alon-pfp.jpg?v=1" alt="alon">
+                    <div>
+                        <div class="tk-pair">ALON<em> / SOL</em></div>
+                        <div class="tk-chain">solana › raydium</div>
+                    </div>
+                </div>
+                <div class="tk-links">
+                    <a href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener"><img class="pf-mark" src="pump-logomark.svg?v=1" alt="">pump.fun</a>
+                    <a href="https://x.com/a1lon9" target="_blank" rel="noopener">twitter</a>
+                    <a href="https://t.me/aloncoinsol" target="_blank" rel="noopener">telegram</a>
+                </div>
+
+                <div class="grid2">
+                    <div class="cell"><label>price usd</label><b id="rPrice">—</b></div>
+                    <div class="cell"><label>price sol</label><b id="rPriceSol">—</b></div>
+                </div>
+                <div class="grid3">
+                    <div class="cell"><label>liquidity</label><b id="rLiq">—</b></div>
+                    <div class="cell"><label>fdv</label><b id="rFdv">—</b></div>
+                    <div class="cell"><label>mkt cap</label><b id="rMcap">—</b></div>
+                </div>
+                <div class="grid4">
+                    <div class="cell chg"><label>5m</label><b id="r5m">—</b></div>
+                    <div class="cell chg"><label>1h</label><b id="r1h">—</b></div>
+                    <div class="cell chg"><label>6h</label><b id="r6h">—</b></div>
+                    <div class="cell chg"><label>24h</label><b id="r24h">—</b></div>
+                </div>
+                <div class="grid3">
+                    <div class="cell"><label>txns</label><b id="rTxns">—</b></div>
+                    <div class="barpair" style="grid-column:span 2">
+                        <div class="two"><span class="up" id="rBuys">—</span><span class="down" id="rSells">—</span></div>
+                        <div class="minibar"><i class="mb-buy" id="rBuyBar" style="width:50%"></i><i class="mb-sell" id="rSellBar" style="width:50%"></i></div>
+                    </div>
+                </div>
+                <div class="grid3">
+                    <div class="cell"><label>volume</label><b id="rVol">—</b></div>
+                    <div class="barpair" style="grid-column:span 2">
+                        <div class="two"><span class="up" id="rBuyVol">—</span><span class="down" id="rSellVol">—</span></div>
+                        <div class="minibar"><i class="mb-buy" id="rBuyVolBar" style="width:50%"></i><i class="mb-sell" id="rSellVolBar" style="width:50%"></i></div>
+                    </div>
+                </div>
+                <div class="grid3">
+                    <div class="cell"><label>traders</label><b id="rTraders">—</b></div>
+                    <div class="cell"><label>holders</label><b id="rHolders">—</b></div>
+                    <div class="cell"><label>ath</label><b id="rAth">—</b></div>
+                </div>
+
+                <div class="trade-row">
+                    <a class="btn-trade btn-t-buy" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener">Buy $ALON</a>
+                </div>
+                <p class="rail-note">trading happens on pump.fun — this site never touches your wallet</p>
+
+                <div class="row"><span>pair created</span><b id="rCreated">—</b></div>
+                <div class="row"><span>bonding curve</span><b class="up">graduated ✓</b></div>
+                <div class="row"><span>supply</span><b id="rSupply">—</b></div>
+                <div class="row"><span>mint / freeze</span><b id="rAudit">—</b></div>
+                <div class="row"><span>top 10 hold</span><b id="rTop">—</b></div>
+                <div class="row"><span>organic score</span><b id="rOrganic">—</b></div>
+
+                <button class="ca-copy" id="caCopy" title="copy contract address">
+                    <span class="val">8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS</span>
+                    <span class="ico">⧉</span>
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        games developed by <a href="https://x.com/thejpegjunkie" target="_blank" rel="noopener">@thejpegjunkie</a> · powered by $ALON · imagine imagining
+        <p class="disclaimer">alonpump.run is a fan-made arcade. it does not facilitate buying or selling and never asks for your wallet or keys — the buy button links out to pump.fun. market data from jupiter. not financial advice. DYOR.</p>
+    </footer>
+
+    <script>
+    const CA = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
+    const JUP_TOKEN = 'https://lite-api.jup.ag/tokens/v2/search';
+    const JUP_CHART = 'https://datapi.jup.ag/v2/charts';
+    const JUP_TXS   = 'https://datapi.jup.ag/v1/txs';
+    const PFP = 'alon-pfp.jpg?v=1';
+
+    // straight off the header art — the coin shills itself
+    const SHILLS = [
+        'stop being poor', 'imagine imagining', 'canonical coin', 'thank u alon',
+        'dont tread on me', 'alon are u narc?', 'i got motion', 'wen',
+        'alon if you dont pump ur shit ill call my mom',
+    ];
+
+    // ===== state =====
+    let tok = null, supply = 0, solUsd = 0;
+    let chart = null, candleS = null, lineS = null, volS = null;
+    let tf = '1h', ctype = 'candle';
+    let reqId = 0, lastFetch = 0, athMcap = 0, loadingMore = false;
+    let drawing = false, levels = [];
+    let history = [], redoStack = [];   // shared undo stack: brush strokes and price levels alike
+    let seenTx = new Set(), firstTxPaint = true;
+
+    // ===== format =====
+    const fmtMC = v => v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B'
+                     : v >= 1e6 ? '$'+(v/1e6).toFixed(2)+'M'
+                     : v >= 1e3 ? '$'+(v/1e3).toFixed(1)+'K' : '$'+(v||0).toFixed(2);
+    const fmtSupply = v => v >= 1e9 ? (v/1e9).toFixed(2)+'B' : v >= 1e6 ? (v/1e6).toFixed(2)+'M' : Math.round(v).toLocaleString();
+    const fmtAmt = v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(2);
+    function fmtPrice(p) {
+        if (!p) return '$0.00';
+        if (p >= 1) return '$' + p.toFixed(2);
+        if (p >= 0.01) return '$' + p.toFixed(4);
+        if (p >= 0.0001) return '$' + p.toFixed(6);
+        const m = p.toFixed(20).match(/^0\.(0+)(\d{1,4})/);
+        return m ? `$0.0{${m[1].length}}${m[2]}` : '$' + p.toPrecision(4);
+    }
+    const pct = v => (v >= 0 ? '+' : '') + (v || 0).toFixed(1) + '%';
+    const cls = v => v >= 0 ? 'up' : 'down';
+    const short = a => a.slice(0, 4) + '…' + a.slice(-4);
+    function ago(ms) {
+        const s = Math.max(0, (Date.now() - ms) / 1000);
+        if (s < 60) return Math.floor(s) + 's';
+        if (s < 3600) return Math.floor(s / 60) + 'm';
+        if (s < 86400) return Math.floor(s / 3600) + 'h';
+        return Math.floor(s / 86400) + 'd';
+    }
+
+    // ===== token =====
+    async function fetchToken() {
+        const r = await fetch(`${JUP_TOKEN}?query=${CA}`);
+        if (!r.ok) throw new Error('jupiter ' + r.status);
+        const list = await r.json();
+        const t = (Array.isArray(list) ? list : []).find(x => x.id === CA) || list[0];
+        if (!t) throw new Error('token not found');
+        const s24 = t.stats24h || {}, s6 = t.stats6h || {}, s1 = t.stats1h || {}, s5 = t.stats5m || {};
+        const a = t.audit || {};
+        return {
+            price: t.usdPrice || 0, mcap: t.mcap || t.fdv || 0, fdv: t.fdv || t.mcap || 0,
+            supply: t.totalSupply || t.circSupply || 0, liquidity: t.liquidity || 0,
+            holders: t.holderCount || 0,
+            buyVol: s24.buyVolume || 0, sellVol: s24.sellVolume || 0,
+            volume: (s24.buyVolume || 0) + (s24.sellVolume || 0),
+            m5: s5.priceChange || 0, h1: s1.priceChange || 0, h6: s6.priceChange || 0, h24: s24.priceChange || 0,
+            buys: s24.numBuys || 0, sells: s24.numSells || 0, traders: s24.numTraders || 0,
+            organic: t.organicScore || 0, organicLabel: t.organicScoreLabel || '—',
+            mintOff: !!a.mintAuthorityDisabled, freezeOff: !!a.freezeAuthorityDisabled,
+            topHolders: a.topHoldersPercentage || 0,
+            created: (t.firstPool || {}).createdAt || null,
+        };
+    }
+
+    // ===== candles =====
+    // ⚠ jupiter's COARSE intervals (4_HOUR, 1_DAY, 1_WEEK, 1_MONTH) are downsampled, not true
+    // OHLC — they clip wicks badly. ALON's jan-2025 top reads $37M on 1_DAY, $79M on 4_HOUR and
+    // $250M on 1_HOUR, all for the same candle. The tell is that coarser intervals report LOWER
+    // highs, which is impossible for real aggregation. So 1_HOUR and finer are the only ones
+    // fetched; 4H and 1D are rolled up from hourly here instead.
+    const FINE = { '5m': '5_MINUTE', '15m': '15_MINUTE' };
+    const BUCKET = { '4h': 4 * 3600, '1d': 24 * 3600 };
+    const PAGE = 1500;
+
+    let base = { rows: [], done: false };
+    let fine = {};
+
+    async function fetchCandles(interval, to, count, mint) {
+        const end = (to || new Date()).toISOString();
+        const url = `${JUP_CHART}/${mint || CA}?interval=${interval}&to=${encodeURIComponent(end)}&candles=${count || PAGE}`;
+        const gap = Date.now() - lastFetch;
+        if (gap < 250) await new Promise(r => setTimeout(r, 250 - gap));
+
+        for (let att = 1; att <= 3; att++) {
+            lastFetch = Date.now();
+            const res = await fetch(url);
+            if (res.status === 429) {
+                setStatus('rate limited · retrying', true);
+                await new Promise(r => setTimeout(r, att * 3000));
+                continue;
+            }
+            if (!res.ok) throw new Error('chart data unavailable');
+            const j = await res.json();
+            // key by time: a repeated timestamp makes lightweight-charts ask its colorer for a
+            // bar that isn't there and throw "Value is null" on every render frame
+            const byTime = new Map();
+            for (const c of (j.candles || [])) {
+                if (c.open == null || c.high == null || c.low == null || c.close == null) continue;
+                byTime.set(c.time, c);
+            }
+            return [...byTime.values()].sort((a, b) => a.time - b.time);
+        }
+        throw new Error('rate limited');
+    }
+
+    function mergeRows(a, b) {
+        const m = new Map();
+        for (const x of a) m.set(x.time, x);
+        for (const x of b) m.set(x.time, x);
+        return [...m.values()].sort((p, q) => p.time - q.time);
+    }
+
+    // real OHLC rollup: high is the max of the bucket, not a sampled point
+    function aggregate(rows, sec) {
+        const out = new Map();
+        for (const c of rows) {
+            const k = Math.floor(c.time / sec) * sec;
+            const b = out.get(k);
+            if (!b) out.set(k, { time: k, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume || 0 });
+            else {
+                if (c.high > b.high) b.high = c.high;
+                if (c.low < b.low) b.low = c.low;
+                b.close = c.close;
+                b.volume += c.volume || 0;
+            }
+        }
+        return [...out.values()].sort((a, b) => a.time - b.time);
+    }
+
+    // MANIFEST: bolt a run to a $1B market cap onto the end of whatever's on screen.
+    // purely cosmetic — it never touches the cached candles or the ATH.
+    let manifesting = false;
+    function withManifest(rows) {
+        if (!manifesting || !rows.length) return rows;
+        const last = rows[rows.length - 1];
+        const step = rows.length > 1 ? last.time - rows[rows.length - 2].time : 3600;
+        const target = 1e9 / (supply || 1);
+        if (target <= last.close) return rows;
+        const out = rows.slice();
+        const N = 16;
+        let prev = last.close;
+        for (let i = 1; i <= N; i++) {
+            const t = i / N;
+            const close = last.close + (target - last.close) * Math.pow(t, 3);   // slow, then vertical
+            out.push({
+                time: last.time + step * i,
+                open: prev,
+                high: i === N ? target : close * 1.015,
+                low: Math.min(prev, close) * 0.994,
+                close,
+                volume: (last.volume || 0) * (1 + t * 6),
+            });
+            prev = close;
+        }
+        return out;
+    }
+
+    // VOLUME BOOST: a synthetic candle stream bolted onto the end of the chart, ticking live,
+    // plus a flood of fake prints in the trades table. Every tick is a coin flip, but the coin is
+    // weighted and a ratcheting floor means the run can pull back and never actually break down.
+    // Like MANIFEST it's cosmetic — it never touches base.rows, the cached candles, or the ATH.
+    let boosting = false, boostTimer = null, boostRows = [], boostTxs = [];
+    let boostFloor = 0, boostAnchor = 0, boostVolUsd = 0, boostBuys = 0, boostSells = 0;
+    let boostVolUnit = 0, boostTick = 0, lastTxs = [];
+    let redActive = false, redLeft = 0, popTimer = null, popArming = false, cand = null;
+    let candTick = 0, launchLeft = 0, rowsStamp = 0;
+    const BOOST_MAX_CANDLES = 400, LAUNCH_EVERY = 20;
+    const POP_MS = 1400, HINT_MS = 2300;   // must match the .pump-pop animation duration in CSS
+    const PUMP_SECONDS = 30, PUMP_TARGET_MC = 1e9, AVG_TICK_S = 0.43;
+
+    // ===== LIQUIDITY DURING A PUMP =====
+    // A pool does not sit still while the market cap runs to a billion. The boost path
+    // used to scale price and mcap by the pump gain and leave liquidity alone apart
+    // from a 4% slice of simulated volume, so PUMP UR SHIT showed a $2B market cap on
+    // ~$700K of LP. That is 0.03%, no real pool is that thin, and LP is the first
+    // number anyone who actually trades looks at — so the whole fantasy falls over on
+    // the one stat that gives it away.
+    //
+    // Real tokens run an LP/mcap ratio that SHRINKS as they grow: $ALON is ~12% today
+    // at ~$7M, while a $1-2B memecoin runs nearer 2-4%. So liquidity scales as
+    // gain^k with k < 1. Rather than hard-code k — which quietly goes wrong as the real
+    // market cap drifts, which is exactly how the old fixed 0.85 got stale — solve for
+    // the k that lands LIQ_RATIO_AT_TARGET at PUMP_TARGET_MC from whatever the live
+    // numbers are right now.
+    const LIQ_RATIO_AT_TARGET = 0.032;          // ~3.2% of mcap at a billion
+    function liqExponent(baseLiq, baseMc) {
+        if (!(baseLiq > 0) || !(baseMc > 0)) return 0.85;
+        const gT = PUMP_TARGET_MC / baseMc;
+        if (gT <= 1.05) return 0.85;            // already at/over target: nothing to solve
+        const k = 1 + Math.log(LIQ_RATIO_AT_TARGET * baseMc / baseLiq) / Math.log(gT);
+        return Math.min(1, Math.max(0.5, k));   // never grow faster than mcap, never flat
+    }
+    const liqAtGain = (baseLiq, baseMc, gain) =>
+        baseLiq * Math.pow(Math.max(gain, 1), liqExponent(baseLiq, baseMc));
+    const MAX_TICK_DROP = 0.22, MAX_CANDLE_DROP = 0.5;
+    let boostT0 = 0, boostHitTarget = false;
+    const pumpElapsed = () => (performance.now() - boostT0) / 1000;
+    // last quarter of the run and still short of $1B = closing stretch. Dumps are suspended there
+    // (they come back once it's over the line, which is the whole "and beyond" part).
+    const pumpClosing = () => !boostHitTarget && pumpElapsed() > PUMP_SECONDS * 0.75;
+
+    // Closed loop, not a tuned constant: every tick asks "how much per-tick growth is left to
+    // still hit $1B on schedule" and hands that back as the drift the candle shapes ride on.
+    // That's what makes the 30s hold no matter what the coin opened at — and it self-corrects,
+    // so a crash candle just means the climb after it runs hotter.
+    function paceDrift(close) {
+        if (!supply || !(close > 0) || !isFinite(close)) return 0.011;
+        const elapsed = (performance.now() - boostT0) / 1000;
+        // floor scales with the run: 6s of a 60s pump is a rounding error, 6s of a 30s pump pins
+        // the drift for the last fifth and the price just asymptotes at the line without crossing
+        const remain = Math.max(PUMP_SECONDS - elapsed, PUMP_SECONDS * 0.1);
+        const need = Math.log((PUMP_TARGET_MC / supply) / close);
+        // measure the tick rate rather than assume it — a throttled tab or a slow phone ticks
+        // slower than AVG_TICK_S, and budgeting for ticks that never happen undershoots badly
+        const rate = (elapsed > 3 && boostTick > 4) ? boostTick / elapsed : 1 / AVG_TICK_S;
+        // the cap matters: B is derived from how far BEHIND we are, so without it a dump feeds
+        // itself a bigger B, which feeds a bigger dump. that loop is what zeroed the price out.
+        return Math.min(Math.max(need / Math.max(remain * rate, 1), 0.002), 0.30);
+    }
+    const nextRedGap = () => 10 + Math.floor(Math.random() * 6);   // a real dump every 10–15 candles
+
+    // real tape comes in flurries and lulls, not on a metronome — so weight it toward fast ticks
+    // with the occasional stall. 2s is the hard ceiling.
+    function nextDelay() {
+        const r = Math.random();
+        if (r < 0.12) return 780 + Math.random() * 370;    // ceiling 1.15s — timers fire late, keep it under 1.2
+        if (r < 0.35) return 420 + Math.random() * 480;
+        return 80 + Math.random() * 340;
+    }
+
+    // every candle gets a character rolled at birth — that's where the drama comes from.
+    // the wick modes rip one way for three ticks and reverse for three, which is what actually
+    // prints a long wick: the extreme is a high/low the body never keeps.
+    function rollCandle() {
+        const len = 4 + Math.floor(Math.random() * 6);   // 4–9 ticks, so candles aren't uniform either
+        candTick = 0;
+        // a dump is driven at a depth chosen up front — bounded by construction, and crucially
+        // independent of the pace drift, so it can't spiral
+        if (redActive && pumpClosing()) { redActive = false; redLeft = nextRedGap(); }
+        if (redActive) return Math.random() < 0.45
+            ? { mode: 'crash', amp: 1 + Math.random() * 1.3, len, drop: 0.24 + Math.random() * 0.26 }
+            : { mode: 'red',   amp: 1, len, drop: 0.05 + Math.random() * 0.12 };
+        // the recurring mega spike is proportional, not a fixed dollar jump — +$10M is a rocket at
+        // $3M and invisible at $800M, and this thing is at $800M inside two minutes
+        if (--launchLeft <= 0) {
+            launchLeft = LAUNCH_EVERY;
+            return { mode: 'launch', amp: 5, len: 5 + Math.floor(Math.random() * 3),
+                     mult: 1.6 + Math.random() * 0.9 };
+        }
+        const r = Math.random();
+        // in the closing stretch the wick modes are out too, not just the dumps — both spend half
+        // their ticks going down, and right at the line that's what stalls a run for 20s
+        if (pumpClosing()) return r < 0.35 ? { mode: 'god',    amp: 3.0 + Math.random() * 3.5, len }
+                                          : { mode: 'normal', amp: 0.7 + Math.random() * 0.8, len };
+        if (r < 0.10) return { mode: 'god',      amp: 3.0 + Math.random() * 3.5, len };
+        if (r < 0.20) return { mode: 'wickup',   amp: 2.2 + Math.random() * 2.6, len };
+        if (r < 0.28) return { mode: 'wickdown', amp: 2.0 + Math.random() * 2.2, len };
+        return { mode: 'normal', amp: 0.7 + Math.random() * 0.8, len };
+    }
+
+    // lightweight-charts asserts on non-ascending times and takes the whole chart down with it,
+    // so drop any fake bar that MANIFEST has since overrun rather than trusting the anchor
+    function withBoost(rows) {
+        if (!boosting || !boostRows.length) return rows;
+        const cut = rows.length ? rows[rows.length - 1].time : 0;
+        return rows.concat(boostRows.filter(c => c.time > cut));
+    }
+
+    function displayRows() { return withBoost(withManifest(viewRows(tf))); }
+
+    // how far the fake run has carried price above where it started — drives the stats strip
+    function boostGain() {
+        if (!boosting || !boostRows.length || !boostAnchor) return 1;
+        return boostRows[boostRows.length - 1].close / boostAnchor;
+    }
+
+    function fakeAddr() {
+        const A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        let s = ''; for (let i = 0; i < 44; i++) s += A[Math.floor(Math.random() * A.length)];
+        return s;
+    }
+
+    function boostStep() {
+        const real = withManifest(viewRows(tf));
+        if (!real.length) { return; }
+        const lastReal = real[real.length - 1];
+        const step = real.length > 1 ? (lastReal.time - real[real.length - 2].time) || 3600 : 3600;
+
+        if (!boostRows.length) {
+            boostAnchor = lastReal.close;
+            boostFloor = lastReal.close;
+            // size the fake bars off the busiest real bar on screen so they visibly dwarf history
+            const tail = real.slice(-120).map(c => c.volume || 0);
+            boostVolUnit = Math.max(Math.max(...tail, 0), 1) * 1.6;
+            boostRows.push({ time: lastReal.time + step, open: lastReal.close, high: lastReal.close,
+                             low: lastReal.close, close: lastReal.close, volume: 0 });
+            boostTick = 0; candTick = 0; redActive = false; redLeft = nextRedGap();
+            boostHitTarget = false;
+            launchLeft = LAUNCH_EVERY;
+            // the opening candle is an absolute +$8–13M on the market cap, not a percentage —
+            // it's the one spike whose size the viewer can actually read off the strip
+            const bump = supply ? (8e6 + Math.random() * 5e6) / supply : 0;
+            cand = bump
+                ? { mode: 'launch', amp: 5, len: 5 + Math.floor(Math.random() * 3), target: lastReal.close + bump }
+                : { mode: 'god', amp: 6, len: 6 };
+        }
+
+        let cur = boostRows[boostRows.length - 1];
+        boostTick++;
+        if (!cand) cand = rollCandle();
+        const k = ++candTick;                          // 1..cand.len within this candle
+        const half = Math.ceil(cand.len / 2);
+        const A = cand.amp, B = paceDrift(cur.close);
+
+        let d;
+        switch (cand.mode) {
+            case 'launch': {
+                // drive the body at a known destination instead of accumulating random ticks —
+                // that's the only way a spike lands on a size you asked for
+                const tgt = cand.target || cur.open * cand.mult;
+                const want = cur.open + (tgt - cur.open) * Math.pow(k / cand.len, 0.7);
+                d = Math.max(want / cur.close - 1, 0.002);
+                break;
+            }
+            case 'god':      d =  B * A * (0.7 + Math.random() * 0.8); break;
+            case 'wickup':   d =  k <= half ?  B * A * (0.8 + Math.random() * 0.6)
+                                            : -B * A * (0.55 + Math.random() * 0.5); break;
+            case 'wickdown': d =  k <= half ? -B * A * (0.8 + Math.random() * 0.6)
+                                            :  B * A * (0.7 + Math.random() * 0.6); break;
+            // dumps are driven at a depth rolled at birth, NOT off B — see rollCandle
+            case 'crash':
+            case 'red': {
+                const bottom = cur.open * (1 - cand.drop);
+                const want = cur.open + (bottom - cur.open) * Math.pow(k / cand.len, 0.7);
+                d = want / cur.close - 1;
+                break;
+            }
+            // random walk, upward drift — the -0.42 offset is what makes red ticks the minority
+            default:         d = B + (Math.random() - 0.42) * B * (1.1 + Math.random() * 1.8) * A;
+        }
+
+        if (d < -MAX_TICK_DROP) d = -MAX_TICK_DROP;      // no single tick can gut the price
+        let close = cur.close * (1 + d);
+        // 50% off the open is the floor for any candle — drops are capped, spikes are not
+        close = Math.max(close, cur.open * (1 - MAX_CANDLE_DROP));
+        if (!isFinite(close) || close <= 0) close = cur.open;
+        if (supply && close * supply >= PUMP_TARGET_MC) boostHitTarget = true;
+        const lastTick = k >= cand.len;
+        const sealed = lastTick && boostRows.length < BOOST_MAX_CANDLES;
+        // the ratchet binds the CLOSE, not the path — so a wick is free to pierce the floor and
+        // the body still has to hold it. that's the whole shape of a rejection candle.
+        if (lastTick && !redActive) close = Math.max(close, boostFloor);
+
+        cur.close = close;
+        if (close > cur.high) cur.high = close;
+        if (close < cur.low) cur.low = close;
+        const drama = cand.mode === 'normal' ? 1 : 1.3 + A * 0.35;
+        cur.volume += boostVolUnit * (0.35 + Math.random() * 0.9) * drama;
+
+        if (sealed) {
+            if (redActive) { redActive = false; boostFloor = close * 0.995; }
+            else {
+                boostFloor = Math.max(boostFloor, close * 0.982);
+                if (--redLeft <= 0 && !pumpClosing()) { redActive = true; redLeft = nextRedGap(); }
+            }
+            boostRows.push({ time: cur.time + step, open: close, high: close, low: close, close, volume: 0 });
+            cand = rollCandle();
+        }
+
+        // fake prints — the feed follows whichever way this tick actually went, so a rejection
+        // wick reads as sells hitting the bid instead of contradicting the candle
+        const n = 1 + Math.floor(Math.random() * 4 * Math.min(drama, 2.2));
+        for (let i = 0; i < n; i++) {
+            const buy = Math.random() < (d >= 0 ? 0.82 : 0.24);
+            const whale = Math.random() < 0.12 * drama;
+            const usd = whale ? 5000 + Math.random() * 45000 * drama : 40 + Math.random() * 2600;
+            boostTxs.unshift({
+                fake: true, type: buy ? 'buy' : 'sell', timestamp: new Date().toISOString(),
+                usdVolume: usd, usdPrice: close, amount: usd / (close || 1),
+                nativeVolume: solUsd ? usd / solUsd : 0,
+                txHash: 'boost-' + (boostTick * 10 + i) + '-' + boostRows.length,
+                traderAddress: fakeAddr(),
+            });
+            boostVolUsd += usd;
+            if (buy) boostBuys++; else boostSells++;
+        }
+        if (boostTxs.length > 60) boostTxs.length = 60;
+
+        if (chart) {
+            const r = chart.timeScale().getVisibleLogicalRange();
+            applySeries(displayRows());
+            if (r && sealed) chart.timeScale().setVisibleLogicalRange({ from: r.from + 1, to: r.to + 1 });
+        }
+        renderTxs(txFeed());
+        renderCoin();
+        renderMarquee();
+    }
+
+    function txFeed() { return boosting ? boostTxs.concat(lastTxs).slice(0, 80) : lastTxs; }
+
+    // self-rescheduling instead of setInterval — the gap is re-rolled after every tick
+    function boostLoop() {
+        boostStep();
+        if (boosting) boostTimer = setTimeout(boostLoop, nextDelay());
+    }
+
+    function setBoost(on) {
+        boosting = on;
+        document.getElementById('boostBtn').classList.toggle('on', on);
+        clearTimeout(boostTimer); boostTimer = null;
+        if (on) {
+            boostRows = []; boostTxs = [];
+            boostVolUsd = 0; boostBuys = 0; boostSells = 0; boostTick = 0; candTick = 0;
+            redActive = false; redLeft = nextRedGap(); cand = null; launchLeft = LAUNCH_EVERY;
+            boostHitTarget = false;
+            boostT0 = performance.now();
+            boostLoop();
+        } else {
+            boostRows = []; boostTxs = [];
+            boostVolUsd = 0; boostBuys = 0; boostSells = 0;
+            if (chart && tok) applySeries(displayRows());
+            if (lastTxs.length) renderTxs(txFeed());
+            renderCoin(); renderMarquee();
+        }
+    }
+
+    // ===== $PUMP overlay =====
+    // pump.fun's own coin is the sector's beta: when it runs, the whole pad runs, and the
+    // question worth answering on this page is "is $ALON moving with it or on its own?".
+    // A ratio chart (alon priced in pump) answers a DIFFERENT question and answers it backwards
+    // — it prints red on exactly the days chris calls good days — so this is an overlay, not a
+    // pair. $PUMP is REBASED: replotted as "what $ALON's mcap would be if it had tracked $PUMP
+    // from the first bar the two share". Same axis, so a 10% move looks like a 10% move on both.
+    const CMP = { ca: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn', tick: '$PUMP', col: '#ffffff' };
+    let cmpOn = false, cmpLoading = false, cmpS = null;
+    const cmpStore = { base: { rows: [], done: false }, fine: {} };
+
+    function cmpStoreFor(timeframe) {
+        return FINE[timeframe]
+            ? (cmpStore.fine[timeframe] = cmpStore.fine[timeframe] || { rows: [], done: false })
+            : cmpStore.base;
+    }
+    function cmpRows(timeframe) {
+        if (BUCKET[timeframe]) return aggregate(cmpStore.base.rows, BUCKET[timeframe]);
+        if (timeframe === '1h') return cmpStore.base.rows;
+        return (cmpStore.fine[timeframe] || { rows: [] }).rows;
+    }
+
+    // $ALON pages history in as you scroll and $PUMP has to follow it back, or the overlay just
+    // stops halfway across the chart. Walks one page at a time until it covers whatever $ALON
+    // already has loaded — capped, because a rate limit here must not become an infinite loop.
+    async function extendCmp(timeframe) {
+        const st = cmpStoreFor(timeframe);
+        if (!st.rows.length || st.done) return 0;
+        const oldest = st.rows[0].time;
+        const page = await fetchCandles(FINE[timeframe] || '1_HOUR', new Date(oldest * 1000), null, CMP.ca);
+        if (!page.some(c => c.time < oldest)) { st.done = true; return 0; }
+        st.rows = mergeRows(st.rows, page);
+        return st.rows[0].time < oldest ? 1 : 0;
+    }
+    async function syncCmpHistory(timeframe) {
+        const a = viewRows(timeframe);
+        if (!a.length) return;
+        const need = a[0].time;
+        for (let i = 0; i < 10; i++) {
+            const st = cmpStoreFor(timeframe);
+            if (!st.rows.length || st.done || st.rows[0].time <= need) break;
+            if (!await extendCmp(timeframe)) break;
+            if (timeframe !== tf || !cmpOn) break;
+        }
+    }
+
+    // the anchor is the leftmost bar you can SEE, not the leftmost bar loaded — anchoring
+    // off-screen is what makes a compare overlay look like it starts at the wrong price, and
+    // the whole point is that the two lines leave the left edge together
+    let cmpKey = '', cmpRaf = 0, cmpDebug = null;
+    function paintCmp(rows) {
+        if (!cmpS) return;
+        if (!cmpOn) { cmpS.setData([]); cmpS.applyOptions({ visible: false }); cmpKey = ''; cmpDebug = null; return; }
+        const a = rows || displayRows(), p = cmpRows(tf);
+        if (!a.length || !p.length) { cmpS.setData([]); cmpKey = ''; cmpDebug = null; return; }
+        const r = chart ? chart.timeScale().getVisibleLogicalRange() : null;
+        const from = r ? Math.max(0, Math.min(a.length - 1, Math.ceil(r.from))) : 0;
+        const pm = new Map(p.map(c => [c.time, c.close]));
+        const mult = supply || 1;
+        let aA = null, pA = null, at = 0;
+        for (let i = from; i < a.length; i++) {
+            const q = pm.get(a[i].time);
+            if (q != null) { aA = a[i].close * mult; pA = q; at = a[i].time; break; }
+        }
+        // nothing shared to the right of the left edge — fall back to the oldest shared bar
+        if (!aA) for (const c of a) { const q = pm.get(c.time); if (q != null) { aA = c.close * mult; pA = q; at = c.time; break; } }
+        if (!aA || !pA) { cmpS.setData([]); cmpKey = ''; cmpDebug = null; return; }
+
+        // setData itself fires a visible-range change, so without this the repaint recurses
+        const key = tf + ':' + a.length + ':' + at + ':' + aA;
+        if (key === cmpKey) return;
+        cmpKey = key;
+
+        // the overlay spans every shared bar, not just the visible ones — the anchor is the
+        // bar it's PINNED to, which is why the probe below reads the point at `at`, not pts[0]
+        const pts = [];
+        let atVal = null;
+        for (const c of a) {
+            const q = pm.get(c.time);
+            if (q == null) continue;
+            const v = aA * (q / pA);
+            if (c.time === at) atVal = v;
+            pts.push({ time: c.time, value: v });
+        }
+        cmpS.setData(pts);
+        cmpS.applyOptions({ visible: true });
+        // the rebase is only correct if the overlay's value AT the anchor is the candle's mcap
+        cmpDebug = { t: at, cmp: atVal, alon: aA, n: pts.length,
+                     last: pts.length ? pts[pts.length - 1].value : null };
+    }
+
+    function queueCmp() {
+        if (!cmpOn || cmpRaf) return;
+        cmpRaf = requestAnimationFrame(() => { cmpRaf = 0; paintCmp(); });
+    }
+
+    async function loadCmp() {
+        if (!cmpOn || cmpLoading) return;
+        cmpLoading = true;
+        const myTf = tf;
+        try {
+            const st = cmpStoreFor(tf);
+            if (!st.rows.length) st.rows = await fetchCandles(FINE[tf] || '1_HOUR', null, null, CMP.ca);
+            if (myTf === tf) paintCmp();
+            await syncCmpHistory(myTf);
+            if (myTf === tf) { cmpKey = ''; paintCmp(); }
+        } catch (e) {
+            // the overlay is a nicety — a rate limit on it must never take the chart down
+            setStatus('$PUMP overlay unavailable', true);
+            setTimeout(() => setStatus(''), 2600);
+        } finally { cmpLoading = false; }
+    }
+
+    function setCmp(on) {
+        cmpOn = on;
+        try { localStorage.setItem('cmpPump', on ? 'yes' : 'no'); } catch (e) {}
+        const b = document.getElementById('cmpBtn');
+        if (b) b.classList.toggle('on', on);
+        cmpKey = '';
+        if (on) loadCmp(); else paintCmp();
+    }
+
+    function viewRows(timeframe) {
+        if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe]);
+        if (timeframe === '1h') return base.rows;
+        return (fine[timeframe] || { rows: [] }).rows;
+    }
+
+    async function extendHistory(timeframe) {
+        if (loadingMore) return 0;
+        const isFine = !!FINE[timeframe];
+        const store = isFine ? (fine[timeframe] = fine[timeframe] || { rows: [], done: false }) : base;
+        if (!store.rows.length || store.done) return 0;
+        loadingMore = true;
+        try {
+            const before = viewRows(timeframe).length;
+            const oldest = store.rows[0].time;
+            const page = await fetchCandles(isFine ? FINE[timeframe] : '1_HOUR', new Date(oldest * 1000));
+            if (!page.some(c => c.time < oldest)) { store.done = true; return 0; }
+            store.rows = mergeRows(store.rows, page);
+            return viewRows(timeframe).length - before;
+        } finally {
+            loadingMore = false;
+        }
+    }
+
+    // ===== chart =====
+    function setStatus(msg, isErr) {
+        const el = document.getElementById('chartStatus');
+        el.textContent = msg || '';
+        el.className = 'chart-status' + (isErr ? ' err' : '');
+    }
+
+    function initChart() {
+        const box = document.getElementById('chart');
+        if (typeof LightweightCharts === 'undefined' || !box) return false;
+
+        chart = LightweightCharts.createChart(box, {
+            width: box.clientWidth, height: box.clientHeight,
+            layout: { background: { color: '#131718' }, textColor: '#7d8b83', fontFamily: 'Inter, sans-serif', fontSize: 11 },
+            grid: { vertLines: { color: 'rgba(35,42,43,0.55)' }, horzLines: { color: 'rgba(35,42,43,0.55)' } },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                vertLine: { color: 'rgba(74,222,128,0.4)', width: 1, style: 2, labelBackgroundColor: '#16a34a' },
+                horzLine: { color: 'rgba(74,222,128,0.4)', width: 1, style: 2, labelBackgroundColor: '#16a34a' },
+            },
+            rightPriceScale: { borderColor: '#232a2b', scaleMargins: { top: 0.06, bottom: 0.10 } },
+            timeScale: { borderColor: '#232a2b', timeVisible: true, secondsVisible: false, rightOffset: 4 },
+            handleScroll: true, handleScale: true,
+        });
+
+        // a market cap is never zero or negative — the axis extends past the data into the
+        // scale margins, so blank those ticks instead of printing "$-2000000"
+        const mcFmt = v => v <= 0 ? ''
+                        : v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B' : v >= 1e6 ? '$'+(v/1e6).toFixed(2)+'M'
+                        : v >= 1e3 ? '$'+(v/1e3).toFixed(0)+'K' : '$'+v.toFixed(0);
+
+        candleS = chart.addCandlestickSeries({
+            upColor: '#4ade80', downColor: '#f87171', borderVisible: false,
+            wickUpColor: '#4ade80', wickDownColor: '#f87171',
+            priceFormat: { type: 'custom', formatter: mcFmt, minMove: 1 },
+        });
+        lineS = chart.addLineSeries({
+            color: '#4ade80', lineWidth: 2, visible: false, priceLineVisible: false,
+            priceFormat: { type: 'custom', formatter: mcFmt, minMove: 1 },
+        });
+        // volume overlay — no last-value tag, no price line (that stray "7.63K" box)
+        volS = chart.addHistogramSeries({
+            priceFormat: { type: 'volume' }, priceScaleId: 'vol',
+            lastValueVisible: false, priceLineVisible: false,
+        });
+        chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.87, bottom: 0 }, visible: false });
+
+        // rebased $PUMP rides the SAME price scale as $ALON — that's the whole point, the two
+        // are directly comparable. No last-value tag: the number would be an $ALON mcap that
+        // $PUMP never had.
+        // white and DASHED on purpose: a second green line on a green/red candle chart reads as
+        // price, and dashed says "this is a reference, not $ALON" without needing a legend
+        cmpS = chart.addLineSeries({
+            color: CMP.col, lineWidth: 2, lineStyle: LightweightCharts.LineStyle.Dashed,
+            visible: false, priceLineVisible: false,
+            lastValueVisible: false, crosshairMarkerVisible: false,
+            priceFormat: { type: 'custom', formatter: mcFmt, minMove: 1 },
+        });
+
+        new ResizeObserver(() => {
+            if (chart) chart.applyOptions({ width: box.clientWidth, height: box.clientHeight });
+        }).observe(box);
+
+        chart.timeScale().subscribeVisibleLogicalRangeChange(r => {
+            if (r && r.from < 12) loadMore();
+            queueCmp();
+        });
+
+        // draw tool: click drops a horizontal level at that market cap
+        chart.subscribeClick(param => {
+            if (!drawing || !param.point) return;
+            const price = candleS.coordinateToPrice(param.point.y);
+            if (price == null || price <= 0) return;
+            addLevel(price);
+            history.push({ t: 'level' }); redoStack = [];
+        });
+        return true;
+    }
+
+    function applySeries(rows) {
+        rowsStamp++;              // single funnel for "the chart data changed" — run mode caches off it
+        const mult = supply || 1;
+        const mc = rows.map(c => ({
+            time: c.time, open: c.open*mult, high: c.high*mult, low: c.low*mult, close: c.close*mult,
+        }));
+        candleS.setData(mc);
+        lineS.setData(mc.map(c => ({ time: c.time, value: c.close })));
+        volS.setData(rows.map(c => ({
+            time: c.time, value: c.volume || 0,
+            color: c.close >= c.open ? 'rgba(74,222,128,0.38)' : 'rgba(248,113,113,0.38)',
+        })));
+        candleS.applyOptions({ visible: ctype === 'candle' });
+        lineS.applyOptions({ visible: ctype === 'line' });
+        paintCmp(rows);
+    }
+
+    async function loadChart() {
+        if (!chart || !tok) return;
+        const mine = ++reqId;
+        setStatus('loading…');
+        try {
+            if (FINE[tf] && !(fine[tf] && fine[tf].rows.length)) {
+                fine[tf] = { rows: await fetchCandles(FINE[tf]), done: false };
+            }
+            if (mine !== reqId) return;
+            const rows = displayRows();
+            if (!rows.length) { setStatus('no data', true); return; }
+            applySeries(displayRows());
+            chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
+            setStatus('');
+        } catch (e) {
+            if (mine === reqId) setStatus(e.message, true);
+        }
+    }
+
+    function shiftView(added) {
+        const r = chart.timeScale().getVisibleLogicalRange();
+        applySeries(displayRows());
+        if (r && added) chart.timeScale().setVisibleLogicalRange({ from: r.from + added, to: r.to + added });
+    }
+
+    async function loadMore() {
+        if (!chart || loadingMore) return;
+        const store = FINE[tf] ? fine[tf] : base;
+        if (!store || store.done) return;
+        const myTf = tf, mine = reqId;
+        setStatus('loading history…');
+        try {
+            const added = await extendHistory(myTf);
+            if (myTf !== tf || mine !== reqId) return;
+            if (!added) {
+                setStatus('start of history');
+                setTimeout(() => { if (tf === myTf) setStatus(''); }, 2500);
+                return;
+            }
+            shiftView(added);
+            setStatus('');
+            // the overlay has to walk back with it or it stops mid-chart
+            if (cmpOn) {
+                try { await syncCmpHistory(myTf); } catch (e) {}
+                if (myTf === tf) { cmpKey = ''; paintCmp(); }
+            }
+        } catch (e) {
+            setStatus(/fetch/i.test(e.message) ? 'history unavailable · try again' : e.message, true);
+        }
+    }
+
+    // The chart used to be a load-time snapshot: every other fetchCandles call pages BACKWARDS
+    // (loadMore/backfill/switching to a fine tf), so nothing ever re-read the newest candle.
+    // Header, strip and tab title refreshed off the token endpoint every 30s while the chart's
+    // last bar stayed frozen — so the two drifted apart all session and only a reload re-synced
+    // them. This re-reads the tail on the same 30s tick, so both are equally fresh.
+    const TAIL = 120;
+    async function refreshCandles() {
+        if (!chart || !tok || boosting) return;   // the pump owns the tail while it's running
+        try {
+            const tail = await fetchCandles('1_HOUR', null, TAIL);
+            if (tail.length) base.rows = mergeRows(base.rows, tail);
+            if (FINE[tf] && fine[tf] && fine[tf].rows.length) {
+                const ft = await fetchCandles(FINE[tf], null, TAIL);
+                if (ft.length) fine[tf].rows = mergeRows(fine[tf].rows, ft);
+            }
+            const rows = displayRows();
+            if (rows.length) applySeries(rows);   // setData only — the user's zoom/pan survives
+            paintAth();                           // a new high in the tail has to move the line
+        } catch (e) { /* keep the last good chart rather than blanking it */ }
+    }
+
+    function paintAth() {
+        if (!base.rows.length) return;
+        athMcap = Math.max(...base.rows.map(c => c.high)) * (supply || 1);
+        document.getElementById('sAth').textContent = fmtMC(athMcap);
+        document.getElementById('rAth').textContent = fmtMC(athMcap);
+    }
+
+    // walk the whole hourly history back in the background — ~10 calls, about 10s
+    async function backfill() {
+        for (let i = 0; i < 16 && !base.done; i++) {
+            const live = chart && !FINE[tf];
+            const before = live ? viewRows(tf).length : 0;
+            let added = 0;
+            try { added = await extendHistory('1h'); } catch (e) { break; }
+            if (!added) break;
+            paintAth();
+            renderMarquee();
+            if (live) shiftView(viewRows(tf).length - before);
+        }
+        paintAth();
+    }
+
+    // ===== transactions =====
+    async function fetchTxs() {
+        const r = await fetch(`${JUP_TXS}/${CA}?limit=40`);
+        if (!r.ok) throw new Error('txs ' + r.status);
+        const j = await r.json();
+        return j.txs || [];
+    }
+
+    function renderTxs(txs) {
+        const body = document.getElementById('txBody');
+        if (!txs.length) { body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#5a6862;padding:22px">no trades</td></tr>'; return; }
+        body.innerHTML = txs.map(t => {
+            const buy = t.type === 'buy';
+            const ms = Date.parse(t.timestamp);
+            const fresh = !firstTxPaint && !seenTx.has(t.txHash);
+            seenTx.add(t.txHash);
+            return `<tr class="${fresh ? 'tx-new' : ''}">
+                <td class="tx-addr">${ago(ms)}</td>
+                <td class="tx-type ${buy ? 'up' : 'down'}">${t.type}</td>
+                <td class="${buy ? 'up' : 'down'}">$${(t.usdVolume || 0).toFixed(2)}</td>
+                <td>${fmtAmt(t.amount || 0)}</td>
+                <td>${(t.nativeVolume || 0).toFixed(3)}</td>
+                <td>${fmtPrice(t.usdPrice || 0)}</td>
+                <td>${t.fake ? `<span class="tx-addr">${short(t.traderAddress || '')}</span>`
+                             : `<a class="tx-addr" href="https://solscan.io/tx/${t.txHash}" target="_blank" rel="noopener">${short(t.traderAddress || '')}</a>`}</td>
+            </tr>`;
+        }).join('');
+        const cnt = document.getElementById('txCount');
+        if (cnt) cnt.textContent = txs.length + ' recent';
+        firstTxPaint = false;
+        if (seenTx.size > 400) seenTx = new Set(txs.map(t => t.txHash));
+    }
+
+    async function refreshTxs() {
+        if (document.hidden) return;
+        try {
+            const txs = await fetchTxs();
+            // each trade carries both legs, so SOL/USD falls out of it — no extra request
+            const ref = txs.find(t => t.nativeVolume > 0 && t.usdVolume > 0);
+            if (ref) { solUsd = ref.usdVolume / ref.nativeVolume; renderCoin(); }
+            lastTxs = txs;
+            renderTxs(txFeed());
+        } catch (e) { /* keep last */ }
+    }
+
+    // ===== render =====
+    function marqueeItem(rank, label, value, change, gag) {
+        const c = change === null ? '' : (change >= 0 ? 'up' : 'down');
+        const arrow = change === null ? '' : `<span class="m-chg">${change >= 0 ? '▲' : '▼'}${Math.abs(change).toFixed(1)}%</span>`;
+        return `<span class="m-item ${c} ${gag ? 'gag' : ''}"><img src="${PFP}" alt="">` +
+               `<span class="m-rank">${rank}</span><span class="m-sym">$ALON</span>` +
+               `<span class="m-val">${label ? label + ' ' : ''}${value}</span>${arrow}</span>`;
+    }
+
+    // what the page shows — the real token, plus whichever fantasies are lit (they stack)
+    function shown() {
+        if (!tok) return tok;
+        let p = tok;
+        if (manifesting && tok.mcap) {
+            const target = 1e9;
+            const mult = target / tok.mcap;
+            // liquidity and volume don't scale 1:1 with market cap — big caps run a thinner ratio.
+            const deep = Math.pow(mult, 0.85);
+            p = Object.assign({}, tok, {
+                mcap: target, fdv: target,
+                price: tok.price * mult,
+                h24: (mult - 1) * 100,
+                // same solved ratio the pump uses, so the two paths can't disagree
+                liquidity: liqAtGain(tok.liquidity, tok.mcap, mult),
+                volume: tok.volume * deep,
+                buyVol: tok.buyVol * deep,
+                sellVol: tok.sellVol * deep,
+            });
+        }
+        if (boosting) {
+            const g = boostGain(), up = (g - 1) * 100;
+            const bVol = boostVolUsd * 0.74, sVol = boostVolUsd * 0.26;
+            p = Object.assign({}, p, {
+                price: p.price * g, mcap: p.mcap * g, fdv: p.fdv * g,
+                volume: p.volume + boostVolUsd,
+                buyVol: p.buyVol + bVol, sellVol: p.sellVol + sVol,
+                // scales with the pump, plus a slice of the simulated buy flow: buys
+                // genuinely deepen a pool, they just aren't where the growth comes from
+                liquidity: liqAtGain(p.liquidity, p.mcap, g) + boostVolUsd * 0.04,
+                buys: p.buys + boostBuys, sells: p.sells + boostSells,
+                m5: p.m5 + up, h1: p.h1 + up, h6: p.h6 + up, h24: p.h24 + up,
+            });
+        }
+        return p;
+    }
+
+    function renderMarquee() {
+        if (!tok) return;
+        const p = shown();
+        const items = [
+            marqueeItem('#1', '', fmtMC(p.mcap), p.h24),
+            marqueeItem('#2', 'also', fmtMC(p.mcap), p.h24),
+            marqueeItem('#3', 'still', fmtMC(p.mcap), p.h24),
+            marqueeItem('#4', 'vol', fmtMC(p.volume), null),
+            marqueeItem('#5', 'yep', fmtPrice(p.price), p.h1),
+            marqueeItem('#6', 'liq', fmtMC(p.liquidity), null),
+            marqueeItem('#7', 'ath', athMcap ? fmtMC(athMcap) : fmtMC(p.mcap), null),
+            marqueeItem('#8', '', `${p.holders.toLocaleString()} holders`, null),
+            marqueeItem('#9', 'canonical coin', fmtMC(p.mcap), p.h6),
+            marqueeItem('#10', 'ok last one', fmtMC(p.mcap), p.h24, true),
+        ].join('');
+        document.getElementById('marqueeTrack').innerHTML = items + items;  // duplicated for the seamless -50% loop
+    }
+
+    function setTxt(id, txt, klass) {
+        const el = document.getElementById(id); if (!el) return;
+        el.textContent = txt;
+        if (klass !== undefined) el.className = klass;
+    }
+
+    function renderCoin() {
+        const p = shown(); if (!p) return;
+        // mcap first — tabs truncate from the right, so the number survives the squeeze
+        if (p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alonpump.run`;
+        setTxt('headMc', fmtMC(p.mcap));
+        setTxt('headChg', `${p.h24 >= 0 ? '▲' : '▼'} ${Math.abs(p.h24).toFixed(1)}% 24h`, 'c ' + cls(p.h24));
+
+        setTxt('sPrice', fmtPrice(p.price));
+        setTxt('sMcap', fmtMC(p.mcap));
+        setTxt('sVol', fmtMC(p.volume));
+        setTxt('sLiq', fmtMC(p.liquidity));
+        setTxt('sHolders', p.holders ? p.holders.toLocaleString() : '—');
+
+        setTxt('rPrice', fmtPrice(p.price));
+        setTxt('rPriceSol', solUsd ? (p.price / solUsd).toFixed(8) : '—');
+        setTxt('rLiq', fmtMC(p.liquidity));
+        setTxt('rFdv', fmtMC(p.fdv));
+        setTxt('rMcap', fmtMC(p.mcap));
+        for (const [id, v] of [['r5m', p.m5], ['r1h', p.h1], ['r6h', p.h6], ['r24h', p.h24]]) setTxt(id, pct(v), cls(v));
+
+        const nTx = p.buys + p.sells || 1;
+        setTxt('rTxns', nTx.toLocaleString());
+        setTxt('rBuys', p.buys.toLocaleString());
+        setTxt('rSells', p.sells.toLocaleString());
+        document.getElementById('rBuyBar').style.width = (p.buys / nTx * 100) + '%';
+        document.getElementById('rSellBar').style.width = (p.sells / nTx * 100) + '%';
+
+        const vTot = p.buyVol + p.sellVol || 1;
+        setTxt('rVol', fmtMC(p.volume));
+        setTxt('rBuyVol', fmtMC(p.buyVol));
+        setTxt('rSellVol', fmtMC(p.sellVol));
+        document.getElementById('rBuyVolBar').style.width = (p.buyVol / vTot * 100) + '%';
+        document.getElementById('rSellVolBar').style.width = (p.sellVol / vTot * 100) + '%';
+
+        setTxt('rTraders', p.traders.toLocaleString());
+        setTxt('rHolders', p.holders.toLocaleString());
+        setTxt('rSupply', supply ? fmtSupply(supply) : '—');
+        setTxt('rTop', p.topHolders.toFixed(1) + '%');
+        setTxt('rOrganic', `${p.organic}/100 · ${p.organicLabel}`);
+        setTxt('rAudit', (p.mintOff && p.freezeOff) ? 'revoked ✓' : 'check', (p.mintOff && p.freezeOff) ? 'up' : 'down');
+        if (p.created) {
+            const d = new Date(p.created);
+            setTxt('rCreated', d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase());
+        }
+    }
+
+    // ===== events =====
+    document.querySelectorAll('.tf').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.tf').forEach(x => x.classList.remove('on'));
+        // the fake candles are pinned to the old timeframe's step — restart them on the new one
+        b.classList.add('on'); tf = b.dataset.tf; boostRows = []; loadChart(); loadCmp();
+    }));
+
+    document.getElementById('cmpBtn').addEventListener('click', () => setCmp(!cmpOn));
+
+    document.querySelectorAll('.tool[data-type]').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.tool[data-type]').forEach(x => x.classList.remove('on'));
+        b.classList.add('on'); ctype = b.dataset.type;
+        if (candleS) candleS.applyOptions({ visible: ctype === 'candle' });
+        if (lineS) lineS.applyOptions({ visible: ctype === 'line' });
+    }));
+
+    document.getElementById('drawBtn').addEventListener('click', function () {
+        drawing = !drawing;
+        this.classList.toggle('on', drawing);
+        document.getElementById('chart').classList.toggle('drawing', drawing);
+        if (drawing && brushing) setBrush(false);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        for (const l of levels) { try { candleS.removePriceLine(l.line); } catch (e) {} }
+        levels = [];
+        draw.clear();
+        history = []; redoStack = [];
+    });
+
+    document.getElementById('caCopy').addEventListener('click', async function () {
+        try { await navigator.clipboard.writeText(CA); } catch (e) {}
+        this.classList.add('copied');
+        setTimeout(() => this.classList.remove('copied'), 1300);
+    });
+
+    // ===== brush: glowy freehand scribbling over the chart =====
+    // strokes are kept in normalised 0..1 coords so a resize redraws them in place rather than
+    // stretching a stale bitmap. screen-space on purpose — it's a doodle, not an anchored study.
+    const draw = (function () {
+        const cv = document.getElementById('draw');
+        const stage = document.getElementById('chartStage');
+        const ctx = cv.getContext('2d');
+        let strokes = [], cur = null, painting = false, w = 0, h = 0;
+
+        function size() {
+            const r = stage.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            w = r.width; h = r.height;
+            cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+            cv.style.width = w + 'px'; cv.style.height = h + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            repaint();
+        }
+
+        function glowPass(pts, width, alpha, blur) {
+            if (pts.length < 2) {
+                // a single tap still leaves a dot
+                const [x, y] = pts[0];
+                ctx.globalAlpha = alpha; ctx.shadowBlur = blur; ctx.shadowColor = '#4ade80';
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath(); ctx.arc(x * w, y * h, width / 2, 0, Math.PI * 2); ctx.fill();
+                return;
+            }
+            ctx.globalAlpha = alpha; ctx.shadowBlur = blur; ctx.shadowColor = '#4ade80';
+            ctx.strokeStyle = '#4ade80'; ctx.lineWidth = width;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * w, pts[i][1] * h);
+            ctx.stroke();
+        }
+
+        // three passes: a wide soft halo, a mid glow, then a near-white core — pump.fun neon
+        function paintStroke(pts) {
+            glowPass(pts, 13, 0.20, 22);
+            glowPass(pts, 6,  0.55, 14);
+            ctx.globalAlpha = 1; ctx.shadowBlur = 8; ctx.shadowColor = '#4ade80';
+            ctx.strokeStyle = '#c9ffdd'; ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            if (pts.length < 2) {
+                ctx.fillStyle = '#c9ffdd';
+                ctx.beginPath(); ctx.arc(pts[0][0] * w, pts[0][1] * h, 1.1, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
+                for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * w, pts[i][1] * h);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+        }
+
+        function repaint() {
+            ctx.clearRect(0, 0, w, h);
+            for (const s of strokes) paintStroke(s);
+            if (cur && cur.length) paintStroke(cur);
+        }
+
+        function pt(e) {
+            const r = cv.getBoundingClientRect();
+            return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+        }
+
+        cv.addEventListener('pointerdown', e => {
+            painting = true; cur = [pt(e)];
+            cv.setPointerCapture(e.pointerId);
+            repaint(); showErase();
+        });
+        cv.addEventListener('pointermove', e => {
+            if (!painting) return;
+            const p = pt(e), last = cur[cur.length - 1];
+            if (Math.hypot(p[0] - last[0], p[1] - last[1]) < 0.002) return;   // skip jitter
+            cur.push(p); repaint();
+        });
+        const finish = () => {
+            if (!painting) return;
+            painting = false;
+            if (cur && cur.length) { strokes.push(cur); history.push({ t: 'stroke' }); redoStack = []; }
+            cur = null; repaint();
+        };
+        cv.addEventListener('pointerup', finish);
+        cv.addEventListener('pointercancel', finish);
+        cv.addEventListener('pointerleave', finish);
+
+        new ResizeObserver(size).observe(stage);
+        size();
+
+        function showErase() {
+            document.getElementById('eraseBtn').classList.toggle('show', strokes.length > 0 || !!cur);
+        }
+        return {
+            arm(on) { cv.classList.toggle('on', on); },
+            clear() { strokes = []; cur = null; repaint(); showErase(); },
+            pop() { const s = strokes.pop(); repaint(); showErase(); return s; },
+            push(s) { if (s) strokes.push(s); repaint(); showErase(); },
+            get any() { return strokes.length > 0; },
+        };
+    })();
+
+    function addLevel(price) {
+        levels.push({ price, line: candleS.createPriceLine({
+            price, color: '#fbbf24', lineWidth: 1, lineStyle: 2,
+            axisLabelVisible: true, title: '',
+        }) });
+    }
+
+    // ===== undo / redo (cmd+z, cmd+shift+z — ctrl on windows) =====
+    // one stack for both tools, so undo always removes whatever you actually did last
+    function undo() {
+        const last = history.pop();
+        if (!last) return;
+        if (last.t === 'stroke') {
+            redoStack.push({ t: 'stroke', data: draw.pop() });
+        } else {
+            const l = levels.pop();
+            if (l) { try { candleS.removePriceLine(l.line); } catch (e) {} redoStack.push({ t: 'level', data: l.price }); }
+        }
+    }
+
+    function redo() {
+        const next = redoStack.pop();
+        if (!next) return;
+        if (next.t === 'stroke') { draw.push(next.data); history.push({ t: 'stroke' }); }
+        else { addLevel(next.data); history.push({ t: 'level' }); }
+    }
+
+    document.addEventListener('keydown', e => {
+        if ((e.key !== 'z' && e.key !== 'Z') || !(e.metaKey || e.ctrlKey)) return;
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        e.preventDefault();
+        e.shiftKey ? redo() : undo();
+    });
+
+    let brushing = false;
+    function setBrush(on) {
+        brushing = on;
+        draw.arm(on);
+        document.getElementById('brushBtn').classList.toggle('on', on);
+        // let the pointer paint instead of dragging the chart around underneath
+        if (chart) chart.applyOptions({ handleScroll: !on, handleScale: !on });
+        if (on && drawing) {   // the level tool and the brush can't both own the pointer
+            drawing = false;
+            document.getElementById('drawBtn').classList.remove('on');
+            document.getElementById('chart').classList.remove('drawing');
+        }
+    }
+
+    document.getElementById('brushBtn').addEventListener('click', () => setBrush(!brushing));
+    document.getElementById('eraseBtn').addEventListener('click', () => {
+        draw.clear();
+        history = history.filter(h => h.t !== 'stroke');
+        redoStack = redoStack.filter(h => h.t !== 'stroke');
+    });
+
+    // ===== shot: one-click share card of the chart =====
+    // the chart is a lightweight-charts canvas, so a DOM screenshot lib would miss it entirely.
+    // takeScreenshot() hands back the chart bitmap at whatever pixel ratio it drew at; the header,
+    // the brush layer, alon and the footer get composited on top by hand at that same ratio, so
+    // nothing is resampled and the text stays crisp.
+    const shot = (function () {
+        const MONO = "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
+        const SHEET = new Image(); SHEET.src = 'alon-sprite-sheet.png?v=1';
+        const PFP = new Image();   PFP.src   = 'alon-pfp.jpg?v=1';
+        let busy = false;
+
+        function rr(c, x, y, w, h, r) {
+            c.beginPath();
+            c.moveTo(x + r, y);
+            c.arcTo(x + w, y, x + w, y + h, r);
+            c.arcTo(x + w, y + h, x, y + h, r);
+            c.arcTo(x, y + h, x, y, r);
+            c.arcTo(x, y, x + w, y, r);
+            c.closePath();
+        }
+
+        function txt(id) { const e = document.getElementById(id); return e ? e.textContent.trim() : ''; }
+
+        function paint() {
+            const box = document.getElementById('chart');
+            const pic = chart.takeScreenshot();
+            const W = box.clientWidth || pic.width;
+            const S = pic.width / W;               // 1 on a plain display, 2 on retina
+            const CH = pic.height / S;
+            const HEAD = 102, FOOT = 34, H = HEAD + CH + FOOT;
+
+            const out = document.createElement('canvas');
+            out.width = Math.round(W * S); out.height = Math.round(H * S);
+            const c = out.getContext('2d');
+            c.setTransform(S, 0, 0, S, 0, 0);
+            c.textBaseline = 'alphabetic';
+
+            c.fillStyle = '#131718'; c.fillRect(0, 0, W, H);
+
+            // ---- header ----
+            if (PFP.complete && PFP.naturalWidth) {
+                c.save(); rr(c, 16, 20, 56, 56, 13); c.clip();
+                c.drawImage(PFP, 16, 20, 56, 56); c.restore();
+                c.strokeStyle = '#0e3d23'; c.lineWidth = 1.5;
+                rr(c, 16, 20, 56, 56, 13); c.stroke();
+            }
+            c.font = '800 21px Inter, sans-serif'; c.fillStyle = '#e9f2ec';
+            c.fillText('ALON', 86, 46);
+            const nameW = c.measureText('ALON').width;
+            c.font = '600 21px Inter, sans-serif'; c.fillStyle = '#7d8b83';
+            c.fillText('/SOL', 86 + nameW, 46);
+            // measure it HERE, while the 21px face is still set — measuring after the font
+            // switch below returns an 11px-mono width and the legend lands on top of the name
+            const slashW = c.measureText('/SOL').width;
+            c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
+            c.fillText('solana', 86, 65);
+            c.fillText('raydium', 86, 79);
+            let leftEdge = 86 + Math.max(nameW + slashW,
+                                         c.measureText('solana').width, c.measureText('raydium').width);
+
+            // the overlay has to travel with the image or the second line is unexplained
+            if (cmpOn && cmpDebug && cmpDebug.n > 0) {
+                const lx = leftEdge + 20;
+                c.save();
+                c.strokeStyle = CMP.col; c.lineWidth = 2; c.setLineDash([5, 4]);
+                c.beginPath(); c.moveTo(lx, 47); c.lineTo(lx + 26, 47); c.stroke();
+                c.restore();
+                c.font = '800 12px ' + MONO; c.fillStyle = '#e9f2ec';
+                c.fillText('$PUMP', lx + 33, 51);
+                const lw = c.measureText('$PUMP').width;
+                c.font = '9.5px ' + MONO; c.fillStyle = '#5a6862';
+                c.fillText('token price action · same start', lx, 68);
+                leftEdge = Math.max(leftEdge, lx + Math.max(33 + lw, c.measureText('token price action · same start').width));
+            }
+
+            const mc = txt('headMc') || '—';
+            const chg = txt('headChg');
+            const up = !document.getElementById('headChg').classList.contains('down');
+            c.textAlign = 'right';
+            c.font = '800 40px ' + MONO; c.fillStyle = '#e9f2ec';
+            c.fillText(mc, W - 18, 52);
+            const mcW = c.measureText(mc).width;
+            c.font = '700 13px ' + MONO; c.fillStyle = up ? '#4ade80' : '#f87171';
+            c.fillText(chg, W - 18, 73);
+            c.font = '9.5px ' + MONO; c.fillStyle = '#5a6862';
+            c.fillText('market cap', W - 18, 89);
+            c.textAlign = 'left';
+
+            // the shill line only goes in if it genuinely fits between the two blocks
+            const shill = txt('shillLine').toUpperCase();
+            if (shill) {
+                c.font = '800 15px ' + MONO;
+                const sw = c.measureText(shill).width;
+                const a = leftEdge + 22, b = W - 18 - mcW - 22;
+                if (b - a > sw) {
+                    c.textAlign = 'center'; c.fillStyle = '#4ade80';
+                    c.fillText(shill, (a + b) / 2, 56);
+                    c.textAlign = 'left';
+                }
+            }
+            c.fillStyle = '#232a2b'; c.fillRect(0, HEAD - 1, W, 1);
+
+            // ---- chart, brush layer, alon ----
+            c.drawImage(pic, 0, HEAD, W, CH);
+            const dv = document.getElementById('draw');
+            if (dv && dv.width) c.drawImage(dv, 0, HEAD, W, CH);
+
+            const av = document.getElementById('alonCursor');
+            if (av && av.style.display === 'block' && SHEET.complete && SHEET.naturalWidth) {
+                const ar = av.getBoundingClientRect(), br = box.getBoundingClientRect();
+                const fw = SHEET.naturalWidth / 6;
+                const fi = Math.min(5, Math.max(0, Math.round((parseFloat(av.style.backgroundPosition) || 0) / 20)));
+                const flip = /scaleX\(-1\)/.test(av.style.transform);
+                const dx = ar.left - br.left, dy = HEAD + (ar.top - br.top);
+                c.save();
+                c.beginPath(); c.rect(0, HEAD, W, CH); c.clip();
+                c.imageSmoothingEnabled = false;
+                if (flip) { c.translate(dx + ar.width, dy); c.scale(-1, 1); }
+                else { c.translate(dx, dy); }
+                c.drawImage(SHEET, fi * fw, 0, fw, SHEET.naturalHeight, 0, 0, ar.width, ar.height);
+                c.restore();
+            }
+
+            // ---- watermark, centred over the chart ----
+            // sized off the card width so it reads the same on a phone capture and a 4K one,
+            // and kept faint enough that it never hides a candle
+            c.save();
+            c.textAlign = 'center';
+            const wm = Math.max(15, Math.min(30, W / 34));
+            c.globalAlpha = 0.19;
+            c.fillStyle = '#e9f2ec'; c.font = '800 ' + wm.toFixed(1) + 'px ' + MONO;
+            c.fillText('CHARTED ON ALONPUMP.RUN', W / 2, HEAD + CH / 2 - wm * 0.25);
+            c.globalAlpha = 0.16;
+            c.font = '700 ' + (wm * 0.78).toFixed(1) + 'px ' + MONO;
+            c.fillText('BY @THEJPEGJUNKIE', W / 2, HEAD + CH / 2 + wm * 0.95);
+            c.restore();
+
+            // ---- footer ----
+            const fy = HEAD + CH;
+            c.fillStyle = '#131718'; c.fillRect(0, fy, W, FOOT);
+            c.fillStyle = '#232a2b'; c.fillRect(0, fy, W, 1);
+            const base = fy + 22;
+            c.font = '800 12px ' + MONO; c.fillStyle = '#4ade80';
+            c.fillText('alonpump.run', 16, base);
+            const brand = c.measureText('alonpump.run').width;
+            c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
+            c.fillText('  ·  @thejpegjunkie  ·  $ALON  ·  ' + tf.toUpperCase(), 16 + brand, base);
+            const d = new Date();
+            const when = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + '  ·  ' +
+                         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            c.textAlign = 'right';
+            c.fillText('charts by TradingView  ·  ' + when, W - 16, base);
+            c.textAlign = 'left';
+
+            return out;
+        }
+
+        async function build() {
+            try { await document.fonts.ready; } catch (e) {}
+            const cv = paint();
+            return new Promise((res, rej) =>
+                cv.toBlob(b => b ? res(b) : rej(new Error('no blob')), 'image/png'));
+        }
+
+        function toast(msg, isErr) {
+            const t = document.getElementById('shotToast');
+            t.textContent = msg;
+            t.className = 'shot-toast show' + (isErr ? ' err' : '');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { t.className = 'shot-toast' + (isErr ? ' err' : ''); }, 1900);
+        }
+
+        function save(blob) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'alon-' + tf + '-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '') + '.png';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+
+        // clipboard.write() has to be reached from inside the click, so the blob goes in as a
+        // promise rather than being awaited first — that's the only shape Safari accepts.
+        async function grab() {
+            if (busy || !chart) return;
+            busy = true;
+            const btn = document.getElementById('shotBtn');
+            btn.classList.remove('breathe');
+            try { localStorage.setItem('shotSeen', 'yes'); } catch (e) {}
+            btn.classList.add('flash');
+            try {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': build() })]);
+                    toast('CHART COPIED ✓');
+                } else {
+                    save(await build());
+                    toast('CHART SAVED ✓');
+                }
+            } catch (e) {
+                try { save(await build()); toast('CHART SAVED ✓'); }
+                catch (e2) { toast('SCREENSHOT FAILED', true); }
+            } finally {
+                busy = false;
+                setTimeout(() => btn.classList.remove('flash'), 220);
+            }
+        }
+
+        document.getElementById('shotBtn').addEventListener('click', grab);
+        return { grab, paint };
+    })();
+
+    // ===== alon lives on the chart =====
+    // off until you switch him on. Once he's on he jogs along the tip of the price line;
+    // point at the chart (or drag a finger across it) and he breaks off to chase the pointer,
+    // then trots back to the price line when you let go. Arrows/WASD or the thumbstick take
+    // over and drive him anywhere on the chart — that's run mode, and it has no button.
+    const alon = (function () {
+        const el = document.getElementById('alonCursor');
+        const stage = document.getElementById('chartStage');
+        const FRAMES = 6;
+        let mode = 'park';            // 'park' = riding the price line, 'follow' = chasing you
+        let px = null, py = null;     // where he is
+        let tx = 0, ty = 0;           // where he wants to be
+        let frame = 0, lastMove = 0, flip = false, touching = false, shown = false, enabled = true;
+
+        // ---- run mode: his feet are pinned to the close-to-close line and you drive him ----
+        let running = false, runX = null, hopY = 0, hopV = 0, stickX = 0, lastT = 0;
+        const held = { left: false, right: false };
+        // run mode has no switch of its own — anything that drives him turns it on
+        function engageRun() {
+            if (running || !enabled) return;
+            running = true;
+            hopY = 0; hopV = 0;
+            mode = 'run'; runX = null; lastT = performance.now(); surf = [];
+            stage.classList.remove('alon-cur');
+            document.getElementById('alonToggle').classList.add('running');
+        }
+        const RUN_SPEED = 210, GRAV = 1700, HOP_V = -540, EDGE = 95;
+
+        // rebuilding this every frame would be ~200 timeToCoordinate calls at 60fps, so cache it.
+        // only the visible slice matters — the chart can hold 1500 rows.
+        let surf = [], surfAt = 0, surfMeta = { n: 0, from: 0, to: 0 };
+
+        // rows change rarely, coordinates change on every pan — so cache them separately.
+        // displayRows() runs aggregate() over the full history on 4H/1D; doing that per frame
+        // while edge-panning cost ~35fps.
+        let srcRows = null, srcStamp = -1, srcTf = '';
+        function runRows() {
+            if (srcStamp !== rowsStamp || srcTf !== tf) {
+                srcStamp = rowsStamp; srcTf = tf; srcRows = displayRows();
+            }
+            return srcRows;
+        }
+
+        function surface() {
+            const now = performance.now();
+            if (surf.length && now - surfAt < 110) return surf;
+            surfAt = now;
+            surf = [];
+            if (!chart || !candleS) return surf;
+            const rows = runRows();
+            if (!rows.length) return surf;
+            const ts = chart.timeScale();
+            const r = ts.getVisibleLogicalRange();
+            let a = 0, b = rows.length - 1;
+            if (r) { a = Math.max(0, Math.floor(r.from) - 1); b = Math.min(b, Math.ceil(r.to) + 1); }
+            // he only needs the ground under his feet — a window beats mapping every visible bar
+            if (runX !== null && b - a > 80) {
+                const li = ts.coordinateToLogical(runX);
+                if (li != null) {
+                    const c = Math.round(li);
+                    a = Math.max(0, Math.max(a, c - 40));
+                    b = Math.min(rows.length - 1, Math.min(b, c + 40));
+                }
+            }
+            surfMeta = { n: rows.length, a, b };
+            const mult = supply || 1;
+            for (let i = a; i <= b; i++) {
+                const x = ts.timeToCoordinate(rows[i].time);
+                if (x == null) continue;
+                const y = candleS.priceToCoordinate(rows[i].close * mult);
+                if (y == null) continue;
+                surf.push({ x, y });
+            }
+            return surf;
+        }
+
+        // running into the edge pans the chart instead of stopping him — and panning left trips
+        // the same `from < 12` subscription that already lazy-loads older candles, so the history
+        // populates as he goes.
+        function panBy(dxPx, width) {
+            const ts = chart.timeScale(), r = ts.getVisibleLogicalRange();
+            if (!r || width <= 0) return false;
+            const perPx = (r.to - r.from) / width;
+            if (dxPx < 0 && r.from < -20) return false;                  // already past the oldest bar
+            if (dxPx > 0 && r.to > surfMeta.n + 6) return false;         // already past the newest
+            const from = r.from + dxPx * perPx;
+            ts.setVisibleLogicalRange({ from, to: r.to + dxPx * perPx });
+            // ask for older candles ourselves rather than trusting the range subscription to fire
+            // on a programmatic scroll — that's what left him walking into a wall at the edge
+            if (from < 24) loadMore();
+            surfAt = 0;                        // coords just moved — don't ride a stale surface
+            return true;
+        }
+
+        // walk the polyline between candle closes so he tracks the slope instead of stair-stepping
+        function surfaceY(pts, x) {
+            if (x <= pts[0].x) return pts[0].y;
+            if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+            let lo = 0, hi = pts.length - 1;
+            while (hi - lo > 1) { const m = (lo + hi) >> 1; if (pts[m].x <= x) lo = m; else hi = m; }
+            const p = pts[lo], q = pts[hi];
+            return p.y + (q.y - p.y) * ((x - p.x) / Math.max(q.x - p.x, 1e-4));
+        }
+
+        function hop() { if (running && hopY === 0) hopV = HOP_V; }
+
+        // the live end of the chart, in page coordinates
+        function priceLine() {
+            if (!chart || !candleS) return null;
+            const rows = displayRows();
+            if (!rows.length) return null;
+            const last = rows[rows.length - 1];
+            const y = candleS.priceToCoordinate(last.close * (supply || 1));
+            if (y == null) return null;
+            const r = document.getElementById('chart').getBoundingClientRect();
+            let x = chart.timeScale().timeToCoordinate(last.time);
+            if (x == null) x = r.width - 46;      // last bar scrolled off — park at the right edge
+            return { x: r.left + Math.min(x, r.width - 30), y: r.top + y };
+        }
+
+        function show(v) {
+            if (v === shown) return;
+            shown = v;
+            el.style.display = v ? 'block' : 'none';
+        }
+        function follow(x, y) {
+            if (drawing || !enabled || running) return;   // level tool wants the bare crosshair
+            if (Math.abs(x - tx) > 1.5) flip = x < tx;
+            tx = x; ty = y; lastMove = performance.now();
+            mode = 'follow';
+            stage.classList.add('alon-cur');
+        }
+        function park() {
+            mode = 'park';
+            stage.classList.remove('alon-cur');
+        }
+
+        stage.addEventListener('pointermove', e => {
+            if (e.pointerType === 'touch' && !touching) return;
+            follow(e.clientX, e.clientY);
+        });
+        stage.addEventListener('pointerdown', e => {
+            if (e.pointerType !== 'touch') return;
+            touching = true; follow(e.clientX, e.clientY);
+        });
+        window.addEventListener('pointerup', e => {
+            if (e.pointerType !== 'touch') return;
+            touching = false; park();
+        });
+        stage.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') park(); });
+        document.getElementById('drawBtn').addEventListener('click', () => { if (drawing) park(); });
+
+        // ---- controls: arrows on desktop, thumbstick on touch ----
+        function key(e, down) {
+            if (!enabled) return;                 // no alon, nothing to drive
+            const k = e.key, low = k.length === 1 ? k.toLowerCase() : k;
+            const left  = k === 'ArrowLeft'  || low === 'a';
+            const right = k === 'ArrowRight' || low === 'd';
+            const jump  = k === 'ArrowUp' || low === 'w' || k === ' ';
+            if (!left && !right && !jump) return;
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            const t = e.target;
+            if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+            // first movement key IS the switch — run mode isn't a button any more
+            if (down && !running) engageRun();
+            if (left) held.left = down;
+            else if (right) held.right = down;
+            else if (down) hop();
+            e.preventDefault();
+        }
+        window.addEventListener('keydown', e => key(e, true));
+        window.addEventListener('keyup', e => key(e, false));
+        window.addEventListener('blur', () => { held.left = held.right = false; });
+
+        (function thumbstick() {
+            const pad = document.getElementById('stick'), knob = pad.querySelector('i');
+            const R = 30;
+            let id = null;
+            function set(dx, dy) {
+                if (!running) engageRun();        // grabbing the stick is the touch-side switch
+                const d = Math.hypot(dx, dy) || 1, s = Math.min(d, R) / d;
+                knob.style.transform = `translate(${dx * s}px, ${dy * s}px)`;
+                stickX = Math.max(-1, Math.min(1, dx / R));
+                if (dy < -R * 0.7) hop();
+            }
+            function reset() { id = null; stickX = 0; knob.style.transform = ''; }
+            pad.addEventListener('pointerdown', e => {
+                id = e.pointerId; pad.setPointerCapture(id);
+                const r = pad.getBoundingClientRect();
+                set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+                e.preventDefault();
+            });
+            pad.addEventListener('pointermove', e => {
+                if (e.pointerId !== id) return;
+                const r = pad.getBoundingClientRect();
+                set(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+            });
+            for (const ev of ['pointerup', 'pointercancel']) pad.addEventListener(ev, reset);
+        })();
+
+        (function frameLoop() {
+            // he keeps running while parked (the price line is alive) and while you're moving
+            const busy = mode === 'park' || performance.now() - lastMove < 140;
+            frame = busy ? (frame + 1) % FRAMES : 0;
+            el.style.backgroundPosition = (frame * (100 / (FRAMES - 1))) + '% 0';
+            setTimeout(frameLoop, 85);
+        })();
+
+        (function move() {
+            requestAnimationFrame(move);
+            if (!enabled) { show(false); stage.classList.remove('alon-cur'); return; }
+
+            if (running) {
+                const pts = surface();
+                if (!pts.length) { show(false); return; }
+                const now = performance.now();
+                const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+
+                const box = document.getElementById('chart').getBoundingClientRect();
+                const dir = Math.max(-1, Math.min(1, (held.right ? 1 : 0) - (held.left ? 1 : 0) + stickX));
+                if (runX === null) runX = pts[pts.length - 1].x;
+                if (dir) {
+                    runX += dir * RUN_SPEED * dt; flip = dir < 0; lastMove = now;
+                    // hand the overshoot to the chart: he holds station at the edge and it pans
+                    if (runX < EDGE && panBy(runX - EDGE, box.width)) runX = EDGE;
+                    else if (runX > box.width - EDGE && panBy(runX - (box.width - EDGE), box.width)) runX = box.width - EDGE;
+                }
+                // only fence him in at the true ends of the data — mid-history the window is a
+                // slice, and clamping to a slice edge is exactly the wall we're removing
+                if (surfMeta.a === 0) runX = Math.max(pts[0].x, runX);
+                if (surfMeta.b === surfMeta.n - 1) runX = Math.min(pts[pts.length - 1].x, runX);
+
+                if (hopV || hopY) {
+                    hopY += hopV * dt; hopV += GRAV * dt;
+                    if (hopY >= 0) { hopY = 0; hopV = 0; }
+                }
+
+                const w = el.offsetWidth || 54, h = el.offsetHeight || 54;
+                show(true);
+                el.style.transform = `translate(${box.left + runX - w / 2}px, ` +
+                                     `${box.top + surfaceY(pts, runX) + hopY - h}px) scaleX(${flip ? -1 : 1})`;
+                return;
+            }
+
+            let goal;
+            if (mode === 'follow') goal = { x: tx, y: ty };
+            else {
+                goal = priceLine();
+                if (!goal) { show(false); return; }
+                flip = false;                     // facing forward, into the next candle
+            }
+            show(true);
+            if (px === null) { px = goal.x; py = goal.y; }
+            // snap to the pointer, glide back to the price line
+            const k = mode === 'follow' ? 1 : 0.12;
+            px += (goal.x - px) * k;
+            py += (goal.y - py) * k;
+            const w = el.offsetWidth || 54;
+            el.style.transform = `translate(${px - w / 2}px, ${py - w * 0.62}px) scaleX(${flip ? -1 : 1})`;
+        })();
+
+        return {
+            park,
+            isRunning: () => running,
+            enable(v) {
+                enabled = v;
+                // the stick belongs to alon-is-on now: on touch it's the visible "you can drive him"
+                document.getElementById('stick').classList.toggle('show', v);
+                if (!v) { this.run(false); show(false); stage.classList.remove('alon-cur'); park(); }
+                else { px = py = null; }          // reappear at the price line, no fly-in from nowhere
+            },
+            run(v) {
+                if (v === running) return;
+                running = v;
+                held.left = held.right = false; stickX = 0; hopY = 0; hopV = 0;
+                if (v) { mode = 'run'; runX = null; lastT = performance.now(); surf = []; stage.classList.remove('alon-cur'); }
+                else { mode = 'park'; px = py = null; }
+                document.getElementById('alonToggle').classList.toggle('running', v);
+            },
+        };
+    })();
+
+    // ===== manifest — DORMANT =====
+    // The MANIFEST button is gone and nothing calls this any more: PUMP UR SHIT ramps the chart
+    // on its own and jumping straight to $1B killed that. The engine below still works and is
+    // the one hook to re-wire if it ever comes back — `manifesting` stays false meanwhile, so
+    // withManifest() is a pass-through.
+    function setManifest(v) {
+        if (v === manifesting) return;
+        manifesting = v;
+        boostRows = [];   // re-anchor the fake run onto the new tail
+        renderCoin(); renderMarquee();
+        if (!chart) return;
+        const rows = displayRows();
+        if (!rows.length) return;
+        applySeries(rows);
+        renderCoin(); renderMarquee();
+        if (manifesting) chart.timeScale().fitContent();
+        else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, rows.length - 200), to: rows.length + 4 });
+    }
+
+    // same slam-and-clear as the meme, but it teaches the controls instead
+    let hintTimer = null;
+    function runHint() {
+        const el = document.getElementById('runHint');
+        el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => el.classList.remove('show'), HINT_MS);
+    }
+
+    // the image plays out in full and clears — only then do the candles start
+    function pumpPop() {
+        const el = document.getElementById('pumpPop');
+        el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+        clearTimeout(popTimer);
+        popTimer = setTimeout(() => el.classList.remove('show'), POP_MS);
+    }
+
+    document.getElementById('boostBtn').addEventListener('click', () => {
+        const btn = document.getElementById('boostBtn');
+        btn.classList.remove('breathe');
+        try { localStorage.setItem('pumpSeen', 'yes'); } catch (e) {}
+        if (boosting) {
+            setBoost(false);
+            btn.title = 'pump ur shit';
+            return;
+        }
+        if (popArming) return;                 // don't stack pops on a double-click
+        popArming = true;
+        pumpPop();
+        setTimeout(() => {
+            popArming = false;
+            // PUMP UR SHIT is independent of the character on purpose — it used to force him
+            // on, which yanked him back onto the chart after you'd deliberately switched him off.
+            // If he IS on and running, drop run mode so he re-parks on the ripping tip.
+            alon.run(false);
+            setBoost(true);                    // the ramp does the work — no teleport to $1B
+
+            btn.title = 'back to reality';
+        }, POP_MS + 150);
+    });
+
+    // test bridge — read-only view of the two chart-fake states for test/controls-smoke.js
+    window.__ctl = { boosting: () => boosting, manifesting: () => manifesting,
+                     elapsed: () => (boosting ? pumpElapsed() : null),
+                     mcap: () => (supply && boostRows.length ? boostRows[boostRows.length - 1].close * supply : null),
+                     // what the CHART's newest bar is worth, for comparing against the header
+                     chartMcap: () => { const r = displayRows(); return r.length && supply ? r[r.length - 1].close * supply : null; },
+                     tokMcap: () => (tok ? tok.mcap : null),
+                     // the share card, for the smoke test to eyeball
+                     paintShot: () => shot.paint().toDataURL('image/png'),
+                     cmp: () => ({ on: cmpOn, rows: cmpRows(tf).length, dbg: cmpDebug }) };
+
+    // ===== market-cap axis: linear or logarithmic =====
+    function applyScale(log) {
+        if (!chart) return;
+        chart.priceScale('right').applyOptions({
+            mode: log ? LightweightCharts.PriceScaleMode.Logarithmic : LightweightCharts.PriceScaleMode.Normal,
+        });
+    }
+    (function scaleSwitch() {
+        const bar = document.getElementById('scaleToggle');
+        let log = false;
+        try { log = localStorage.getItem('scaleMode') === 'log'; } catch (e) {}
+        function set(v) {
+            log = v;
+            bar.querySelectorAll('.seg').forEach(b => b.classList.toggle('on', (b.dataset.mode === 'log') === v));
+            applyScale(v);
+            try { localStorage.setItem('scaleMode', v ? 'log' : 'reg'); } catch (e) {}
+        }
+        bar.querySelectorAll('.seg').forEach(b =>
+            b.addEventListener('click', () => set(b.dataset.mode === 'log')));
+        set(log);
+        window.__applyScaleOnInit = () => set(log);
+    })();
+
+    // ===== transactions panel: collapsed by default =====
+    (function txPanel() {
+        const btn = document.getElementById('txToggle');
+        const panel = btn.closest('.panel');
+        let open = false;
+        try { open = localStorage.getItem('txOpen') === 'yes'; } catch (e) {}
+        function set(v) {
+            open = v;
+            panel.classList.toggle('open', v);
+            btn.setAttribute('aria-expanded', v ? 'true' : 'false');
+            try { localStorage.setItem('txOpen', v ? 'yes' : 'no'); } catch (e) {}
+        }
+        btn.addEventListener('click', () => set(!open));
+        set(open);
+    })();
+
+    // ===== alon on/off — the only character switch. Run mode lives inside it. =====
+    let setAlonOn = null;
+    (function alonSwitch() {
+        const btn = document.getElementById('alonToggle');
+        let on = false;                          // off by default; the sprite breathes to say "click me"
+        try { on = localStorage.getItem('alonChart') === 'on'; } catch (e) {}
+        let seen = on;
+        try { seen = seen || localStorage.getItem('alonSeen') === 'yes'; } catch (e) {}
+        function set(v, taught) {
+            on = v;
+            btn.classList.toggle('on', v);
+            btn.querySelector('.alon-state').textContent = v ? 'ON' : 'OFF';
+            btn.title = v ? 'alon is on the chart — arrows or the stick drive him, click to send him home'
+                          : 'put alon on the chart';
+            alon.enable(v);
+            if (v && taught) runHint();          // no RUN button to find, so teach the keys here
+            try { localStorage.setItem('alonChart', v ? 'on' : 'off'); } catch (e) {}
+        }
+        setAlonOn = set;
+        btn.addEventListener('click', () => {
+            if (!seen) { seen = true; btn.classList.remove('breathe');
+                         try { localStorage.setItem('alonSeen', 'yes'); } catch (e) {} }
+            set(!on, true);
+        });
+        if (!seen) btn.classList.add('breathe');
+        set(on, false);
+    })();
+
+    (function pumpBreathe() {
+        let seen = false;
+        try { seen = localStorage.getItem('pumpSeen') === 'yes'; } catch (e) {}
+        if (!seen) document.getElementById('boostBtn').classList.add('breathe');
+    })();
+
+    // copying a chart off a site isn't a thing people expect, so the camera breathes until
+    // it's been used once — same affordance as the alon toggle and the pump button
+    (function shotBreathe() {
+        let seen = false;
+        try { seen = localStorage.getItem('shotSeen') === 'yes'; } catch (e) {}
+        if (!seen) document.getElementById('shotBtn').classList.add('breathe');
+    })();
+
+    // shill rotator
+    let shillI = 0;
+    setInterval(() => {
+        shillI = (shillI + 1) % SHILLS.length;
+        const el = document.getElementById('shillLine');
+        el.textContent = SHILLS[shillI];
+        el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+    }, 3200);
+
+
+    // ===== who's actually holding =====
+    // plain-english only. every number here answers a question someone would actually ask,
+    // and the distribution is a live census — no survivorship problem, unlike a backtest.
+    (async function conviction() {
+        const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        const nf = n => n.toLocaleString();
+        let jupCount = null;
+        try {
+            const j = await (await fetch(`https://datapi.jup.ag/v1/holders/${CA}`)).json();
+            // stashed, not written: #convHolders lives inside the cards now and they render below
+            if (j && j.count) jupCount = nf(j.count);
+        } catch (e) {}
+
+        let c = null;
+        try { c = await (await fetch('conviction.json?v=' + Date.now())).json(); } catch (e) {}
+        if (!c) { set('convFoot', 'census unavailable'); return; }
+
+        // headline: months since the median holder last moved. it's the most human number we have.
+        const real = c.real || { wallets: 0, supplyPct: 0, medianDays: 0, threshold: 100 };
+        const ring = (pct, col) => {
+            const r = 23, circ = 2 * Math.PI * r;
+            return `<div class="conv-ring"><svg viewBox="0 0 56 56" width="56" height="56">
+                <circle class="trk" cx="28" cy="28" r="${r}"/>
+                <circle class="val" cx="28" cy="28" r="${r}" stroke-dasharray="${circ.toFixed(1)}"
+                        stroke-dashoffset="${circ.toFixed(1)}" data-off="${(circ * (1 - pct / 100)).toFixed(1)}"/>
+              </svg><span>${pct.toFixed(0)}%</span></div>`;
+        };
+
+        // ---- one window drives all three cards: 7 days / 3 months / 6 months ----
+        // A window only gets a button if we can produce a REAL number for it, from one of:
+        //   1. c.hold — every window, emitted by holder-scan.js (the good path)
+        //   2. the legacy dNPct fields, for censuses scanned before that existed
+        //   3. summing distribution buckets, which is exact ONLY on a bucket boundary
+        //      (BUCKETS break at 1/7/30/90/180/365 — so 14d and 60d are not reconstructable)
+        // Anything we can't source is dropped rather than guessed.
+        const WINDOWS = [
+            { key: '7d',   days: 7,   btn: '7d',  say: '7 days' },
+            { key: '90d',  days: 90,  btn: '3mo', say: '3 months' },
+            { key: '180d', days: 180, btn: '6mo', say: '6 months' },
+        ];
+        const LEGACY = { '7d': c.d7Pct, '14d': c.d14Pct, '30d': c.d30Pct, '180d': c.d180Pct };
+        const BUCKET_EDGE = [1, 7, 30, 90, 180, 365];
+        function windowPct(w) {
+            const h = c.hold && c.hold[w.key];
+            if (h != null) return h;
+            if (LEGACY[w.key] != null) return LEGACY[w.key];
+            if (BUCKET_EDGE.includes(w.days)) {
+                const edges = [0, 1, 7, 30, 90, 180, 365];
+                const from = edges.indexOf(w.days);
+                if (from > 0) return +(c.dist || []).slice(from)
+                    .reduce((a, b) => a + (b.sPct || 0), 0).toFixed(1);
+            }
+            return null;
+        }
+        // wallets that haven't moved in the window. The distribution buckets break at
+        // 1/7/30/90/180/365, so summing from an edge is exact — verified against the census's
+        // own n7 / n30 / n180 counters, which it reproduces to the wallet.
+        const DIST_EDGE = [0, 1, 7, 30, 90, 180, 365];
+        function windowWallets(w) {
+            const i = DIST_EDGE.indexOf(w.days);
+            if (i < 1 || !Array.isArray(c.dist)) return null;
+            return c.dist.slice(i).reduce((a, b) => a + (b.wallets || 0), 0);
+        }
+
+        // wallets that ARRIVED inside the window. d30/d90 come straight off the census; d7 and
+        // d180 were added to holder-scan.js on 2026-08-22 and appear with the next nightly run.
+        // Until then 6mo sums calendar months (≈175 days, not 180) and 7d borrows the 30-day
+        // figure — and says "30 days" when it does, rather than printing a number it can't back.
+        function windowNew(w) {
+            const g = c.growth || {};
+            if (g['d' + w.days] != null) return { n: g['d' + w.days], say: w.say };
+            if (w.days === 180 && (g.months || []).length >= 6)
+                return { n: g.months.slice(-6).reduce((a, m) => a + m.n, 0), say: w.say };
+            if (g.d30 != null) return { n: g.d30, say: '30 days' };
+            return null;
+        }
+        // growth % against the wallets that were already here — reproduces the census's own
+        // pct30 exactly, so the same arithmetic is safe to run for the other windows
+        const growthPct = n => { const was = (c.holders || 0) - n; return was > 0 ? n / was * 100 : 0; };
+
+        const AVAIL = WINDOWS.map(w => ({ ...w, pct: windowPct(w), wal: windowWallets(w), fresh: windowNew(w) }))
+                             .filter(w => w.pct != null);
+        const DEFAULT_WIN = '7d';
+        let holdW = AVAIL.find(w => w.key === DEFAULT_WIN) || AVAIL[0] || { pct: 0, say: 'a week', key: '7d' };
+        try { const sv = localStorage.getItem('holdWin');
+              if (sv) holdW = AVAIL.find(w => w.key === sv) || holdW; } catch (e) {}
+        const HOLD_PCT = holdW.pct, HOLD_WIN = holdW.say;
+
+        // the three cards read as one sentence about the same window: how much supply sat still,
+        // how many wallets sat still, how many turned up. Supply-weighted first, because it's the
+        // only framing dust can't distort — the wallet count underneath is the human version.
+        const card2Lab = w => w.wal != null
+            ? `wallets hold $ALON —<br><b>${nf(w.wal)}</b> haven't sold in ${w.say}`
+            : `wallets hold $ALON`;
+        const card3Big = w => '+' + nf((w.fresh || {}).n || 0);
+        const card3Lab = w => w.fresh
+            ? `new wallets in ${w.fresh.say} —<br><b>+${growthPct(w.fresh.n).toFixed(0)}%</b> holder growth`
+            : `new wallet data pending`;
+
+        const cards = [
+            { col: '#4ade80', glow: 'rgba(74,222,128,.30)', ring: HOLD_PCT,
+              lab: `of <b>all $ALON</b><br>hasn't moved in ${HOLD_WIN}` },
+            { col: '#38bdf8', glow: 'rgba(56,189,248,.30)',
+              big: nf(c.holders || 0),
+              lab: card2Lab(holdW) },
+            { col: '#c084fc', glow: 'rgba(192,132,252,.30)',
+              big: card3Big(holdW),
+              lab: card3Lab(holdW),
+              spark: ((c.growth || {}).months || []),
+              // census stamp rides in the corner of the last card — it used to be a header row
+              live: true },
+        ];
+
+        // the switcher is a band-level control, rendered once outside the cards
+        document.getElementById('convWin').innerHTML = AVAIL.length > 1 ? AVAIL.map(w =>
+            `<button class="ws${w.key === holdW.key ? ' on' : ''}" data-w="${w.key}" tabindex="-1">${w.btn}</button>`
+          ).join('') : '';
+
+        // ---- share card: one card for all three numbers, drawn on a canvas so what you
+        // ---- see is exactly what lands in the clipboard ----
+        const g = c.growth || {}, months = g.months || [];
+        const SHARE_W = 1200, SHARE_H = 1000;        // slightly wider than square
+        const linesFor = w => [
+            `${w.pct.toFixed(0)}% of all $alon hasn't moved in ${w.say}`,
+            w.wal != null ? `${nf(c.holders || 0)} wallets hold it — ${nf(w.wal)} haven't sold in ${w.say}`
+                          : `${nf(c.holders || 0)} wallets hold it`,
+            w.fresh ? `+${nf(w.fresh.n)} new wallets in the last ${w.fresh.say} — +${growthPct(w.fresh.n).toFixed(0)}% holder growth`
+                    : `+${nf(g.d30 || 0)} new wallets in the last 30 days`,
+        ];
+        const shareLines = linesFor(holdW);
+
+        document.getElementById('convCards').innerHTML = cards.map(k => `
+            <div class="conv-card" style="--cardCol:${k.col};--cardGlow:${k.glow}">
+                ${k.ring != null ? ring(k.ring, k.col) : `<div class="num">${k.big}</div>`}
+                <div class="body">
+                    <div class="lab">${k.lab}</div>
+                    ${k.spark && k.spark.length > 1 ? `<div class="conv-spark">${(() => {
+                        // log scale: august is 50x a quiet month, so linear flattens eleven bars
+                        // to nothing and the shape disappears
+                        const lg = v => Math.log10(Math.max(v, 1) + 1);
+                        const mx = lg(Math.max(...k.spark.map(x => x.n), 1));
+                        return k.spark.map(x => `<i data-h="${Math.max(10, lg(x.n) / mx * 100).toFixed(0)}" title="${x.m}: ${nf(x.n)} new"></i>`).join('');
+                    })()}</div>` : ''}
+                </div>
+                <span class="conv-more">SHARE ›</span>
+                ${k.live ? `<span class="conv-live"><i></i><span id="convHolders">—</span> wallets · updated <span id="convWhen">—</span></span>` : ''}
+            </div>`).join('');
+        if (jupCount) set('convHolders', jupCount);
+
+        // both the ring arc and the spark bars render collapsed and are revealed on the next
+        // frame — that's what makes them animate in. Without this the arc sits at a full-
+        // circumference dashoffset (invisible) and every spark bar has zero height.
+        requestAnimationFrame(() => {
+            document.querySelectorAll('#convCards .conv-ring .val').forEach(e => { e.style.strokeDashoffset = e.dataset.off; });
+            document.querySelectorAll('#convCards .conv-spark i').forEach(e => { e.style.height = e.dataset.h + '%'; });
+        });
+
+        // ---- share card: any of the three cards opens the same one ----
+        const lb = document.getElementById('convLb');
+        const cv = document.getElementById('shareCv');
+        let lastFocus = null, shareBlob = null;
+
+        const pfp = new Image();
+        pfp.src = 'alon-pfp.jpg?v=1';
+
+        let backdropSpan = '', backdropDbg = null;
+
+        // base.rows only holds PAGE (1500) hourly candles on a fresh load — 62 days — so a 3mo
+        // or 6mo card has to page more in before its backdrop can honestly claim that window.
+        // Capped: this runs on a card open, it must not turn into a fetch storm.
+        async function ensureBackdrop(days) {
+            const need = Math.floor(Date.now() / 1000) - days * 24 * 3600;
+            for (let i = 0; i < 5; i++) {
+                if (!base.rows.length || base.done || base.rows[0].time <= need) break;
+                if (!await extendHistory('1h')) break;
+            }
+        }
+        function refreshBackdrop() {
+            const d = (holdW && holdW.days) || 30;
+            ensureBackdrop(d)
+                .then(() => { if (lb.classList.contains('show')) drawShare(); })
+                .catch(() => {});
+        }
+
+        function drawShare() {
+            const x = cv.getContext('2d');
+            const F = (sz, w, mono) => `${w} ${sz}px ${mono ? "ui-monospace,'SF Mono',Menlo,Consolas,monospace"
+                                                           : "Inter,-apple-system,'Segoe UI',sans-serif"}`;
+            x.fillStyle = '#0b0d0e'; x.fillRect(0, 0, SHARE_W, SHARE_H);
+            // same green wash the panels use, so the card looks like the site
+            const gl = x.createRadialGradient(120, 60, 0, 120, 60, 900);
+            gl.addColorStop(0, 'rgba(74,222,128,0.13)'); gl.addColorStop(1, 'rgba(74,222,128,0)');
+            x.fillStyle = gl; x.fillRect(0, 0, SHARE_W, SHARE_H);
+            // ---- the $ALON price line as a backdrop ----
+            // LAST 30 DAYS ONLY. base.rows runs back past the $249M ATH, and normalising over
+            // that whole range squashes everything recent into a flat line along the bottom —
+            // a backdrop that says nothing. 30d is enough shape to read at a glance.
+            // Closes, not candles: chris wants the line, not the bars.
+            (function backdrop() {
+                const all = (typeof base !== 'undefined' && base.rows) || [];
+                if (all.length < 8) return;
+                // follows the selected window, so the line and the numbers describe the same
+                // period. 7d gets 4-hourly buckets (a week of daily closes is 7 points);
+                // 3mo and 6mo get daily.
+                const days = (holdW && holdW.days) || 30;
+                const cut = all[all.length - 1].time - days * 24 * 3600;
+                const win = aggregate(all.filter(r => r.time >= cut), days <= 14 ? 4 * 3600 : 24 * 3600);
+                if (win.length < 8) return;
+                // if the census window reaches further back than the candles we hold, say how
+                // far the line ACTUALLY goes rather than mislabelling a short line as 6mo
+                const covered = (all[all.length - 1].time - Math.max(all[0].time, cut)) / 86400;
+                backdropSpan = covered >= days * 0.9 ? (holdW.btn || days + 'd')
+                                                     : Math.round(covered) + 'd';
+                backdropDbg = { days, covered: Math.round(covered), pts: win.length };
+                // LOG scale. 30 days of $ALON contains a single spike to ~$14M against a ~$2M
+                // baseline; on a linear axis that one wick owns the range and flattens the rest
+                // into a hairline along the bottom. Same reason the chart itself offers LOG.
+                const cl = win.map(r => Math.log10(Math.max(r.close, 1e-12)));
+                const lo = Math.min(...cl), hi = Math.max(...cl);
+                if (!(hi > lo)) return;
+                const TOP = SHARE_H - 236, BOT = SHARE_H - 26;
+                const px = i => (i / (win.length - 1)) * SHARE_W;
+                const py = v => BOT - ((v - lo) / (hi - lo)) * (BOT - TOP);
+                const trace = () => {
+                    x.beginPath();
+                    x.moveTo(0, py(cl[0]));
+                    for (let i = 1; i < cl.length; i++) x.lineTo(px(i), py(cl[i]));
+                };
+                x.save();
+                trace();
+                x.lineTo(SHARE_W, SHARE_H); x.lineTo(0, SHARE_H); x.closePath();
+                const fg = x.createLinearGradient(0, TOP, 0, SHARE_H);
+                fg.addColorStop(0, 'rgba(74,222,128,0.22)');
+                fg.addColorStop(1, 'rgba(74,222,128,0)');
+                x.fillStyle = fg; x.fill();
+                trace();
+                x.strokeStyle = 'rgba(74,222,128,0.55)'; x.lineWidth = 3;
+                x.lineJoin = 'round'; x.lineCap = 'round';
+                x.shadowColor = 'rgba(74,222,128,0.45)'; x.shadowBlur = 18;
+                x.stroke();
+                x.restore();
+            })();
+
+            x.strokeStyle = '#232a2b'; x.lineWidth = 2; x.strokeRect(1, 1, SHARE_W - 2, SHARE_H - 2);
+
+            const L = 68, RIGHT = 930;                 // left text column, right identity column
+            x.fillStyle = '#7d8b83'; x.font = F(23, 700); x.letterSpacing = '2px';
+            x.fillText("WHO'S ACTUALLY HOLDING", L, 92);
+            x.letterSpacing = '0px';
+            x.fillStyle = '#e9f2ec'; x.font = F(52, 800);
+            x.fillText('$ALON', L, 152);
+
+            // credit block, top right — the card travels without the page around it
+            x.textAlign = 'right';
+            x.fillStyle = '#4ade80'; x.font = F(20, 800, true);
+            x.fillText('analyzed on alonpump.run', SHARE_W - L, 86);
+            x.fillStyle = '#5a6862'; x.font = F(18, 700, true);
+            x.fillText('by @thejpegjunkie', SHARE_W - L, 114);
+            x.textAlign = 'left';
+
+            x.strokeStyle = '#232a2b'; x.lineWidth = 1;
+            x.beginPath(); x.moveTo(L, 196); x.lineTo(SHARE_W - L, 196); x.stroke();
+
+            const rows = [
+                // read holdW live, not the captured const — the window is switchable
+                { col: '#4ade80', ring: holdW.pct,
+                  big: holdW.pct.toFixed(0) + '%',
+                  l1: 'of all $ALON', l2: `hasn't moved in ${holdW.say}` },
+                { col: '#38bdf8', big: nf(c.holders || 0),
+                  l1: 'wallets hold $ALON —',
+                  l2: holdW.wal != null ? `${nf(holdW.wal)} haven't sold in ${holdW.say}`
+                                        : `at a $${((c.mcap || 0) / 1e6).toFixed(2)}M cap` },
+                { col: '#c084fc', big: '+' + nf((holdW.fresh || {}).n || g.d30 || 0),
+                  l1: `new wallets in ${(holdW.fresh || {}).say || '30 days'} —`,
+                  l2: `+${growthPct((holdW.fresh || {}).n || g.d30 || 0).toFixed(0)}% holder growth`, spark: months },
+            ];
+            let y = 336;
+            for (const r of rows) {
+                if (r.ring != null) {
+                    const cx = L + 54, cy = y - 16, rad = 46;
+                    x.lineWidth = 11; x.lineCap = 'round';
+                    x.strokeStyle = '#191e1f';
+                    x.beginPath(); x.arc(cx, cy, rad, 0, Math.PI * 2); x.stroke();
+                    x.strokeStyle = r.col; x.shadowColor = r.col; x.shadowBlur = 22;
+                    x.beginPath(); x.arc(cx, cy, rad, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (r.ring / 100)); x.stroke();
+                    x.shadowBlur = 0;
+                    x.fillStyle = r.col; x.font = F(30, 800, true); x.textAlign = 'center';
+                    x.fillText(r.big, cx, cy + 11); x.textAlign = 'left';
+                } else {
+                    x.fillStyle = r.col; x.font = F(64, 800, true);
+                    x.shadowColor = r.col; x.shadowBlur = 26;
+                    x.fillText(r.big, L, y + 6); x.shadowBlur = 0;
+                }
+                const tx = r.ring != null ? L + 126 : L + x.measureText(r.big).width + 34;
+                x.fillStyle = '#7d8b83'; x.font = F(26, 500);
+                x.fillText(r.l1, tx, y - 12);
+                x.fillStyle = '#e9f2ec'; x.font = F(26, 700);
+                x.fillText(r.l2, tx, y + 24);
+
+                if (r.spark && r.spark.length > 1) {
+                    // log scale, same reason the on-page sparkline uses one: august is 50x a quiet month
+                    const lg = v => Math.log10(Math.max(v, 1) + 1);
+                    const mx = lg(Math.max(...r.spark.map(m => m.n), 1));
+                    const bw = 18, gap = 7, base = y + 78, hMax = 44;
+                    r.spark.forEach((m, i) => {
+                        const h = Math.max(5, lg(m.n) / mx * hMax);
+                        x.fillStyle = r.col;
+                        x.globalAlpha = i === r.spark.length - 1 ? 1 : 0.45;
+                        x.fillRect(tx + i * (bw + gap), base - h, bw, h);
+                    });
+                    x.globalAlpha = 1;
+                }
+                y += 210;                       // even rhythm — the spark hangs below its own row
+            }
+
+            // right column: pfp, ticker under it
+            if (pfp.complete && pfp.naturalWidth) {
+                const d = 190, px = RIGHT + 20, py = 402;   // centred against the three rows
+                x.save(); x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2, 0, Math.PI * 2);
+                x.closePath(); x.clip(); x.drawImage(pfp, px, py, d, d); x.restore();
+                x.strokeStyle = '#16a34a'; x.lineWidth = 3;
+                x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2 + 2, 0, Math.PI * 2); x.stroke();
+                x.fillStyle = '#e9f2ec'; x.font = F(40, 800, true); x.textAlign = 'center';
+                x.fillText('$ALON', px + d / 2, py + d + 62);
+                x.fillStyle = '#5a6862'; x.font = F(20, 600);
+                x.fillText('alonpump.run', px + d / 2, py + d + 96);
+                x.textAlign = 'left';
+            }
+
+            const when = new Date((c.asOf || 0) * 1000).toISOString().slice(0, 10);
+            x.fillStyle = '#5a6862'; x.font = F(20, 500, true);
+            x.fillText(`on-chain holder census · ${when}`, L, SHARE_H - 46);
+            if (backdropSpan) {
+                x.textAlign = 'right'; x.fillStyle = '#3f4c46'; x.font = F(17, 700, true);
+                x.fillText('$ALON market cap · ' + backdropSpan, SHARE_W - L, SHARE_H - 46);
+                x.textAlign = 'left';
+            }
+        }
+
+        function openLb() {
+            lastFocus = document.activeElement;
+            lb.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('shareTxt').textContent = shareLines.join('\n');
+            requestAnimationFrame(() => { drawShare(); document.getElementById('convLbX').focus(); });
+            refreshBackdrop();          // draws now with what's loaded, repaints when more lands
+        }
+        function closeLb() {
+            if (!lb.classList.contains('show')) return;
+            lb.classList.remove('show');
+            document.body.style.overflow = '';
+            if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+        // the pfp may land after the first draw — repaint once it does
+        pfp.addEventListener('load', () => { if (lb.classList.contains('show')) drawShare(); });
+
+        document.querySelectorAll('#convCards .conv-card').forEach(el => {
+            el.tabIndex = 0;
+            el.setAttribute('role', 'button');
+            el.setAttribute('aria-label', 'open the shareable card');
+            el.addEventListener('click', openLb);
+            el.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(); }
+            });
+        });
+        lb.addEventListener('mousedown', e => { if (e.target === lb) closeLb(); });
+        document.getElementById('convLbX').addEventListener('click', closeLb);
+        window.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+        // ---- one switcher, all three cards ----
+        function applyWindow(key) {
+            const w = AVAIL.find(x => x.key === key);
+            if (!w) return;
+            holdW = w;
+            try { localStorage.setItem('holdWin', key); } catch (e) {}
+            const cds = document.querySelectorAll('#convCards .conv-card');
+            if (cds.length < 3) return;
+            document.querySelectorAll('#convWin .ws').forEach(b => b.classList.toggle('on', b.dataset.w === key));
+
+            const sp = cds[0].querySelector('.conv-ring span');
+            if (sp) sp.textContent = w.pct.toFixed(0) + '%';
+            const val = cds[0].querySelector('.conv-ring .val');
+            if (val) {
+                const circ = 2 * Math.PI * 23;                 // must match ring()'s r
+                val.dataset.off = (circ * (1 - w.pct / 100)).toFixed(1);
+                val.style.strokeDashoffset = val.dataset.off;
+            }
+            const l0 = cds[0].querySelector('.lab');
+            if (l0) l0.innerHTML = `of <b>all $ALON</b><br>hasn't moved in ${w.say}`;
+
+            const l1 = cds[1].querySelector('.lab');
+            if (l1) l1.innerHTML = card2Lab(w);
+
+            const n2 = cds[2].querySelector('.num');
+            if (n2) n2.textContent = card3Big(w);
+            const l2 = cds[2].querySelector('.lab');
+            if (l2) l2.innerHTML = card3Lab(w);
+
+            linesFor(w).forEach((ln, i) => { shareLines[i] = ln; });
+            const st = document.getElementById('shareTxt');
+            if (st) st.textContent = shareLines.join('\n');
+            if (lb.classList.contains('show')) { drawShare(); refreshBackdrop(); }
+        }
+        window.__conv = { backdrop: () => backdropDbg, span: () => backdropSpan };
+
+        document.querySelectorAll('#convWin .ws').forEach(b => {
+            // the card itself opens the share card — a segment press must not do that too
+            b.addEventListener('click', e => { e.stopPropagation(); applyWindow(b.dataset.w); });
+            b.addEventListener('keydown', e => e.stopPropagation());
+        });
+
+        // ---- copy / download / post ----
+        const flash = (btn, msg) => {
+            const old = btn.dataset.label || btn.textContent;
+            btn.dataset.label = old; btn.textContent = msg; btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = btn.dataset.label; btn.classList.remove('ok'); }, 1600);
+        };
+        const toBlob = () => new Promise(res => cv.toBlob(res, 'image/png'));
+
+        document.getElementById('shareImg').addEventListener('click', async function () {
+            try {
+                const blob = await toBlob();
+                // ClipboardItem is the only way to get a PNG onto the clipboard; Firefox and
+                // any non-secure context will throw, and the download below is the fallback
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                flash(this, 'copied ✓');
+            } catch (e) { flash(this, 'use download →'); }
+        });
+        document.getElementById('shareDl').addEventListener('click', async function () {
+            const blob = await toBlob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'alon-holders.png';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+            flash(this, 'saved ✓');
+        });
+        document.getElementById('shareCopy').addEventListener('click', async function () {
+            try { await navigator.clipboard.writeText(shareLines.join('\n')); flash(this, 'copied ✓'); }
+            catch (e) { flash(this, 'copy failed'); }
+        });
+        document.getElementById('shareX').addEventListener('click', async function () {
+            try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toBlob() })]); } catch (e) {}
+            const t = encodeURIComponent(shareLines.join('\n') + '\n\nalonpump.run');
+            window.open('https://twitter.com/intent/tweet?text=' + t, '_blank', 'noopener');
+        });
+
+        const d = new Date((c.asOf || 0) * 1000);
+        set('convWhen', d.toISOString().slice(0, 10));
+
+    })();
+
+    // ===== init =====
+    async function refresh() {
+        try {
+            tok = await fetchToken();
+            supply = tok.supply || (tok.price > 0 ? tok.mcap / tok.price : 0);
+            // renderCoin writes the title too, so run it even while backgrounded — the old
+            // early-return updated the title ALONE, which left the tab reading newer than the
+            // header until you came back and a refresh completed.
+            renderCoin();
+            renderMarquee();
+            if (document.hidden) return;          // but skip the chart work while hidden
+            if (window.__rpSuspend) return;       // a replay owns the chart right now
+            await refreshCandles();
+        } catch (e) { console.warn('[arcade]', e.message); }
+    }
+
+    (async function init() {
+        await refresh();
+        if (!tok) { setStatus('market data unavailable', true); return; }
+        if (initChart()) {
+            try {
+                base.rows = await fetchCandles('1_HOUR');
+            } catch (e) { setStatus('chart data unavailable', true); }
+            await loadChart();
+            if (window.__applyScaleOnInit) { window.__applyScaleOnInit(); delete window.__applyScaleOnInit; }
+            // restore only once the series exists — paintCmp with no cmpS is a silent no-op
+            let cmpSaved = false;
+            try { cmpSaved = localStorage.getItem('cmpPump') === 'yes'; } catch (e) {}
+            if (cmpSaved) setCmp(true);
+            paintAth();
+            renderMarquee();
+            backfill();
+        }
+        refreshTxs();
+        setInterval(refresh, 30000);
+        setInterval(refreshTxs, 15000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) { refresh(); refreshTxs(); } });
+    })();
+    
+    // ===== WALLET REPLAY (PREVIEW) — drives the SITE'S OWN chart =====
+    // Generated by tools/build-replay-preview.py. The first pass embedded replay.html in an
+    // iframe, which put two charts on the page; the engine is now handed this page's `chart`
+    // and `candleS` and takes them over for the duration.
+    //
+    // ⚠ The 30s refresh MUST be suspended while a replay runs (see __rpSuspend in refresh()),
+    // or a poll lands mid-animation and wipes the series out from under it.
+    (function () {
+        var $w = function (id) { return document.getElementById(id); };
+        var engine = null, savedRange = null, board = [], open = false, live = false;
+
+        async function ensureCandles(firstTs) {
+            for (var i = 0; i < 14; i++) {
+                if (!base.rows.length) break;
+                if (base.rows[0].time * 1000 <= firstTs) break;
+                var added = await extendHistory('1h');
+                if (!added) break;
+            }
+            var mult = supply || 1;
+            return base.rows.map(function (c) {
+                return { time: c.time, open: c.open * mult, high: c.high * mult,
+                         low: c.low * mult, close: c.close * mult };
+            });
+        }
+
+        function begin() {
+            live = true;
+            window.__rpSuspend = true;
+            document.body.classList.add('wr-live');
+            $w('wrLabel').textContent = 'EXIT REPLAY';
+            $w('wrDrop').classList.remove('on');
+            open = false;
+            try { savedRange = chart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+            lineS.applyOptions({ visible: false });
+            volS.applyOptions({ visible: false });
+            candleS.applyOptions({ visible: true });
+        }
+        function end() {
+            live = false;
+            window.__rpSuspend = false;
+            document.body.classList.remove('wr-live');
+            $w('wrLabel').textContent = 'WALLET REPLAY';
+            applySeries(displayRows());              // the site's own single repaint funnel
+            candleS.setMarkers([]);
+            lineS.applyOptions({ visible: ctype === 'line' });
+            volS.applyOptions({ visible: true });
+            candleS.applyOptions({ visible: ctype === 'candle' });
+            paintAth();
+            if (savedRange) { try { chart.timeScale().setVisibleLogicalRange(savedRange); } catch (e) {} }
+            setStatus('');
+        }
+
+        function getEngine() {
+            if (engine) return engine;
+            engine = window.ReplayEngine({
+                stage: $w('chartStage'), chart: chart, series: candleS,
+                getSupply: function () { return supply || 1; },
+                getPrice: function () { return (tok && tok.price) || 0; },
+                ensureCandles: ensureCandles,
+                nameFor: function (w) { var r = board.filter(function (x) { return x.wallet === w; })[0]; return r && r.name; },
+                onStatus: function (s) { setStatus(s); },
+                onBegin: begin, onEnd: end,
+            });
+            return engine;
+        }
+
+        function go(w) {
+            w = (w || '').trim();
+            if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w)) { $w('wrAddr').focus(); return; }
+            getEngine().play(w);
+        }
+        async function submit() {
+            var v = $w('wrAddr').value.trim();
+            if (!v) { try { v = ((await navigator.clipboard.readText()) || '').trim(); if (v) $w('wrAddr').value = v; } catch (e) {} }
+            if (!v) { $w('wrAddr').focus(); return; }
+            go(v);
+        }
+
+        // One control, three states: closed -> open the drawer, open -> close it, playing -> exit.
+        // A separate EXIT button was a second thing to find for an action the same button implies.
+        $w('wrBtn').onclick = function () {
+            if (live) { if (engine) engine.close(); return; }
+            open = !open;
+            $w('wrDrop').classList.toggle('on', open);
+            $w('wrBtn').classList.toggle('on', open);
+            if (open) $w('wrAddr').focus();
+        };
+        $w('wrGo').onclick = submit;
+        $w('wrAddr').onkeydown = function (e) { if (e.key === 'Enter') submit(); };
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && live && engine) engine.close(); });
+
+        fetch('holders/traders.json').then(function (r) { return r.json(); }).then(function (b) {
+            board = b.traders || [];
+            var rows = board.filter(function (r) { return !r.partial && !r.capped; }).slice(0, 3);
+            if (!rows.length) return;
+            var fmtK = function (v) { var a = Math.abs(v); return (v < 0 ? '-' : '+') + '$' +
+                (a >= 1e6 ? (a/1e6).toFixed(1) + 'M' : a >= 1e3 ? (a/1e3).toFixed(1) + 'K' : a.toFixed(0)); };
+            var sh = function (a) { return a.slice(0, 4) + '…' + a.slice(-4); };
+            $w('wrChips').innerHTML = '<span class="l">OR WATCH</span>' + rows.map(function (r) {
+                return '<span class="wr-chip" data-w="' + r.wallet + '">' + (r.name || sh(r.wallet)) + ' ' + fmtK(r.total) + '</span>';
+            }).join('') + '<span class="wr-chip" data-rand="1">🎲 RANDOM</span>';
+            Array.prototype.forEach.call($w('wrChips').querySelectorAll('.wr-chip'), function (el) {
+                el.onclick = function () {
+                    var w = el.dataset.rand ? board[Math.floor(Math.random() * Math.min(board.length, 40))].wallet : el.dataset.w;
+                    $w('wrAddr').value = w; go(w);
+                };
+            });
+        }).catch(function () {});
+    })();
+
+</script>
+</body>
+</html>

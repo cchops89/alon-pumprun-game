@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>$ALON WALLET REPLAY</title>
+<link rel="icon" href="alon-pfp.jpg?v=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="lightweight-charts.js?v=421"></script>
+<script src="tools/pnl.js?v=1"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+ --mono:ui-monospace,'SF Mono','Menlo','Consolas',monospace;
+ --bg:#0b0d0e;--panel:#131718;--panel2:#191e1f;--line:#232a2b;--line2:#2e3637;
+ --txt:#e9f2ec;--dim:#7d8b83;--dimmer:#5a6862;
+ --green:#4ade80;--green-d:#16a34a;--red:#f87171;--amber:#fbbf24;--blue:#38bdf8;
+}
+body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;
+ min-height:100vh;padding:18px;display:flex;flex-direction:column;gap:14px}
+.wrap{max-width:1360px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:13px;letter-spacing:.16em;font-weight:800;color:var(--dim);font-family:var(--mono)}
+.badge{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--dimmer);
+ border:1px solid var(--line);border-radius:4px;padding:3px 7px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text]{flex:1;min-width:300px;background:var(--panel);border:1px solid var(--line2);
+ border-radius:6px;color:var(--txt);font-family:var(--mono);font-size:12px;padding:10px 12px;outline:none}
+input[type=text]:focus{border-color:var(--green-d)}
+input::placeholder{color:var(--dimmer)}
+button{background:var(--panel2);border:1px solid var(--line2);color:var(--txt);font-family:var(--mono);
+ font-size:11px;letter-spacing:.08em;padding:10px 14px;border-radius:6px;cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--green-d);color:var(--green)}
+button:disabled{opacity:.4;cursor:default}
+button.go{background:var(--green-d);border-color:var(--green-d);color:#04150c;font-weight:700}
+button.go:hover:not(:disabled){background:var(--green);color:#04150c}
+.main{display:grid;grid-template-columns:1fr 300px;gap:14px}
+@media(max-width:900px){.main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+#chart{height:460px;width:100%}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line)}
+@media(max-width:760px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{padding:11px 13px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:var(--dimmer);margin-bottom:4px}
+.stat .v{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:-.01em}
+.up{color:var(--green)}.down{color:var(--red)}
+.hero{padding:13px 15px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+ border-bottom:1px solid var(--line);flex-wrap:wrap}
+.hero .who{font-family:var(--mono);font-size:11px;color:var(--dim);word-break:break-all}
+.hero .name{font-size:14px;font-weight:800;color:var(--txt);margin-bottom:3px}
+.hero .tot{font-family:var(--mono);font-size:26px;font-weight:900;letter-spacing:-.02em;text-align:right}
+.hero .totk{font-family:var(--mono);font-size:9px;letter-spacing:.13em;color:var(--dimmer);text-align:right}
+.clock{font-family:var(--mono);font-size:11px;color:var(--dimmer);border:1px solid var(--line2);
+ border-radius:4px;padding:3px 8px;align-self:center;letter-spacing:.06em;display:none}
+.clock.on{display:block;color:var(--green);border-color:var(--green-d)}
+.hero.live{background:linear-gradient(90deg,rgba(74,222,128,.05),transparent)}
+.stat .v.tick{animation:tick .22s ease-out}
+@keyframes tick{0%{transform:scale(1.14);filter:brightness(1.5)}100%{transform:scale(1)}}
+.side{display:flex;flex-direction:column;max-height:620px}
+.side h2{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--dim);
+ padding:12px 14px;border-bottom:1px solid var(--line)}
+.rows{overflow-y:auto;flex:1}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 14px;
+ border-bottom:1px solid var(--line);cursor:pointer;font-family:var(--mono);font-size:11px}
+.row:hover{background:var(--panel2)}
+.row .l{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .n{color:var(--txt);font-weight:600}
+.row .r{font-weight:700;white-space:nowrap}
+.warn{padding:9px 14px;font-family:var(--mono);font-size:10.5px;line-height:1.5;
+ border-bottom:1px solid var(--line);display:none}
+.warn.on{display:block}
+.warn.partial{background:#2a1f06;color:var(--amber)}
+.warn.capped{background:#2a1206;color:#fb923c}
+.note{font-family:var(--mono);font-size:10px;color:var(--dimmer);line-height:1.6}
+.tag{font-size:8.5px;padding:1px 4px;border-radius:3px;margin-left:5px;letter-spacing:.06em}
+.tag.p{background:#3a2a08;color:var(--amber)}
+.tag.c{background:#3a1a08;color:#fb923c}
+#status{font-family:var(--mono);font-size:11px;color:var(--dim);min-height:16px}
+body.embed{padding:0}
+body.embed header,body.embed .entry,body.embed .drop,body.embed .side,body.embed #foot{display:none}
+body.embed .main{grid-template-columns:1fr}
+body.embed .card{border-radius:0;border:none}
+
+/* ---- entry point ---- */
+.entry{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+ font-weight:800;letter-spacing:.13em;padding:12px 16px;border-radius:9px;
+ background:var(--panel2);border:1px solid var(--line2);color:var(--txt);cursor:pointer;
+ align-self:flex-start;transition:.15s}
+.entry:hover{border-color:var(--green-d);color:var(--green)}
+.entry.open{background:var(--green-x);border-color:var(--green-d);color:var(--green);
+ box-shadow:0 0 18px rgba(74,222,128,.22)}
+.entry .ep{font-size:10px}
+.entry .ec{color:var(--dimmer);transition:.15s}
+.entry.open .ec{transform:rotate(180deg);color:var(--green)}
+.drop{display:none;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);
+ border-radius:10px;background:var(--panel)}
+.drop.open{display:flex;animation:dropin .2s ease-out}
+@keyframes dropin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.micro{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--dimmer)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:10.5px}
+.chips .lbl{color:var(--dimmer);letter-spacing:.1em}
+.chip{background:var(--panel2);border:1px solid var(--line2);color:var(--dim);
+ padding:5px 10px;border-radius:999px;cursor:pointer;transition:.14s;font-family:var(--mono);
+ font-size:10.5px;letter-spacing:0}
+.chip:hover{border-color:var(--green-d);color:var(--green)}
+.bar2{display:none}
+.bar2.on{display:flex}
+
+/* ---- arcade layer ---- */
+.chartwrap{position:relative;overflow:hidden}
+
+/* CRT: scanlines + vignette + a faint phosphor bloom. This is what turns a dashboard into
+   an arcade cabinet, and it costs two pseudo-elements. */
+.chartwrap::after{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;
+ background:repeating-linear-gradient(180deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);
+ mix-blend-mode:multiply;opacity:.55}
+.chartwrap::before{content:'';position:absolute;inset:0;z-index:4;pointer-events:none;
+ background:radial-gradient(ellipse at 50% 46%,transparent 44%,rgba(0,0,0,.55) 100%)}
+#chart canvas{filter:saturate(1.22) contrast(1.06)}
+
+/* Alon rides the leading edge of the replay — same 6-frame sheet the game uses */
+#rider{position:absolute;width:74px;height:74px;z-index:7;pointer-events:none;display:none;
+ image-rendering:pixelated;background:url('alon-sprite-sheet.png?v=1') 0 0 / 600% 100% no-repeat;
+ filter:drop-shadow(0 0 3px rgba(11,13,14,.95)) drop-shadow(0 0 22px rgba(74,222,128,.85))
+        drop-shadow(0 4px 8px rgba(0,0,0,.85));
+ will-change:left,top;transform:translate(-50%,-96%);transform-origin:50% 100%}
+/* a pool of light under him so he separates from the candles instead of camouflaging into them */
+#riderGlow{position:absolute;width:120px;height:120px;z-index:6;pointer-events:none;display:none;
+ background:radial-gradient(circle,rgba(74,222,128,.30),transparent 68%);
+ transform:translate(-50%,-50%);will-change:left,top}
+#riderGlow.on{display:block}
+/* hurt: washed red and blinking, the way a platformer reads an i-frame */
+#rider.hurt{filter:drop-shadow(0 0 3px rgba(11,13,14,.95)) drop-shadow(0 0 20px rgba(248,113,113,.95))
+ saturate(.35) brightness(1.5) sepia(.6) hue-rotate(-35deg);animation:blink .12s steps(2) infinite}
+@keyframes blink{0%{opacity:1}100%{opacity:.35}}
+#riderGlow.hurt{background:radial-gradient(circle,rgba(248,113,113,.42),transparent 68%)}
+@media(max-width:820px){#rider{width:56px;height:56px}}
+#rider.on{display:block}
+#burst{position:absolute;inset:0;z-index:5;pointer-events:none}
+
+/* the number is the point — make it the loudest thing on the page */
+.hero .tot{font-family:var(--mono);font-size:44px;font-weight:900;letter-spacing:-.035em;
+ text-align:right;line-height:.94;font-variant-numeric:tabular-nums}
+.hero .tot.up{text-shadow:0 0 34px rgba(74,222,128,.42)}
+.hero .tot.down{text-shadow:0 0 34px rgba(248,113,113,.38)}
+@media(max-width:620px){.hero .tot{font-size:32px}}
+.stat .v{font-variant-numeric:tabular-nums}
+#combo{position:absolute;top:14px;left:16px;z-index:6;font-family:var(--mono);font-weight:900;
+ font-size:22px;color:var(--green);text-shadow:0 0 16px rgba(74,222,128,.6);opacity:0;
+ pointer-events:none;letter-spacing:-.02em}
+#combo.pop{animation:cpop .5s ease-out}
+@keyframes cpop{0%{opacity:0;transform:translateY(8px) scale(.8)}
+ 22%{opacity:1;transform:translateY(0) scale(1.16)}100%{opacity:0;transform:translateY(-14px) scale(1)}}
+#flash{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 60%,rgba(74,222,128,.30),transparent 62%)}
+#flash.hit{animation:fl .42s ease-out}
+#flash.red{background:radial-gradient(circle at 50% 60%,rgba(248,113,113,.28),transparent 62%)}
+@keyframes fl{0%{opacity:1}100%{opacity:0}}
+.shake{animation:shk .34s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shk{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}
+ 30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}}
+
+#load{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;
+ justify-content:center;gap:12px;background:rgba(8,11,12,.88);backdrop-filter:blur(2px);
+ font-family:var(--mono)}
+#load.on{display:flex}
+#loadAlon{width:74px;height:74px;image-rendering:pixelated;
+ background:url('alon-sprite-sheet.png?v=1') 0 0 / 600% 100% no-repeat;
+ filter:drop-shadow(0 0 20px rgba(74,222,128,.7));
+ animation:runcycle .6s steps(6) infinite, bob .6s ease-in-out infinite}
+/* steps(6) walks the 6-frame sheet: 0% -> 120% is six 20% stops, the 6th landing back at 0 */
+@keyframes runcycle{from{background-position:0% 0}to{background-position:120% 0}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+#loadTxt{font-size:12px;letter-spacing:.28em;font-weight:800;color:var(--green);
+ text-shadow:0 0 18px rgba(74,222,128,.5)}
+#loadTxt::after{content:'';animation:dots 1.2s steps(4) infinite}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+#loadSub{font-size:10px;letter-spacing:.14em;color:var(--dimmer);min-height:13px}
+#gg{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;
+ justify-content:center;gap:5px;background:rgba(8,11,12,.93);backdrop-filter:blur(3px);
+ font-family:var(--mono);text-align:center;padding:20px}
+#gg.on{display:flex;animation:ggin .45s cubic-bezier(.2,1.3,.4,1)}
+@keyframes ggin{0%{opacity:0;transform:scale(.94)}100%{opacity:1;transform:scale(1)}}
+#ggRank{font-size:96px;font-weight:900;line-height:.92;letter-spacing:-.05em}
+#ggRank small{display:block;font-size:10px;letter-spacing:.34em;font-weight:700;color:var(--dimmer);margin-top:8px}
+#ggMult{font-size:30px;font-weight:900;letter-spacing:-.02em;margin-top:6px}
+#ggTot{font-size:15px;color:var(--dim);margin-top:2px}
+#ggWho{font-size:10px;color:var(--dimmer);margin-top:12px;word-break:break-all;max-width:80%}
+#ggBrand{font-size:9px;letter-spacing:.3em;color:var(--dimmer);margin-top:14px}
+#ggBtns{display:flex;gap:8px;margin-top:16px}
+.r-S{color:#fbbf24;text-shadow:0 0 30px rgba(251,191,36,.55)}
+.r-A{color:#4ade80;text-shadow:0 0 26px rgba(74,222,128,.5)}
+.r-B{color:#38bdf8;text-shadow:0 0 22px rgba(56,189,248,.45)}
+.r-C{color:#c9ffdd}
+.r-D{color:#7d8b83}
+.r-F{color:#f87171;text-shadow:0 0 26px rgba(248,113,113,.5)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>$ALON WALLET REPLAY</h1>
+  <span class="badge" id="src">jupiter · no wallet connection</span>
+</header>
+
+<button id="entry" class="entry"><span class="ep">▶</span> WALLET REPLAY <span class="ec">▾</span></button>
+
+<div class="drop" id="drop">
+  <div class="bar">
+    <input type="text" id="addr" spellcheck="false" autocomplete="off"
+     placeholder="paste a wallet — Geu1…aHNc">
+    <button class="go" id="go">ENTER</button>
+  </div>
+  <div class="micro">read only · never asks you to connect a wallet or share keys</div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="bar bar2">
+  <button id="play">▶ PLAY</button>
+  <button id="last">LAST 30</button>
+  <button id="zoom">ZOOM 155</button>
+  <button id="mute">♪ ON</button>
+  <button id="clear">CLEAR</button>
+</div>
+<div id="status">paste an address, or pick a trader from the board →</div>
+
+<div class="main">
+  <div class="card">
+    <div class="hero">
+      <div><div class="name" id="hName">—</div><div class="who" id="hAddr">no wallet loaded</div></div>
+      <div><div class="tot" id="hTot">$0</div><div class="totk">TOTAL PNL</div></div>
+      <div class="clock" id="clock">0:00</div>
+    </div>
+    <div class="warn partial" id="wPartial"></div>
+    <div class="warn capped" id="wCapped"></div>
+    <div class="chartwrap">
+      <div id="chart"></div>
+      <div id="flash"></div>
+      <canvas id="burst"></canvas>
+      <div id="riderGlow"></div>
+      <div id="rider"></div>
+      <div id="combo"></div>
+      <div id="load">
+        <div id="loadAlon"></div>
+        <div id="loadTxt">LOADING TRADES</div>
+        <div id="loadSub"></div>
+      </div>
+      <div id="gg">
+        <div id="ggRank">S<small>RANK</small></div>
+        <div id="ggMult">0.0x</div>
+        <div id="ggTot">$0 on $0 in</div>
+        <div id="ggWho"></div>
+        <div id="ggBrand">$ALON · ALONPUMP.RUN</div>
+        <div id="ggBtns">
+          <button id="ggAgain">↻ AGAIN</button>
+          <button id="ggCopy">COPY CARD</button>
+          <button id="ggClose">CLOSE</button>
+        </div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">BOUGHT</div><div class="v" id="sB">—</div></div>
+      <div class="stat"><div class="k">SOLD</div><div class="v" id="sS">—</div></div>
+      <div class="stat"><div class="k">REALIZED</div><div class="v" id="sR">—</div></div>
+      <div class="stat"><div class="k">UNREALIZED</div><div class="v" id="sU">—</div></div>
+      <div class="stat"><div class="k">HOLDING</div><div class="v" id="sH">—</div></div>
+      <div class="stat"><div class="k">TRADES</div><div class="v" id="sT">—</div></div>
+    </div>
+  </div>
+
+  <div class="card side">
+    <h2>TOP $ALON TRADERS</h2>
+    <div class="rows" id="board"><div class="row"><span class="l">loading traders.json…</span></div></div>
+  </div>
+</div>
+
+<div class="note" id="foot"></div>
+</div>
+
+<script>
+const CA='8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
+// ?w=<wallet> plays that wallet on load; ?embed=1 strips the page chrome so the site can drop
+// this into a panel without the standalone header, entry bar and leaderboard fighting its layout
+const QS=new URLSearchParams(location.search);
+const EMBED=QS.get('embed')==='1';
+const JUP_CHART='https://datapi.jup.ag/v2/charts', JUP_TXS='https://datapi.jup.ag/v1/txs';
+const $=id=>document.getElementById(id);
+
+let chart,candleS,price=0,supply=0,candles=[],avgLine=null,cur=null,timer=null;
+let viewLo=null,viewHi=null;   // eased price window, see autoscaleInfoProvider
+
+const fmt=v=>{const a=Math.abs(v),s=v<0?'-':'';
+ return a>=1e9?s+'$'+(a/1e9).toFixed(2)+'B':a>=1e6?s+'$'+(a/1e6).toFixed(2)+'M':
+        a>=1e3?s+'$'+(a/1e3).toFixed(1)+'K':s+'$'+a.toFixed(2)};
+const short=a=>a.slice(0,4)+'…'+a.slice(-4);
+const setStatus=t=>$('status').textContent=t;
+
+// ---- chart ----
+function initChart(){
+  chart=LightweightCharts.createChart($('chart'),{
+    layout:{background:{color:'#131718'},textColor:'#7d8b83',fontFamily:'ui-monospace,monospace'},
+    grid:{vertLines:{color:'#1c2223'},horzLines:{color:'#1c2223'}},
+    rightPriceScale:{borderColor:'#232a2b',scaleMargins:{top:.12,bottom:.12}},
+    timeScale:{borderColor:'#232a2b',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    handleScale:{axisPressedMouseMove:{time:true,price:false}},
+  });
+  // The price scale autoscales to whatever is visible, so on a sliding window it re-fits every
+  // frame and the whole chart lurches vertically — that is the "going up and down so much"
+  // rather than the playback speed. This provider hands back a range we ease toward instead,
+  // so the view still adapts but glides. Returning null falls back to normal autoscale.
+  candleS=chart.addCandlestickSeries({
+    autoscaleInfoProvider:()=>(viewLo!=null&&viewHi!=null&&viewHi>viewLo)
+      ?{priceRange:{minValue:viewLo,maxValue:viewHi}}:null,
+    upColor:'#16a34a',downColor:'#b91c1c',borderUpColor:'#4ade80',borderDownColor:'#f87171',
+    wickUpColor:'#4ade80',wickDownColor:'#f87171',
+    priceFormat:{type:'custom',minMove:1,formatter:v=>fmt(v)},
+  });
+  new ResizeObserver(()=>chart.applyOptions({width:$('chart').clientWidth})).observe($('chart'));
+  chart.applyOptions({width:$('chart').clientWidth});
+}
+
+// 1500 hourly candles is only 62 days. A wallet that opened its position before that would
+// have every early trade clamped onto the first bar — they stack into an unreadable column at
+// the left edge (this is exactly what the first screenshot showed). So candles get paged back
+// until they actually cover the wallet's first trade, same as index.html's extendHistory.
+const raw=new Map();
+async function page1h(to){
+  const url=`${JUP_CHART}/${CA}?interval=1_HOUR&to=${encodeURIComponent(to.toISOString())}&candles=1500`;
+  const j=await (await fetch(url)).json();
+  let added=0;
+  for(const c of (j.candles||[])){
+    if(c.open==null||c.high==null||c.low==null||c.close==null) continue;
+    if(!raw.has(c.time)){raw.set(c.time,c);added++;}
+  }
+  return added;
+}
+function commit(){
+  candles=[...raw.values()].sort((a,b)=>a.time-b.time).map(c=>({
+    time:c.time,open:c.open*supply,high:c.high*supply,low:c.low*supply,close:c.close*supply
+  }));
+  candleS.setData(candles);
+}
+async function loadCandles(){
+  await page1h(new Date());
+  commit();
+  chart.timeScale().fitContent();
+}
+// walk back until the oldest candle predates `needMs`, or the feed runs dry
+async function coverBack(needMs,maxPages=14){
+  let pages=0;
+  while(pages<maxPages&&candles.length&&candles[0].time*1000>needMs){
+    const added=await page1h(new Date(candles[0].time*1000));
+    pages++;
+    if(!added) break;
+    commit();
+    setStatus(`loading history… ${new Date(candles[0].time*1000).toLocaleDateString()}`);
+  }
+  if(pages) chart.timeScale().fitContent();
+  return candles.length?candles[0].time*1000<=needMs:false;
+}
+
+// snap a trade to its hourly candle so markers can't land between bars. Anything still older
+// than the loaded range is DROPPED, not clamped — a marker piled on the first bar is a lie
+// about when the trade happened, and the count of dropped ones is reported instead.
+const BUCKET=3600;
+let dropped=0;
+function snap(ms){
+  const t=Math.floor(ms/1000/BUCKET)*BUCKET;
+  if(!candles.length) return t;
+  if(t<candles[0].time){dropped++;return null;}
+  return Math.min(t,candles[candles.length-1].time);
+}
+
+// ---- data ----
+async function walletTrades(w,maxPages=25){
+  let cursor=null,out=[],pg=0;
+  while(pg<maxPages){
+    let u=`${JUP_TXS}/${CA}?limit=30&traderAddress=${w}`;
+    if(cursor) u+=`&offset=${cursor}`;
+    const j=await (await fetch(u)).json();
+    const txs=j.txs||[];
+    if(!txs.length) break;
+    out.push(...txs); pg++;
+    setStatus(`fetching ${w.slice(0,4)}… · ${out.length} trades (${pg}pg)`);
+    const sub=document.getElementById('loadSub'); if(sub) sub.textContent=out.length+' TRADES · '+pg+' PAGES';
+    cursor=j.next;
+    if(!cursor) break;
+  }
+  return {trades:out,capped:!!cursor};
+}
+
+// ---- render ----
+function paint(p,upTo){
+  dropped=0;
+  const marks=p.marks
+    .filter(m=>upTo==null||m.ts<=upTo)
+    .map(markerFor)
+    .filter(Boolean)
+    .sort((a,b)=>a.time-b.time);
+  candleS.setMarkers(marks);
+  return dropped;
+
+  if(avgLine){candleS.removePriceLine(avgLine);avgLine=null;}
+  if(p.avgEntry>0&&supply){
+    avgLine=candleS.createPriceLine({price:p.avgEntry*supply,color:'#38bdf8',lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:'avg'});
+  }
+}
+
+function stats(p){
+  $('sB').textContent=fmt(p.bought);
+  $('sS').textContent=fmt(p.sold);
+  $('sR').textContent=fmt(p.realized); $('sR').className='v '+(p.realized>=0?'up':'down');
+  $('sU').textContent=fmt(p.unrealized);$('sU').className='v '+(p.unrealized>=0?'up':'down');
+  $('sH').textContent=fmt(p.holding);
+  $('sT').textContent=p.trades+' ('+p.buys+'b/'+p.sells+'s)';
+  $('hTot').textContent=(p.total>=0?'+':'')+fmt(p.total);
+  $('hTot').className='tot '+(p.total>=0?'up':'down');
+}
+
+function warnings(p,capped){
+  const wp=$('wPartial'),wc=$('wCapped');
+  wp.className='warn partial'+(p.flags.partial?' on':'');
+  if(p.flags.partial) wp.textContent=
+    `⚠ PARTIAL HISTORY — this wallet sold ${Math.round(p.flags.phantomTokens).toLocaleString()} tokens Jupiter never saw it acquire (airdrop, transfer in, or a non-Jupiter fill). Those sells earn $0 realized rather than a fabricated profit, so the total below is a FLOOR, not the answer.`;
+  wc.className='warn capped'+(capped?' on':'');
+  if(capped) wc.textContent=
+    `⚠ TRUNCATED — hit the 25-page fetch ceiling, so these are the 750 most recent trades and older buys are missing. Cost basis is understated, which INFLATES the pnl shown.`;
+}
+
+let gen=0;
+async function replay(w,auto=true){
+  const my=++gen;                          // a newer paste supersedes this one mid-fetch
+  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w)){$('load').className='';setStatus('that does not look like a solana address');return;}
+  stop(); $('play').disabled=true; $('play').textContent='⋯ LOADING';
+  $('load').className='on'; $('loadSub').textContent='';
+  setStatus('fetching trades…');
+  const {trades,capped}=await walletTrades(w);
+  if(my!==gen) return;                     // superseded while fetching
+  if(!trades.length){
+    $('load').className='';
+    $('play').disabled=false; $('play').textContent='▶ PLAY';
+    setStatus('no $ALON trades for that wallet');
+    $('hName').textContent='no trades'; $('hAddr').textContent=w;
+    candleS.setMarkers([]); if(avgLine){candleS.removePriceLine(avgLine);avgLine=null;}
+    ['sB','sS','sR','sU','sH','sT'].forEach(i=>$(i).textContent='—');
+    $('hTot').textContent='$0'; $('hTot').className='tot';
+    warnings({flags:{partial:false}},false);
+    return;
+  }
+  const p=computePnl(trades,price);
+  tl=null;
+  // pull enough candles back to actually show this wallet's first trade
+  setStatus('loading chart history…');
+  $('loadSub').textContent='LOADING CHART HISTORY';
+  const covered=await coverBack(p.firstTs);
+  if(my!==gen) return;                     // superseded while backfilling candles
+  cur={p,capped,w};
+  const meta=(window.__board||[]).find(r=>r.wallet===w);
+  $('hName').textContent=meta&&meta.name?meta.name:short(w);
+  $('hAddr').textContent=w;
+  stats(p); warnings(p,capped);
+  const off=paint(p,null);
+  $('load').className='';                 // fetch is done — take the scrim down
+  document.querySelector('.bar2').classList.add('on');
+  $('play').disabled=false; $('play').textContent='▶ PLAY';
+  setStatus(`${p.trades} trades · ${new Date(p.firstTs).toLocaleDateString()} → ${new Date(p.lastTs).toLocaleDateString()}`
+    +(off?` · ⚠ ${off} trades older than the loaded chart are not plotted`:'')
+    +(covered?'':' · chart history incomplete'));
+  // paste → it plays. Making the animation a second click is why this looked broken.
+  if(auto) play();
+}
+
+// ---- audio: procedural, no files (Web Audio) ----
+// "a till on a sell, a fanfare every $20K" is the feel trickshot ships. A buy is a soft rising
+// blip; a sell is a two-tone cash-register till; beating your own best total fires a fanfare.
+let actx=null,muted=false;
+const ac=()=>{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended')actx.resume();return actx};
+function tone(freq,t0,dur,type,peak,slideTo){
+  const c=ac(),o=c.createOscillator(),g=c.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(freq,t0);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(peak,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0+dur+0.02);
+}
+// size-scaled so a $10 clip and a $10K clip don't sound identical
+const sz=usd=>Math.min(1,Math.log10(Math.max(usd,1)+1)/4.6);
+function sBuy(usd){ if(muted)return; const t=ac().currentTime,k=sz(usd);
+  tone(320+180*k,t,0.10+0.06*k,'sine',0.05+0.09*k,520+320*k); }
+function sSell(usd){ if(muted)return; const t=ac().currentTime,k=sz(usd);
+  tone(1180,t,0.055,'square',0.035+0.05*k);
+  tone(1720,t+0.055,0.13+0.05*k,'square',0.03+0.05*k); }        // the till
+function sFanfare(){ if(muted)return; const t=ac().currentTime;
+  [523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,t+i*0.085,0.22,'triangle',0.075)); }
+function sEnd(up){ if(muted)return; const t=ac().currentTime;
+  (up?[523.25,783.99,1046.5]:[440,349.23,261.63]).forEach((f,i)=>tone(f,t+i*0.12,0.34,'triangle',0.07)); }
+
+// ---- Alon rides the leading edge ----
+// The sprite sheet is 6 frames across at 600% background-width, same trick index.html uses for
+// #alonCursor. Positioned off the chart's own coordinate transforms so he sits exactly on the
+// close of the newest revealed candle rather than being faked with a percentage.
+// Pinning him to each candle's exact close made him TELEPORT up and down every wick — the
+// price series is noisy and a new bar is a discrete jump. He now eases toward the target, so he
+// runs along the line instead of stuttering on it, and the direction he faces comes from his own
+// smoothed motion rather than a single bar's colour (which flickers on every doji).
+let rf=0,rlast=0,rx=null,ry=null;
+// Platformer beats: he LEAPS onto a buy (arcs up, lands on the dot as it fires) and takes a HIT
+// on a sell (knocked up and back, blinking red). The arc is driven off head position, not wall
+// clock, so he lands exactly on the fill however the pacing is set.
+let jump=null;      // {fromHead,toHead,fromY,toY}
+let hurtT=0,squashT=0;
+// harness counters: inferring the arc from sampled pixel positions misses it (the leap can be
+// under 300ms at a fast pace), so the mechanism reports itself
+let jumpCount=0,maxArc=0,hitCount=0,arcPeaks=[],cutFlag=false,cutCount=0;
+function rideTo(bar,nowT){
+  const r=$('rider'),gl=$('riderGlow');
+  if(!bar){r.className='';gl.className='';rx=ry=null;jump=null;return;}
+  const tx=chart.timeScale().timeToCoordinate(bar.time);
+  let ty=candleS.priceToCoordinate(bar.close);
+  if(tx==null||ty==null){r.className='';gl.className='';return;}
+
+  const now=performance.now();
+  let arc=0,snapTo=false;
+
+  // --- the leap: same duration, same height, every time ---
+  if(jump&&nowT!=null){
+    const j=Math.max(0,Math.min(1,(nowT-jump.t0)/jump.dur));
+    ty=jump.fromY+(jump.toY-jump.fromY)*j;
+    arc=-Math.sin(Math.PI*j)*jump.h;     // up is negative in screen space
+    if(-arc>maxArc)maxArc=-arc;
+    snapTo=true;                          // follow the arc exactly, no easing lag
+    if(j>=1) jump=null;
+  }
+
+  // ⚠ Across a CUT the view itself jumps, so easing Alon toward the new spot drags him bodily
+  // across the whole frame (measured 167px in one frame). Snap him instead — a cut is a
+  // deliberate discontinuity and he should arrive with it, not chase it.
+  if(rx==null||cutFlag){rx=tx;ry=ty;}
+  const k=0.16;                       // glide factor: low enough to smooth wicks, high enough to keep up
+  rx+=(tx-rx)*k;
+  ry=snapTo?ty:ry+(ty-ry)*k;
+  // ⚠ He always faces RIGHT. Deriving facing from vertical movement flipped him back and forth
+  // on every minor dip — he is running forward through time, not changing direction.
+
+  // --- hit reaction: knocked up and back, decaying ---
+  let kx=0,ky=0;
+  const hurt=now<hurtT;
+  if(hurt){const u=(hurtT-now)/420; kx=-16*u; ky=-26*u*u;}
+
+  // --- landing squash ---
+  let sq=1;
+  if(now<squashT){const u=(squashT-now)/180; sq=1-0.22*Math.sin(Math.PI*u);}
+
+  if(now-rlast>90&&!jump){rf=(rf+1)%6;rlast=now;}   // run cycle pauses mid-air
+  r.style.backgroundPosition=((jump?2:rf)*20)+'% 0';
+  const px=rx+kx, py=ry+arc+ky;
+  r.style.left=px+'px'; r.style.top=py+'px';
+  r.style.transform='translate(-50%,-96%) scaleY('+sq.toFixed(3)+')';
+  r.className='on'+(hurt?' hurt':'');
+  gl.style.left=px+'px'; gl.style.top=py+'px'; gl.className='on'+(hurt?' hurt':'');
+}
+
+// ---- coin burst on a profitable sell ----
+const bcv=()=>{const c=$('burst');const w=$('chart').clientWidth,h=$('chart').clientHeight;
+  if(c.width!==w||c.height!==h){c.width=w;c.height=h;} return c;};
+let parts=[];
+function burst(x,y,n,color){
+  for(let i=0;i<n;i++){
+    const a=(-Math.PI/2)+(Math.random()-.5)*2.1, sp=1.6+Math.random()*3.4;
+    parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,c:color,r:1.5+Math.random()*2.4});
+  }
+}
+function drawParts(){
+  const c=bcv(),g=c.getContext('2d');
+  g.clearRect(0,0,c.width,c.height);
+  if(!parts.length) return;
+  for(const p of parts){
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.13; p.life-=0.019;
+    if(p.life<=0) continue;
+    g.globalAlpha=Math.max(0,p.life); g.fillStyle=p.c;
+    g.shadowBlur=10; g.shadowColor=p.c;
+    g.beginPath(); g.arc(p.x,p.y,p.r,0,7); g.fill();
+  }
+  g.globalAlpha=1; g.shadowBlur=0;
+  parts=parts.filter(p=>p.life>0);
+}
+
+// ---- rank: the meme payload ----
+// Graded on MULTIPLE (what came back per dollar in), not absolute pnl — a $200 wallet that
+// 10x'd deserves the S, and grading on dollars would just rank whoever was richest.
+const TIERS=[[10,'S','LEGENDARY'],[5,'A','GIGACHAD'],[2.5,'B','SOLID'],[1.25,'C','UP ONLY-ish'],
+             [1,'D','BREAKEVEN'],[0,'F','REKT']];
+function rankOf(p){
+  const inn=p.bought, out=p.sold+p.holding;
+  const mult=inn>0?out/inn:0;
+  for(const [m,r,label] of TIERS) if(mult>=m) return {mult,rank:r,label};
+  return {mult,rank:'F',label:'REKT'};
+}
+function showGG(p){
+  const {mult,rank,label}=rankOf(p);
+  $('ggRank').innerHTML=rank+'<small>'+label+'</small>';
+  $('ggRank').className='r-'+rank;
+  $('ggMult').textContent=mult.toFixed(2)+'x';
+  $('ggMult').className=mult>=1?'up':'down';
+  $('ggTot').textContent=(p.total>=0?'+':'')+fmt(p.total)+' on '+fmt(p.bought)+' in · '+p.trades+' trades';
+  $('ggWho').textContent=(cur&&cur.w)||'';
+  $('gg').className='on';
+  rank==='S'||rank==='A'?sFanfare():0;
+}
+$('ggClose').onclick=()=>$('gg').className='';
+$('ggAgain').onclick=()=>{$('gg').className='';play()};
+$('ggCopy').onclick=async()=>{
+  const {mult,rank,label}=rankOf(cur.p);
+  const txt=`$ALON wallet replay — RANK ${rank} (${label})\n${mult.toFixed(2)}x · ${(cur.p.total>=0?'+':'')+fmt(cur.p.total)} on ${fmt(cur.p.bought)} in · ${cur.p.trades} trades\n${cur.w}\nalonpump.run`;
+  try{await navigator.clipboard.writeText(txt);$('ggCopy').textContent='COPIED';
+    setTimeout(()=>$('ggCopy').textContent='COPY CARD',1400);}catch(e){}
+};
+
+function hit(green){
+  const f=$('flash'); f.className=green?'':'red'; void f.offsetWidth;
+  f.className=(green?'':'red ')+'hit';
+  const c=$('chart').parentElement; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+}
+function combo(txt,color){
+  const c=$('combo'); c.textContent=txt; c.style.color=color||'var(--green)';
+  c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
+}
+
+// ---- replay animation ----
+// Every frame advances a VIRTUAL clock across the wallet's lifetime. Candles are appended with
+// update() rather than re-setData'd — a wallet spanning 20 months is ~15k bars and setData on
+// that every frame drops the loop to single-digit fps. Markers and stats are only touched on
+// the frames a trade actually fires.
+// Fixed pace, no control. It was exposed as a button while the number was being tuned; the
+// tuning is done and a dial nobody needs is just clutter. window.__setPace below stays as a
+// TEST-ONLY hook — a 30-trade replay at 5s runs ~150s and the suite would time out.
+let raf=null,secPer=5,tl=null,lastN=30,zoomBars=155,runGen=0;
+// Mostly linear with soft ends. A full easeInOutQuad nearly DOUBLES the instantaneous rate
+// through the middle of the replay (measured: 2.5 trades/sec against a 1.4/sec average), so the
+// busiest stretch outruns the pace you actually set. 25% ease keeps the gentle start and stop
+// without the mid-replay sprint.
+const EI=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const EASE=x=>x*0.75+EI(x)*0.25;
+
+// Pace by TRADE INDEX, not calendar time. A wallet spanning 20 months with its trades clustered
+// in the last fortnight would otherwise crawl through months of empty chart and then fire 100
+// fills in the final half-second — which is exactly what "it flashed once and then showed all
+// transactions" was. This maps progress to a piecewise-linear walk through the trade timestamps,
+// so every fill gets the same screen time no matter how bunched up the wallet's history is.
+function clockAt(prog,knots){
+  if(knots.length===1) return knots[0];
+  const x=prog*(knots.length-1), i=Math.min(knots.length-2,Math.floor(x));
+  return knots[i]+(knots[i+1]-knots[i])*(x-i);
+}
+const mmss=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+
+// prefix states come from the AUDITED reducer, not a second copy of the math — a reimplemented
+// running total is exactly how the replay and the final number drift apart
+function buildTimeline(p){
+  const src=p.marks.map(m=>({type:m.type,amount:m.amount,usdVolume:m.usd,usdPrice:m.px,
+    timestamp:new Date(m.ts).toISOString(),txHash:m.hash}));
+  const out=[];
+  for(let i=1;i<=src.length;i++) out.push({ts:p.marks[i-1].ts,mark:p.marks[i-1],state:computePnl(src.slice(0,i),price)});
+  return out;
+}
+
+// Dots only — no labels, ever. Text on every fill turned dense clusters into unreadable mush
+// (a wall of overlapping "BUY $76.19"). Size carries the magnitude instead.
+//
+// ⚠ This is the ONLY place a marker is built. paint() used to construct its own inline with
+// text hardcoded, so the animation drew thinned dots and the settled chart drew a wall of
+// labels — the same drift risk as reimplementing the pnl math twice.
+function markerFor(m){
+  const t=snap(m.ts); if(t===null) return null;
+  return {time:t,position:m.type==='buy'?'belowBar':'aboveBar',
+    color:m.type==='buy'?'#4ade80':'#f87171',
+    shape:'circle',
+    size:Math.max(0.55,Math.min(1.6,0.5+sz(m.usd)*1.15))};
+}
+
+function stop(){ runGen++; if(raf)cancelAnimationFrame(raf); raf=null; viewLo=viewHi=null;
+  $('play').textContent='▶ PLAY'; $('clock').className='clock'; $('gg').className='';
+  $('rider').className=''; $('riderGlow').className=''; rx=ry=null; parts=[]; try{drawParts();}catch(e){} }
+
+// The BUTTON toggles; everything else starts. Conflating the two meant a second replay kicked
+// off while the first was still animating would STOP it instead of starting — the old loop then
+// kept running and kept writing the status line, which looked like a stall at 28/30.
+function togglePlay(){
+  if(raf){ stop(); return; }
+  play();
+}
+function play(){
+  $('load').className='';                 // nothing animates behind a loading scrim
+  if(raf){ cancelAnimationFrame(raf); raf=null; }   // supersede, never cancel-and-bail
+  // a disabled PLAY on a fresh page reads as "broken", not as "load something first"
+  if(!cur){
+    const b=window.__board;
+    if(b&&b.length){ $('addr').value=b[0].wallet; replay(b[0].wallet); }
+    else setStatus('paste a wallet address first');
+    return;
+  }
+  const {p}=cur;
+  if(!tl) tl=buildTimeline(p);
+  if(!candles.length||p.marks.length<1) return;
+
+  // Only the tail is ANIMATED, but the timeline behind it is the full history — so the running
+  // stats start from the correct prefix state rather than pretending the wallet began 30 trades
+  // ago. Earlier fills are drawn in up front as context.
+  const N=lastN==='all'?tl.length:Math.min(lastN,tl.length);
+  const s0=tl.length-N;
+  const seed=s0>0?tl[s0-1].state:null;
+
+  const lo=candles[0].time*1000, hi=candles[candles.length-1].time*1000;
+  const knots=[tl[s0].ts-(tl[tl.length-1].ts-tl[s0].ts||36e5)*0.06,...tl.slice(s0).map(e=>e.ts)];
+  // ⚠ Run the clock in BAR-INDEX space, not time. Walking linearly between trade timestamps
+  // means a long quiet gap between two fills drags a whole screenful of candles past in a single
+  // beat (measured: 26 bars per 80ms sample). Capping each segment's travel turns that whip into
+  // a CUT — the view jumps to MAXSPAN bars before the next fill and then glides in, which reads
+  // far calmer than being dragged through three weeks of chart.
+  const t1=tl[tl.length-1].ts;
+  const clampT=v=>Math.min(Math.max(v,lo),hi);
+  // ⚠ CONSTANT SCROLL RATE. Index pacing (equal time per trade) made speed swing wildly: two
+  // trades an hour apart spent a whole beat barely moving — chris read that as "going into slow
+  // motion" — while two a month apart sprinted the capped distance in the same beat. Instead:
+  // compress each gap to at most GAP_MAX bars, then walk the compressed distance at a FIXED
+  // bars/sec. Dead space becomes an instant cut; everything shown moves at one speed. No easing
+  // either — an ease decelerates the whole replay at its ends, the same complaint at a larger
+  // scale.
+
+
+  candleS.setData([]); candleS.setMarkers([]); $('gg').className='';
+  viewLo=viewHi=null;
+  if(avgLine){candleS.removePriceLine(avgLine);avgLine=null;}
+  let ci=0,ti=s0,best=-Infinity,lastFan=0,streak=0,prevReal=seed?seed.realized:0;
+  let headF=0,prevSi=-1;              // FRACTIONAL bar position, see headAt()
+  jump=null; hurtT=0; squashT=0; jumpCount=0; maxArc=0; hitCount=0; arcPeaks=[];
+  cutFlag=false; cutCount=0;
+  const shown=[];
+
+  // context: everything before the animated tail is already on the chart
+  for(let k=0;k<s0;k++){const mk=markerFor(tl[k].mark);if(mk){mk.color=tl[k].mark.type==='buy'?'#1f6f42':'#7a3838';shown.push(mk);}}
+  if(seed){stats(seed);best=seed.total;}
+  // reveal the candles leading up to the tail in one go — they are backdrop, not the show
+  while(ci<candles.length&&candles[ci].time*1000<=knots[0]){candleS.update(candles[ci]);ci++;}
+  if(shown.length)candleS.setMarkers(shown.slice().sort((a,b)=>a.time-b.time));
+  const myRun=++runGen;        // only the newest loop may write status or settle
+  const start=performance.now();
+  $('play').textContent='■ STOP';
+  $('clock').className='clock on';
+  ac();
+
+  // ⚠ Second source of "too fast", independent of the per-trade beat: index pacing gives every
+  // TRADE equal time, but the CANDLES between two distant trades then whip past in that same
+  // slot. A three-week gap flushed hundreds of bars across the screen in one beat. Capping how
+  // many bars may be revealed per second keeps the chart legible; the clock waits for it.
+  // Map a timestamp to a FRACTIONAL position in the candle array. Interpolating between bars is
+  // what makes the scroll continuous — an integer index lurches a whole candle per reveal, which
+  // reads as judder however slow the playback is.
+  // ⚠ An earlier version rate-limited the reveal to N bars/sec instead. That starved everything:
+  // trades are gated on the drawn edge, so throttling the candles stopped trades firing at all.
+  // The clock drives the bars, never the reverse.
+  function headAt(t){
+    let lo2=0,hi2=candles.length-1;
+    if(t<=candles[0].time*1000) return 0;
+    if(t>=candles[hi2].time*1000) return hi2;
+    while(lo2<hi2-1){const m=(lo2+hi2)>>1;(candles[m].time*1000<=t)?lo2=m:hi2=m;}
+    const a=candles[lo2].time*1000,b=candles[hi2].time*1000;
+    return lo2+(b>a?(t-a)/(b-a):0);
+  }
+
+  const hK=knots.map(headAt);
+  const GAP_MAX=zoomBars*0.35;
+  const travel=[], cum=[0];
+  for(let i=0;i<N;i++){
+    const t=Math.max(0.5,Math.min(hK[i+1]-hK[i],GAP_MAX));
+    travel.push(t); cum.push(cum[i]+t);
+  }
+  const total=cum[N];
+  const RATE=zoomBars/7.5;                   // bars per second — one screenful per 7.5s
+  // ⚠ Scale INSIDE the clamp. Multiplying after it let the harness's fast-pace hook drive the
+  // whole replay down to ~1.6s, finishing before the suite could sample anything.
+  const DUR=Math.max(6000,Math.min(70000,total/RATE*1000*(secPer/5)));
+  window.__clockInfo={total,DUR,barsPerSec:total/(DUR/1000),RATE,zoomBars,secPer};
+  // ⚠ 0.7 did NOT hold as a travel cap: the easing curve peaks ~1.25x mid-replay, and when
+  // several consecutive trades each sit a full cap apart the "cuts" chain into one sustained
+  // fast scroll (measured 203 bars/sec against a 109 bound). 0.35 keeps the invariant true and
+  // is calmer to watch — a gap becomes a short hop, not a ride.
+  const JUMP_MS=520;                         // leap duration, constant in TIME
+
+  function frame(now){
+    // ⚠ A superseded loop that keeps running will keep writing the status line, which reads as
+    // the newer replay stalling partway (it looked like a hard stop at 28/30). cancelAnimationFrame
+    // alone is not enough — a frame already queued still executes once. This is the guard.
+    if(myRun!==runGen) return;
+    const prog=Math.min(1,(now-start)/DUR);
+    const pos=prog*total;                     // LINEAR — constant speed, no ease
+    let si=0; while(si<N-1&&cum[si+1]<=pos) si++;
+    const into=pos-cum[si];
+    const prevHead=headF;
+    headF=hK[si+1]-travel[si]+into;
+    // ⚠ A cut exists ONLY at a segment boundary, by construction. Detecting it with a raw
+    // distance threshold fired on ordinary glide frames whenever the scroll was quick, which
+    // cancelled and re-armed the leap constantly (60 arms for 30 trades) and made every sampled
+    // rider step look like a cut.
+    cutFlag=(si!==prevSi)&&Math.abs(headF-prevHead)>3;
+    prevSi=si;
+    if(cutFlag){cutCount++;jump=null;}
+    const u=travel[si]>0?into/travel[si]:1;
+    const vt=candles.length?candles[Math.max(0,Math.min(candles.length-1,Math.round(headF)))].time*1000
+                           :knots[Math.min(si+1,knots.length-1)];
+
+    while(ci<candles.length&&ci<=Math.floor(headF)){candleS.update(candles[ci]);ci++;}
+
+    // fire off the HEAD, not the wall clock — after a cut the head is what the viewer sees
+    // Arm the leap at a fixed point in the beat so every jump takes the same time and reaches
+    // the same height — consistent, not floaty.
+    // arm on TIME remaining, so the leap is the same length whatever the gap was
+    const msLeft=total>0?((cum[si+1]-pos)/total)*DUR:0;
+    if(!jump&&msLeft<=JUMP_MS&&ti<tl.length&&rx!=null&&ry!=null){
+      const m=tl[ti].mark;
+      const ty2=candleS.priceToCoordinate(m.px*supply);
+      if(ty2!=null){
+        jumpCount++;
+        jump={t0:now,dur:Math.max(120,msLeft),fromY:ry,toY:ty2,h:m.type==='buy'?46:20};
+        arcPeaks.push(jump.h);
+      }
+    }
+
+    let fired=false;
+    while(ti<tl.length&&ti-s0<N&&pos>=cum[ti-s0+1]-1e-9){
+      const e=tl[ti];
+      const mk=markerFor(e.mark); if(mk)shown.push(mk);
+      e.mark.type==='buy'?sBuy(e.mark.usd):sSell(e.mark.usd);
+      jump=null;
+      if(e.mark.type==='buy'){ squashT=performance.now()+180; }
+      else { hurtT=performance.now()+420; hitCount++; hit(false); }
+      stats(e.state);
+
+      // a sell that books profit is the arcade beat — streak it
+      if(e.mark.type==='sell'){
+        const d=e.state.realized-prevReal;
+        if(d>0){streak++; if(streak>1)combo('x'+streak+' STREAK');}
+        else if(d<0){ if(streak>2)combo('STREAK LOST','var(--red)'); streak=0; }
+        prevReal=e.state.realized;
+      }
+      // fanfare on a genuinely new high-water mark, throttled so a run of green isn't a siren
+      // coins pop off the bar the fill landed on
+      const bx=chart.timeScale().timeToCoordinate(snap(e.mark.ts)),
+            by=candleS.priceToCoordinate(e.mark.px*supply);
+      if(bx!=null&&by!=null){
+        if(e.mark.type==='sell'&&e.state.realized>prevReal-1e-9)
+          burst(bx,by,Math.round(6+18*sz(e.mark.usd)),'#fbbf24');
+        else burst(bx,by,Math.round(3+8*sz(e.mark.usd)),e.mark.type==='buy'?'#4ade80':'#f87171');
+      }
+      if(e.state.total>best&&e.state.total>0&&best>-Infinity&&
+         e.state.total>best*1.25&&now-lastFan>1100){
+        sFanfare(); lastFan=now; hit(true); combo(fmt(e.state.total)+' NEW HIGH','#fbbf24');
+        if(bx!=null&&by!=null) burst(bx,by,34,'#fbbf24');
+      }
+      if(e.state.total>best)best=e.state.total;
+      ti++; fired=true;
+    }
+    if(fired){
+      candleS.setMarkers(shown.slice().sort((a,b)=>a.time-b.time));
+      ['sB','sS','sR','sU','sH','sT'].forEach(i=>{
+        const el=$(i); el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+      });
+    }
+
+    // camera: the action belongs in the MIDDLE of the frame, not jammed against the right edge.
+    // Driving this off the LOGICAL range (bar indices) rather than a time range is what lets the
+    // view extend past the newest revealed bar into whitespace — a time range clamps to the data
+    // and shoves the leading edge back to the right, which is the bug this fixes. It also makes
+    // zoom mean a concrete number of candles instead of a fraction of a variable span.
+    if(ci>0){
+      const head=Math.max(0,headF-1), half=zoomBars/2;
+      try{chart.timeScale().setVisibleLogicalRange({from:head-half,to:head+half});}catch(e){}
+
+      // ease the vertical window toward what is actually on screen
+      let mn=Infinity,mx=-Infinity;
+      const hi2=Math.min(ci-1,Math.floor(head));
+      for(let k=Math.max(0,Math.floor(head-half));k<=hi2;k++){
+        if(candles[k].low<mn)mn=candles[k].low;
+        if(candles[k].high>mx)mx=candles[k].high;
+      }
+      if(mn<Infinity&&mx>-Infinity){
+        // roomier padding means price swings eat a smaller fraction of the frame, so the same
+        // move reads as motion within a stable view rather than the view itself rescaling
+        const pad=(mx-mn)*0.30||Math.abs(mx)*0.05||1;
+        const tLo=mn-pad,tHi=mx+pad;
+        if(viewLo==null){viewLo=tLo;viewHi=tHi;}
+        else{
+          // Ease the SHRINK, snap the GROW. A symmetric ease lags behind a fast move until the
+          // candles escape the visible range entirely and the price line leaves the frame —
+          // which lurches far worse than the re-fit it was meant to smooth. Expanding
+          // immediately guarantees the data is always contained; contracting slowly is what
+          // actually kills the jitter.
+          const k=0.028;
+          viewLo=Math.min(tLo,viewLo+(tLo-viewLo)*k);
+          viewHi=Math.max(tHi,viewHi+(tHi-viewHi)*k);
+        }
+      }
+    }
+    rideTo(candles[Math.max(0,Math.min(candles.length-1,ci-1))],now);
+    drawParts();
+    $('clock').textContent=mmss(now-start);
+    setStatus('▶ '+new Date(vt).toLocaleDateString()+' · '+(ti-s0)+'/'+N+' trades'
+      +(s0>0?` (last ${N} of ${tl.length})`:''));
+
+    if(prog<1){raf=requestAnimationFrame(frame);return;}
+
+    // settle: full data, all markers, avg line back, zoom out to the whole story
+    viewLo=viewHi=null;                       // hand the scale back to normal autoscale
+    candleS.setData(candles); paint(p,null); stats(p);
+    chart.timeScale().fitContent();
+    $('rider').className=''; $('riderGlow').className=''; rx=ry=null; parts=[]; drawParts();
+    sEnd(p.total>=0);
+    hit(p.total>=0);
+    raf=null; $('play').textContent='▶ PLAY'; $('clock').className='clock';
+    setStatus(`${p.trades} trades · replay complete`+(s0>0?` · animated the last ${N}`:''));
+    setTimeout(()=>showGG(p),420);
+  }
+  raf=requestAnimationFrame(frame);
+}
+
+// ---- board ----
+async function loadBoard(){
+  try{
+    const b=await (await fetch('holders/traders.json?v='+Date.now())).json();
+    window.__board=b.traders;
+    const w=b.window||{};
+    $('foot').textContent=
+      `traders.json · ${w.days}d discovery window · ${w.pagesWalked} pages · `+
+      `${w.rankable} rankable, ${w.unscoreable} unscoreable${w.deep?' · DEEP (full history per wallet)':' · WINDOW ONLY — run --deep'}`+
+      `${w.deepCapped?` · ${w.deepCapped} hit the page cap`:''} · built ${b.generated.slice(0,16).replace('T',' ')}`;
+    $('board').innerHTML=b.traders.slice(0,60).map(r=>{
+      const label=r.name?`<span class="n">${r.name}</span>`:short(r.wallet);
+      const tags=(r.partial?'<span class="tag p">PARTIAL</span>':'')+(r.capped?'<span class="tag c">CAPPED</span>':'');
+      return `<div class="row" data-w="${r.wallet}">
+        <span class="l">${label}${tags}</span>
+        <span class="r ${r.total>=0?'up':'down'}">${(r.total>=0?'+':'')+fmt(r.total)}</span></div>`;
+    }).join('');
+    $('board').querySelectorAll('.row').forEach(el=>el.onclick=()=>{
+      $('addr').value=el.dataset.w; replay(el.dataset.w);   // autoplays
+    });
+    renderChips();
+  }catch(e){
+    $('board').innerHTML='<div class="row"><span class="l">no traders.json — run tools/build-traders.js</span></div>';
+  }
+}
+
+// ---- boot ----
+(async()=>{
+  initChart();
+  const t=await (await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${CA}`)).json();
+  const tok=(Array.isArray(t)?t:[]).find(x=>x.id===CA)||{};
+  price=tok.usdPrice||0; supply=tok.totalSupply||tok.circSupply||0;
+  $('src').textContent=`jupiter · $ALON ${fmt(price*supply)} mcap · no wallet connection`;
+  await loadCandles();
+  await loadBoard();
+  if(EMBED) document.body.classList.add('embed');
+  const qw=(QS.get('w')||'').trim();
+  if(qw){ replay(qw); return; }
+  const b=window.__board;
+  if(b&&b.length){
+    // land on a live replay rather than an empty chart. Audio stays silent until the first
+    // gesture (browser autoplay policy) — the unlock listener below turns it on.
+    // ⚠ Do NOT fill #addr here: a pre-filled field hides the placeholder, which is the whole
+    // affordance telling people what the input takes. The wallet is named in the hero anyway.
+    replay(b[0].wallet);
+  } else setStatus('paste an address, or pick a trader from the board →');
+})();
+
+// AudioContext starts suspended without a user gesture, so the boot replay is silent.
+// Resume it on the first real interaction instead of losing sound for the whole session.
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>{
+  if(actx&&actx.state==='suspended')actx.resume();
+},{once:true}));
+
+// read-only bridge for the smoke harness, same pattern as index.html's window.__ctl
+Object.defineProperty(window,'__cur',{get:()=>cur});
+Object.defineProperty(window,'__chart',{get:()=>chart});
+// harness hook: the shipped default is 5s/trade, which makes a 30-trade replay ~150s. The smoke
+// asserts the DEFAULT off the button label, then calls this to finish in reasonable time.
+window.__setPace=n=>{secPer=n;};
+// the scroll invariant the smoke checks: at most MAXSPAN bars of travel per trade-beat
+// ⚠ The bound must describe the CURRENT design. This was zoomBars*0.35/secPer — travel-per-beat
+// from the old index-paced clock — and kept failing against the constant-rate scroll that
+// replaced it. The design is now a fixed bars/sec (RATE), scaled by the harness pace hook.
+Object.defineProperty(window,'__scrollBound',{get:()=>(zoomBars/7.5)*(5/secPer)});
+Object.defineProperty(window,'__clock',{get:()=>window.__clockInfo||null});
+Object.defineProperty(window,'__beats',{get:()=>({jumps:jumpCount,maxArc,hits:hitCount,
+  airborne:!!jump,peaks:arcPeaks.slice(),distinctPeaks:[...new Set(arcPeaks)].length,
+  cuts:cutCount,cutting:cutFlag})});
+window.__markerFor=markerFor;
+
+// ---- entry point ----
+// Collapsed by default so the page reads as one clear invitation rather than a control panel.
+$('entry').onclick=()=>{
+  const open=$('drop').classList.toggle('open');
+  $('entry').classList.toggle('open',open);
+  if(open) $('addr').focus();
+};
+
+// PASTE matters more than the placeholder does: typing 44 base58 characters on a phone is a
+// non-starter, and chris tests on mobile Chrome. Clipboard read can be denied or unsupported,
+// so it always degrades to focusing the field rather than failing silently.
+// One button. PASTE + REPLAY side by side read as two competing actions — chris: "those are
+// both confusing". The clipboard is still used, silently: pressing ENTER on an empty field
+// pulls the address from the clipboard rather than making the user paste first.
+async function submit(){
+  let v=$('addr').value.trim();
+  if(!v){
+    try{ v=((await navigator.clipboard.readText())||'').trim(); if(v)$('addr').value=v; }catch(e){}
+  }
+  if(!v){ $('addr').focus(); return; }
+  replay(v);
+}
+
+// Most visitors have never traded $ALON and have nothing to paste — the chips are what let them
+// see the thing work at all, so they are an affordance, not decoration.
+function renderChips(){
+  const b=window.__board||[];
+  if(!b.length){$('chips').innerHTML='';return;}
+  const pick=b.filter(r=>!r.partial&&!r.capped).slice(0,3);
+  $('chips').innerHTML='<span class="lbl">OR WATCH</span>'+
+    pick.map(r=>`<span class="chip" data-w="${r.wallet}">${r.name||short(r.wallet)} ${(r.total>=0?'+':'')+fmt(r.total)}</span>`).join('')+
+    '<span class="chip" data-rand="1">🎲 RANDOM</span>';
+  $('chips').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{
+    const w=el.dataset.rand?b[Math.floor(Math.random()*Math.min(b.length,40))].wallet:el.dataset.w;
+    $('addr').value=w; replay(w);
+  });
+}
+
+$('go').onclick=submit;
+$('addr').onkeydown=e=>{if(e.key==='Enter')submit()};
+$('play').onclick=togglePlay;
+$('zoom').onclick=()=>{
+  zoomBars=zoomBars===78?155:zoomBars===155?310:78;
+  $('zoom').textContent='ZOOM '+zoomBars;
+  if(cur&&!raf)play();
+};
+$('last').onclick=()=>{
+  lastN=lastN===30?100:lastN===100?'all':30;
+  $('last').textContent=lastN==='all'?'ALL':'LAST '+lastN;
+  if(cur&&!raf)play();
+};
+$('mute').onclick=()=>{muted=!muted;$('mute').textContent=muted?'♪ OFF':'♪ ON';
+  $('mute').style.color=muted?'var(--dimmer)':''};
+$('clear').onclick=()=>{
+  stop(); cur=null; tl=null; candleS.setData(candles); $('play').disabled=false; $('addr').value=''; $('play').disabled=true;
+  candleS.setMarkers([]); if(avgLine){candleS.removePriceLine(avgLine);avgLine=null;}
+  ['sB','sS','sR','sU','sH','sT'].forEach(i=>$(i).textContent='—');
+  $('hName').textContent='—'; $('hAddr').textContent='no wallet loaded';
+  $('hTot').textContent='$0'; $('hTot').className='tot';
+  warnings({flags:{partial:false}},false);
+  setStatus('cleared');
+};
+</script>
+</body>
+</html>
