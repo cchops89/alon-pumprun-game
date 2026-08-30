@@ -775,6 +775,7 @@
                     <button class="tf on" data-tf="1h">1H</button>
                     <button class="tf" data-tf="4h">4H</button>
                     <button class="tf" data-tf="1d">1D</button>
+                    <button class="tf" data-tf="1w">1W</button>
                     <span class="vsep"></span>
                     <button class="tool on" data-type="candle" title="candles">
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="7" y="1" width="2" height="14" opacity="0.45"/><rect x="4.5" y="4" width="7" height="8" rx="1"/></svg>
@@ -1032,7 +1033,11 @@
     // highs, which is impossible for real aggregation. So 1_HOUR and finer are the only ones
     // fetched; 4H and 1D are rolled up from hourly here instead.
     const FINE = { '5m': '5_MINUTE', '15m': '15_MINUTE' };
-    const BUCKET = { '4h': 4 * 3600, '1d': 24 * 3600 };
+    const BUCKET = { '4h': 4 * 3600, '1d': 24 * 3600, '1w': 7 * 24 * 3600 };
+    // unix epoch day 0 was a THURSDAY, so a plain floor(t/604800) puts every weekly bar's
+    // open on a thursday. shift by 4 days so weeks start monday 00:00 UTC like every other
+    // chart. only 1W needs it — 4h and 1d divide the epoch evenly.
+    const BUCKET_OFF = { '1w': 4 * 24 * 3600 };
     const PAGE = 1500;
 
     let base = { rows: [], done: false };
@@ -1074,10 +1079,11 @@
     }
 
     // real OHLC rollup: high is the max of the bucket, not a sampled point
-    function aggregate(rows, sec) {
+    function aggregate(rows, sec, off) {
+        const o = off || 0;
         const out = new Map();
         for (const c of rows) {
-            const k = Math.floor(c.time / sec) * sec;
+            const k = Math.floor((c.time - o) / sec) * sec + o;
             const b = out.get(k);
             if (!b) out.set(k, { time: k, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume || 0 });
             else {
@@ -1404,7 +1410,7 @@
             : cmpStore.base;
     }
     function cmpRows(timeframe) {
-        if (BUCKET[timeframe]) return aggregate(cmpStore.base.rows, BUCKET[timeframe]);
+        if (BUCKET[timeframe]) return aggregate(cmpStore.base.rows, BUCKET[timeframe], BUCKET_OFF[timeframe]);
         if (timeframe === '1h') return cmpStore.base.rows;
         return (cmpStore.fine[timeframe] || { rows: [] }).rows;
     }
@@ -1510,7 +1516,7 @@
     }
 
     function viewRows(timeframe) {
-        if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe]);
+        if (BUCKET[timeframe]) return aggregate(base.rows, BUCKET[timeframe], BUCKET_OFF[timeframe]);
         if (timeframe === '1h') return base.rows;
         return (fine[timeframe] || { rows: [] }).rows;
     }
@@ -2640,7 +2646,9 @@
                      tokMcap: () => (tok ? tok.mcap : null),
                      // the share card, for the smoke test to eyeball
                      paintShot: () => shot.paint().toDataURL('image/png'),
-                     cmp: () => ({ on: cmpOn, rows: cmpRows(tf).length, dbg: cmpDebug }) };
+                     cmp: () => ({ on: cmpOn, rows: cmpRows(tf).length, dbg: cmpDebug }),
+                     tf: () => tf,
+                     times: () => displayRows().map(r => r.time) };
 
     // ===== market-cap axis: linear or logarithmic =====
     function applyScale(log) {
