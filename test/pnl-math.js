@@ -9,7 +9,7 @@
 // The canary exists because a green test that cannot fail is worth nothing.
 
 const path = require('path');
-const { computePnl } = require(path.join(__dirname, '..', 'tools', 'pnl.js'));
+const { computePnl, convictionRank } = require(path.join(__dirname, '..', 'tools', 'pnl.js'));
 
 const CANARY = process.argv.includes('--canary');
 let pass = 0, fail = 0;
@@ -90,6 +90,56 @@ function check(label, actual, expected) {
   console.log('5. reverse-chronological input');
   check('realized', r.realized, 50);
   check('not flagged partial', r.flags.partial, false);
+}
+
+
+// --- 6. conviction grade --------------------------------------------------------
+// Hand-worked. tx() prices each fill at usd/amount, so the entry price is explicit below.
+// The ladder is TOKEN-weighted: case 6d is the one that catches a dollar-weighted grader,
+// which would score a wallet up 5x on half its bag as a jeet.
+{
+  console.log('6. conviction grade');
+
+  // 3 buys at 0.10 → 0.05 → 0.025, never sold. $75 of the $175 in went below the running
+  // average (100/1000 = 0.10 before buy 2; 150/3000 = 0.05 before buy 3), so addRatio = 75/175.
+  const steel = convictionRank(computePnl(
+    [tx('buy', 1000, 100, 0), tx('buy', 1000, 50, 5), tx('buy', 1000, 25, 10)], 0.02));
+  check('6a rank', steel.rank, 'S');
+  check('6a label', steel.label, 'BALLS OF STEEL');
+  check('6a sellRatio', steel.sellRatio, 0);
+  check('6a addRatio', steel.addRatio, 75 / 175);
+
+  // same bag, one buy. held, but never decided anything twice.
+  const held = convictionRank(computePnl([tx('buy', 1000, 100, 0)], 0.02));
+  check('6b rank', held.rank, 'A');
+  check('6b label', held.label, 'NEVER SOLD');
+
+  // 500 of 1000 tokens out = exactly the 0.50 band edge
+  const half = convictionRank(computePnl([tx('buy', 1000, 100, 0), tx('sell', 500, 90, 5)], 0.15));
+  check('6c sellRatio', half.sellRatio, 0.5);
+  check('6c label', half.label, 'STOP TRADING START BELIEVING');
+
+  // THE TOKEN-WEIGHTING TEST: in dollars this is 500 sold on 100 in = 5.0, which any
+  // dollar-weighted ladder grades GIGA JEET. In tokens it is half the bag, still holding.
+  const winner = convictionRank(computePnl([tx('buy', 1000, 100, 0), tx('sell', 500, 500, 5)], 1.0));
+  check('6d mult', winner.mult, 10);
+  check('6d sellRatio', winner.sellRatio, 0.5);
+  check('6d not a jeet', winner.label, 'STOP TRADING START BELIEVING');
+
+  // 800/1000 out
+  const jeet = convictionRank(computePnl([tx('buy', 1000, 100, 0), tx('sell', 800, 200, 5)], 0.25));
+  check('6e sellRatio', jeet.sellRatio, 0.8);
+  check('6e label', jeet.label, 'SUPER JEET');
+
+  const gone = convictionRank(computePnl([tx('buy', 1000, 100, 0), tx('sell', 1000, 250, 5)], 0.25));
+  check('6f sellRatio', gone.sellRatio, 1);
+  check('6f label', gone.label, 'GIGA JEET');
+
+  // a sell we never saw acquired clamps sellRatio to 1.0. that is missing history, and
+  // grading it GIGA JEET would be the tool asserting something it cannot know.
+  const partial = convictionRank(computePnl([tx('sell', 1000, 250, 5)], 0.25));
+  check('6g rank', partial.rank, '?');
+  check('6g label', partial.label, 'UNSCOREABLE');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

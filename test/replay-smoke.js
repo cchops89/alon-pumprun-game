@@ -55,9 +55,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('footer states coverage', /discovery window/.test(await page.$eval('#foot', e => e.textContent)));
   check('reducer loaded in page', await page.evaluate(() => typeof window.computePnl === 'function'));
 
+  // the wallet input lives in a drawer behind #entry, closed on load. Before that drawer
+  // landed the input was always on the page, so the old fill() worked; now it silently
+  // times out against a display:none field.
+  const openDrawer = async () => {
+    const open = await page.$eval('#drop', e => e.className.includes('open'));
+    if (!open) await page.click('#entry');
+    await page.waitForSelector('#addr', { state: 'visible', timeout: 5000 });
+  };
+
   // deep-verify: pick the wallet the board ranks #1 and replay it
   const top = await page.evaluate(() => window.__board[0].wallet);
   const target = CANARY ? '11111111111111111111111111111111' : top;
+  await openDrawer();
   await page.fill('#addr', target);
   await page.click('#go');
   await page.waitForFunction(() => /trades ·|no \$ALON/.test(document.getElementById('status').textContent), { timeout: 40000 })
@@ -344,6 +354,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     // the meme payload: a rank card must actually appear, with a real grade and multiple
     // the loading overlay: a frozen chart while trades fetch is what chris asked to replace
   await page.evaluate(() => window.__setPace && window.__setPace(3));
+  await openDrawer();
   await page.fill('#addr', top);
   const loadSeen = await Promise.race([
     page.waitForFunction(() => document.getElementById('load').className.includes('on'), { timeout: 8000 }).then(() => true).catch(() => false),
@@ -388,8 +399,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     // it and everything else still passes. That is exactly what shipped.
     const scrim = await page.evaluate(() => document.getElementById('load').className.includes('on'));
     check('loading overlay is not covering the finished replay', !scrim);
-    check('rank is a real grade', /^[SABCDF]/.test(gg.rank));
-    check('rank is colour-coded', /r-[SABCDF]/.test(gg.cls));
+    check('rank is a real grade', /^[SABCDF?]/.test(gg.rank));
+    check('rank is colour-coded', /r-[SABCDFX]/.test(gg.cls));
     check('multiple is numeric', /^\d+\.\d\dx$/.test(gg.mult));
     // grading on MULTIPLE not dollars: the card must state what went in, or the x is unreadable
     check('card states capital in', / in ·/.test(gg.tot));

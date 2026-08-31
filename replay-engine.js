@@ -119,15 +119,12 @@
 .rpx .lb button.primary:hover{background:#4ade80;color:#04150c}
 .rpx .rS{color:#fbbf24;text-shadow:0 0 30px rgba(251,191,36,.55)}.rpx .rA{color:#4ade80;text-shadow:0 0 26px rgba(74,222,128,.5)}
 .rpx .rB{color:#38bdf8;text-shadow:0 0 22px rgba(56,189,248,.45)}.rpx .rC{color:#c9ffdd}
-.rpx .rD{color:#7d8b83}.rpx .rF{color:#f87171;text-shadow:0 0 26px rgba(248,113,113,.5)}
+.rpx .rD{color:#7d8b83}.rpx .rX{color:#7d8b83}.rpx .rF{color:#f87171;text-shadow:0 0 26px rgba(248,113,113,.5)}
 `;
 
-  const TIERS = [[10,'S','LEGENDARY'],[5,'A','GIGACHAD'],[2.5,'B','SOLID'],[1.25,'C','UP ONLY-ish'],[1,'D','BREAKEVEN'],[0,'F','REKT']];
-  function rankOf(p) {
-    const inn = p.bought, out = p.sold + p.holding, mult = inn > 0 ? out / inn : 0;
-    for (const [m, r, label] of TIERS) if (mult >= m) return { mult, rank: r, label };
-    return { mult, rank: 'F', label: 'REKT' };
-  }
+  // the ladder lives in tools/pnl.js so the replay and the leaderboard grade identically
+  const rankOf = p => window.convictionRank(p);
+  const rcls = r => (r === '?' ? 'X' : r);        // '?' is not a legal CSS class
 
   const PFP = new Image(); PFP.src = 'alon-pfp.jpg?v=1';
 
@@ -335,7 +332,7 @@
       c.arcTo(x, y + h, x, y, r);         c.arcTo(x, y, x + w, y, r);
       c.closePath();
     }
-    const RANK_COL = { S:'#fbbf24', A:'#4ade80', B:'#38bdf8', C:'#c9ffdd', D:'#7d8b83', F:'#f87171' };
+    const RANK_COL = { S:'#fbbf24', A:'#4ade80', B:'#38bdf8', C:'#c9ffdd', D:'#7d8b83', F:'#f87171', '?':'#7d8b83' };
 
     function snapshot() {
       if (!cur) return null;
@@ -392,8 +389,18 @@
       c.shadowBlur = 24; c.shadowColor = c.fillStyle;
       c.fillText(rank, cx + 15, cy + 58);
       c.shadowBlur = 0;
-      c.fillStyle = '#5a6862'; c.font = '700 8px ' + MONO;
-      c.fillText(label.toUpperCase().split('').join(' '), cx + 16, cy + 72);
+      // fit the label: letter-spaced first (it reads as a stamp), tight if that overflows,
+      // then shrink. 'STOP TRADING START BELIEVING' is 28 chars and will not fit spaced.
+      c.fillStyle = '#5a6862';
+      const room = cw - 32;
+      let lt = label.toUpperCase().split('').join(' '), fs = 8;
+      c.font = '700 ' + fs + 'px ' + MONO;
+      if (c.measureText(lt).width > room) {
+        lt = label.toUpperCase();
+        c.font = '700 ' + fs + 'px ' + MONO;
+        while (c.measureText(lt).width > room && fs > 5.5) { fs -= 0.25; c.font = '700 ' + fs + 'px ' + MONO; }
+      }
+      c.fillText(lt, cx + 16, cy + 72);
 
       c.fillStyle = mult >= 1 ? '#4ade80' : '#f87171';
       c.font = '900 23px ' + MONO;
@@ -652,8 +659,9 @@
           ov.classList.add('done');
           hitFx(p.total >= 0);            // one bang across the chart, not a permanent veil
           const { mult, rank, label } = rankOf(p);
-          els.rk.innerHTML = rank + '<small>' + label + '</small>';
-          els.rk.className = 'rk r' + rank;
+          els.rk.innerHTML = rank + '<small style="letter-spacing:' +
+            (label.length > 14 ? '.12em' : '.3em') + '">' + label + '</small>';
+          els.rk.className = 'rk r' + rcls(rank);
           els.mx.textContent = mult.toFixed(2) + 'x';
           els.mx.style.color = mult >= 1 ? '#4ade80' : '#f87171';
           els.sub.textContent = (p.total >= 0 ? '+' : '') + fmt(p.total) + ' on ' + fmt(p.bought) + ' in · ' + p.trades + ' trades';

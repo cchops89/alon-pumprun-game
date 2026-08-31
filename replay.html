@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="lightweight-charts.js?v=421"></script>
-<script src="tools/pnl.js?v=1"></script>
+<script src="tools/pnl.js?v=2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -195,6 +195,7 @@ body.embed .card{border-radius:0;border:none}
 .r-B{color:#38bdf8;text-shadow:0 0 22px rgba(56,189,248,.45)}
 .r-C{color:#c9ffdd}
 .r-D{color:#7d8b83}
+.r-X{color:#7d8b83}
 .r-F{color:#f87171;text-shadow:0 0 26px rgba(248,113,113,.5)}
 </style>
 </head>
@@ -592,20 +593,15 @@ function drawParts(){
 }
 
 // ---- rank: the meme payload ----
-// Graded on MULTIPLE (what came back per dollar in), not absolute pnl — a $200 wallet that
-// 10x'd deserves the S, and grading on dollars would just rank whoever was richest.
-const TIERS=[[10,'S','LEGENDARY'],[5,'A','GIGACHAD'],[2.5,'B','SOLID'],[1.25,'C','UP ONLY-ish'],
-             [1,'D','BREAKEVEN'],[0,'F','REKT']];
-function rankOf(p){
-  const inn=p.bought, out=p.sold+p.holding;
-  const mult=inn>0?out/inn:0;
-  for(const [m,r,label] of TIERS) if(mult>=m) return {mult,rank:r,label};
-  return {mult,rank:'F',label:'REKT'};
-}
+// Graded on CONVICTION (did it hold, did it add while red), not on pnl — the card already
+// states the dollars and the multiple, so a rank that repeats them says nothing new.
+// Ladder lives in tools/pnl.js, shared with replay-engine.js.
+const rankOf = p => window.convictionRank(p);
+const rcls = r => (r === '?' ? 'X' : r);
 function showGG(p){
   const {mult,rank,label}=rankOf(p);
-  $('ggRank').innerHTML=rank+'<small>'+label+'</small>';
-  $('ggRank').className='r-'+rank;
+  $('ggRank').innerHTML=rank+'<small style="letter-spacing:'+(label.length>14?'.12em':'.34em')+'">'+label+'</small>';
+  $('ggRank').className='r-'+rcls(rank);
   $('ggMult').textContent=mult.toFixed(2)+'x';
   $('ggMult').className=mult>=1?'up':'down';
   $('ggTot').textContent=(p.total>=0?'+':'')+fmt(p.total)+' on '+fmt(p.bought)+' in · '+p.trades+' trades';

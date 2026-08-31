@@ -32,6 +32,8 @@ function computePnl(trades, price) {
   let pos = 0, basis = 0;              // tokens held, USD cost of that position
   let bought = 0, sold = 0, realized = 0;
   let buyTokens = 0, buyUsd = 0;       // lifetime, for avg entry when flat
+  let soldTokens = 0;                  // tracked tokens out — phantom sells excluded
+  let redBuyUsd = 0;                   // dollars deployed BELOW the running average entry
   let phantom = 0, badPrice = 0;
   const marks = [];
 
@@ -39,6 +41,9 @@ function computePnl(trades, price) {
     if (t.badPrice) badPrice++;
 
     if (t.type === 'buy') {
+      // averaging down: priced below your own basis at the moment you pressed buy. measured
+      // before the fill lands, or the new tokens move the average you're being compared to.
+      if (pos > 0 && t.px > 0 && t.px < basis / pos) redBuyUsd += t.usd;
       pos += t.amount; basis += t.usd;
       bought += t.usd; buyTokens += t.amount; buyUsd += t.usd;
       marks.push({ ts: t.ts, type: 'buy', usd: t.usd, amount: t.amount, px: t.px, hash: t.hash });
@@ -55,7 +60,7 @@ function computePnl(trades, price) {
       realized += proceeds - avg * qty;
       basis -= avg * qty;
       pos -= qty;
-      sold += t.usd;
+      sold += t.usd; soldTokens += qty;
       marks.push({ ts: t.ts, type: 'sell', usd: t.usd, amount: t.amount, px: t.px, hash: t.hash });
     }
     if (pos < 1e-9) { pos = 0; basis = 0; }      // flat resets basis; float dust doesn't linger
@@ -78,6 +83,14 @@ function computePnl(trades, price) {
     costBasis: basis,
     avgEntry: pos > 0 ? basis / pos : (buyTokens > 0 ? buyUsd / buyTokens : 0),
     marks,
+    // ---- conviction inputs. TOKEN-weighted on purpose: sold/bought in DOLLARS is contaminated
+    // by price, so a wallet that 10x'd and sold half its bag reads 5.0 and grades as a jeet
+    // while it still holds half. Tokens can't do that.
+    boughtTokens: buyTokens,
+    soldTokens,
+    sellRatio: buyTokens > 0 ? Math.min(1, soldTokens / buyTokens) : 0,
+    redBuyUsd,
+    addRatio: bought > 0 ? redBuyUsd / bought : 0,
     flags: {
       partial: phantom > 0,
       phantomTokens: phantom,
@@ -86,5 +99,43 @@ function computePnl(trades, price) {
   };
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { computePnl };
-else if (typeof window !== 'undefined') window.computePnl = computePnl;
+
+// ---- the grade -------------------------------------------------------------------------
+// Graded on CONVICTION, not pnl. The card already screams the dollars and the multiple in
+// 34px type — a rank that restates them carries no new information. What the number can't
+// say is whether the wallet held, and whether it kept buying while it was red. That's the
+// part worth a letter.
+//
+// Bands are TOKEN-weighted (see sellRatio). Never-sold splits in two: sitting on a bag is
+// not the same act as adding to one that's underwater, so S needs both.
+const CONVICTION_TIERS = [
+  [0.25, 'B', 'MOSTLY BELIEVING'],
+  [0.50, 'C', 'STOP TRADING START BELIEVING'],
+  [0.75, 'D', 'JEET'],
+  [0.999, 'F', 'SUPER JEET'],
+  [Infinity, 'F', 'GIGA JEET'],
+];
+
+function convictionRank(p) {
+  const mult = p.bought > 0 ? (p.sold + p.holding) / p.bought : 0;
+  const base = { mult, sellRatio: p.sellRatio || 0, addRatio: p.addRatio || 0 };
+
+  // sells we never saw acquired pin sellRatio to 1.0 — that is missing data, not a full exit,
+  // and calling it GIGA JEET would be the tool lying with total confidence.
+  if (p.flags && p.flags.partial) return { ...base, rank: '?', label: 'UNSCOREABLE' };
+
+  if (base.sellRatio <= 0) {
+    // a single buy held is a position. three buys with a quarter of the capital deployed
+    // below your own entry is a decision, repeated, while losing.
+    return base.addRatio >= 0.25 && p.buys >= 3
+      ? { ...base, rank: 'S', label: 'BALLS OF STEEL' }
+      : { ...base, rank: 'A', label: 'NEVER SOLD' };
+  }
+  for (const [m, rank, label] of CONVICTION_TIERS) {
+    if (base.sellRatio <= m) return { ...base, rank, label };
+  }
+  return { ...base, rank: 'F', label: 'GIGA JEET' };
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { computePnl, convictionRank };
+else if (typeof window !== 'undefined') { window.computePnl = computePnl; window.convictionRank = convictionRank; }
