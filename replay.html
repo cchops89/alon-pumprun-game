@@ -524,7 +524,7 @@ function rideTo(bar,nowT){
   if(!bar){r.className='';gl.className='';rx=ry=null;jump=null;return;}
   const tx=chart.timeScale().timeToCoordinate(bar.time);
   let ty=candleS.priceToCoordinate(bar.close);
-  if(tx==null||ty==null){r.className='';gl.className='';return;}
+  if(tx==null||ty==null||!Number.isFinite(ty)){r.className='';gl.className='';return;}
 
   const now=performance.now();
   let arc=0,snapTo=false;
@@ -542,6 +542,17 @@ function rideTo(bar,nowT){
   // ⚠ Across a CUT the view itself jumps, so easing Alon toward the new spot drags him bodily
   // across the whole frame (measured 167px in one frame). Snap him instead — a cut is a
   // deliberate discontinuity and he should arrive with it, not chase it.
+  // ⚠ priceToCoordinate returns a FINITE but astronomical y while the price scale is still
+  // auto-fitting — measured ty=-10,588,183 on the wallet the board ranks #1, which parked Alon
+  // ten million px above the viewport for the first 3.5s of its replay (81% of frames in view,
+  // and the missing 19% are the opening ones people screenshot). Non-null is NOT on-screen, so
+  // the null guard above never caught it. Clamped AFTER the leap branch so both the resting
+  // position and the interpolated arc endpoints are covered — jump.fromY/toY come from the same
+  // call and are just as capable of being astronomical. `arc` is added later, on purpose: the
+  // leap is allowed to carry him above the line, the price scale is not.
+  const CH=$('chart').clientHeight||0;
+  if(CH>0) ty=Math.max(0,Math.min(CH,ty));
+
   if(rx==null||cutFlag){rx=tx;ry=ty;}
   const k=0.16;                       // glide factor: low enough to smooth wicks, high enough to keep up
   rx+=(tx-rx)*k;
@@ -560,7 +571,15 @@ function rideTo(bar,nowT){
 
   if(now-rlast>90&&!jump){rf=(rf+1)%6;rlast=now;}   // run cycle pauses mid-air
   r.style.backgroundPosition=((jump?2:rf)*20)+'% 0';
-  const px=rx+kx, py=ry+arc+ky;
+  // ⚠ Clamp the RENDERED position too, exactly as replay-engine.js does — he is anchored
+  // translate(-50%,-96%), so the sprite extends ~96% of its HEIGHT above the anchor and a fill
+  // priced near the top of the view draws his head outside the chart. This clamp existed in the
+  // engine and was never backported here; the two riders drifted, and only this one shipped the
+  // bug. Clamping the rendered spot rather than the arc means the leap still plays out, it just
+  // tops out against the ceiling.
+  const RH=r.offsetHeight||74, RW=r.offsetWidth||74, CW=$('chart').clientWidth||0;
+  const px=CW>0?Math.max(RW*0.5,Math.min(CW-RW*0.5,rx+kx)):rx+kx;
+  const py=CH>0?Math.max(RH*0.98,Math.min(CH-2,ry+arc+ky)):ry+arc+ky;
   r.style.left=px+'px'; r.style.top=py+'px';
   r.style.transform='translate(-50%,-96%) scaleY('+sq.toFixed(3)+')';
   r.className='on'+(hurt?' hurt':'');

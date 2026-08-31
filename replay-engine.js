@@ -252,7 +252,7 @@
       const W = stage.clientWidth || 0;
       const tx = W * 0.5;
       let ty = series.priceToCoordinate(bar.close);
-      if (ty == null) { r.className = 'rider'; gl.className = 'glow'; return; }
+      if (ty == null || !Number.isFinite(ty)) { r.className = 'rider'; gl.className = 'glow'; return; }
       const now = nowT != null ? nowT : performance.now();
       let arc = 0, snapTo = false;
       if (jump) {
