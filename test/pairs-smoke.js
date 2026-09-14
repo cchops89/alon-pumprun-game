@@ -32,13 +32,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(1500);   // .28s css transition, but swiftshader paints slow
   check('click expands the list', await page.$eval('.pairs-wrap', e => e.getBoundingClientRect().height) > 200);
   const rows = await page.$$eval('#pairsList .pr', els => els.map(e => ({
-    href: e.getAttribute('href'), sym: e.querySelector('.pr-n b').textContent, val: e.querySelector('.pr-v b').textContent,
+    href: e.getAttribute('href'), sym: e.querySelector('.pr-n b').textContent, val: e.querySelector('.pr-v b').textContent, alon: e.querySelector('.pr-v span').textContent,
     h: e.getBoundingClientRect().height,
   })));
   check('rows rendered from the baked list (>= 20)', rows.length >= 20);
   check('every row links to pump.fun/coin/<mint>', rows.length > 0 && rows.every(r => /^https:\/\/pump\.fun\/coin\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(r.href)));
   check('every row has a symbol', rows.every(r => r.sym.trim().length > 0));
-  check('mcap column reads in ALON', rows.every(r => /ALON$/.test(r.val)));
+  check('mcap column leads with usd', rows.every(r => /^\$[\d.]+[KMB]?$/.test(r.val)));
+  check('ALON amount sits under the usd', rows.every(r => /^[\d.]+[KM]? ALON/.test(r.alon)));
   check('rows are not collapsed', rows.every(r => r.h > 30));
   check('at most 3 columns', await page.$eval('#pairsList', e => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 3);
   check('rewards line sits under name + value, at most two lines', await page.$$eval('#pairsList .pr', els => els.filter(e => e.querySelector('.pr-r')).every(e => {
@@ -66,10 +67,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.click('.ps[data-k="mcap"]'); await sleep(300);
 
   // the baked file sorts by mcap; the live overlay may reorder, but the first row must not be zero
-  const nonZero = rows.filter(r => !/^0 ALON$/.test(r.val)).length;
+  const nonZero = rows.filter(r => !/^0 ALON/.test(r.alon)).length;
   check('live/baked prices give at least one non-zero mcap', nonZero > 0);
   check('mcap sort is descending', (() => {
-    const v = rows.map(r => { const m = r.val.match(/^([\d.]+)([KM]?) ALON$/); return m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; });
+    const v = rows.map(r => { const m = r.alon.match(/^([\d.]+)([KM]?) ALON/); return m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; });
     return v.every((x, i) => i === 0 || x <= v[i - 1]);
   })());
 

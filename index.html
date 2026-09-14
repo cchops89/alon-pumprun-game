@@ -3310,7 +3310,8 @@
                 return `<a class="pr${c.complete ? ' grad' : ''}" href="https://pump.fun/coin/${esc(c.mint)}" target="_blank" rel="noopener" title="${esc(c.name)} · ${esc(c.mint)}">`
                     + pic
                     + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span></div>`
-                    + `<div class="pr-v"><b>${fmtA(c.mcapAlon || 0)} ALON</b><span>${usd}${usd && age ? ' · ' : ''}${age}</span></div>`
+                    + (usd ? `<div class="pr-v"><b>${usd}</b><span>${fmtA(c.mcapAlon || 0)} ALON${age ? ' · ' + age : ''}</span></div>`
+                           : `<div class="pr-v"><b>${fmtA(c.mcapAlon || 0)} ALON</b><span>${age}</span></div>`)
                     + (c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}to holders · <b>${fmtA(c.rwAccrued || 0)} ALON</b>${c.rwPaid ? ' · paid ' + fmtA(c.rwPaid) : ''}</i>` : '')
                     + `<div class="pr-bar"><i style="width:${Math.round((c.progress || 0) * 100)}%"></i></div></a>`;
             }).join('');
