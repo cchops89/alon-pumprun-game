@@ -612,6 +612,9 @@
                      box-shadow:0 0 10px rgba(74,222,128,0.35), inset 0 0 6px rgba(74,222,128,0.15); text-shadow:0 0 6px rgba(74,222,128,0.6); }
         .pairs-total { font-family:var(--mono); font-size:10.5px; color:var(--dim); white-space:nowrap; }
         .pairs-total b { color:var(--txt); font-weight:700; } .pairs-total i { font-style:normal; color:var(--dimmer); }
+        .pairs-total.rw b { color:var(--green); }
+        .pr-r { display:block; font-family:var(--mono); font-size:9.5px; color:var(--green-d); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .pr-r b { color:var(--green); font-weight:700; }
         @media (max-width:820px) { .pairs-total i { display:none; } }
         .pairs-wrap { overflow:hidden; max-height:0; transition:max-height .28s ease; }
         .pairs-panel.open .pairs-wrap { max-height:440px; overflow-y:auto; overscroll-behavior:contain; border-top:1px solid var(--line); }
@@ -808,10 +811,11 @@
                     <span class="pairs-blurb">coins launched on pump.fun with <b>$ALON</b> as the pair</span>
                     <span class="pairs-cnt" id="pairsCnt">—</span>
                     <span class="pairs-total" id="pairsTotal" title="real $ALON sitting inside these coins right now — bonding-curve reserves plus the pumpswap pools of the bonded ones. not locked: every sell pulls some back out"></span>
+                    <span class="pairs-total rw" id="pairsRewards" title="holder rewards: on these coins the creator fee is paid to holders in $ALON. this is everything escrowed so far — what pump.fun has already paid out plus what is still waiting in the vaults"></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="pairs-wrap">
-                    <div class="pairs-sub"><span>sort</span><button class="ps on" data-k="mcap">mcap</button><button class="ps" data-k="new">new</button><a class="pairs-launch" href="https://pump.fun/create" target="_blank" rel="noopener">launch a coin paired with $ALON ▸</a></div>
+                    <div class="pairs-sub"><span>sort</span><button class="ps on" data-k="mcap">mcap</button><button class="ps" data-k="new">new</button><button class="ps" data-k="rewards">rewards</button><a class="pairs-launch" href="https://pump.fun/create" target="_blank" rel="noopener">launch a coin paired with $ALON ▸</a></div>
                     <div class="pairs-list" id="pairsList"><div class="pairs-empty">loading pairs…</div></div>
                 </div>
             </div>
@@ -3267,7 +3271,7 @@
     // ALON, and the pair list for the quote token — which also catches launches the cron
     // hasn't baked yet (they show nameless-imageless for up to one cron tick).
     (function alonPairs() {
-        const list = document.getElementById('pairsList'), cnt = document.getElementById('pairsCnt'), tot = document.getElementById('pairsTotal');
+        const list = document.getElementById('pairsList'), cnt = document.getElementById('pairsCnt'), tot = document.getElementById('pairsTotal'), rwEl = document.getElementById('pairsRewards');
         if (!list) return;
         const DS = 'https://api.dexscreener.com';
         const coins = new Map();
@@ -3280,7 +3284,8 @@
         function render() {
             const arr = [...coins.values()];
             arr.sort(sort === 'new' ? (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
-                                    : (a, b) => (b.mcapAlon || 0) - (a.mcapAlon || 0));
+                   : sort === 'rewards' ? (a, b) => (b.rwAccrued || 0) - (a.rwAccrued || 0) || (b.mcapAlon || 0) - (a.mcapAlon || 0)
+                                        : (a, b) => (b.mcapAlon || 0) - (a.mcapAlon || 0));
             cnt.textContent = arr.length + (arr.length === 1 ? ' coin' : ' coins');
             const px = (tok && tok.price) || 0, st = list.scrollTop;
             // the sum of mcaps is paper (100 coins × the 1.28M starting mcap nobody bought). what
@@ -3288,6 +3293,9 @@
             // per cron tick, so it lags trades by up to 30 min; the usd side is live.
             const held = arr.reduce((t, c) => t + (c.heldAlon || 0), 0);
             tot.innerHTML = held ? `<b>${fmtA(held)} ALON</b> <i>held${px ? ' · ' + fmtMC(held * px) : ''}</i>` : '';
+            // holder rewards: fee escrowed for holders across every holder-reward coin (paid + pending)
+            const rw = arr.reduce((t, c) => t + (c.rwAccrued || 0), 0), rwN = arr.filter(c => c.hr).length;
+            rwEl.innerHTML = rwN ? `<b>${fmtA(rw)} ALON</b> <i>to holders${px ? ' · ' + fmtMC(rw * px) : ''} · ${rwN} coins</i>` : '';
             if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             list.innerHTML = arr.map(c => {
                 const usd = px && c.mcapAlon ? fmtMC(c.mcapAlon * px) : '';
@@ -3298,7 +3306,7 @@
                                     : `<i class="pr-ph">${esc((c.symbol || '?')[0])}</i>`;
                 return `<a class="pr${c.complete ? ' grad' : ''}" href="https://pump.fun/coin/${esc(c.mint)}" target="_blank" rel="noopener" title="${esc(c.name)} · ${esc(c.mint)}">`
                     + pic
-                    + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span></div>`
+                    + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span>${c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}fee → holders · <b>${fmtA(c.rwAccrued || 0)} ALON</b>${c.rwPaid ? ' · ' + fmtA(c.rwPaid) + ' paid' : ''}</i>` : ''}</div>`
                     + `<div class="pr-v"><b>${fmtA(c.mcapAlon || 0)} ALON</b><span>${usd}${usd && age ? ' · ' : ''}${age}</span></div>`
                     + `<div class="pr-bar"><i style="width:${Math.round((c.progress || 0) * 100)}%"></i></div></a>`;
             }).join('');

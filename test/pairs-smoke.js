@@ -49,6 +49,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return v > 1e5 && v < 1e9;
   })());
 
+  const rwNote = await page.$eval('#pairsRewards', e => e.textContent);
+  check('holder-rewards total is in the bar', /^[\d.]+[KM]? ALON to holders/.test(rwNote));
+  const rwRows = await page.$$eval('#pairsList .pr .pr-r', els => els.map(e => e.textContent));
+  check('holder-reward coins carry a rewards line (>= 20)', rwRows.length >= 20);
+  check('rewards line names the fee and the ALON', rwRows.every(t => /^([\d.]+% )?fee → holders · [\d.]+[KM]? ALON/.test(t)));
+  await page.click('.ps[data-k="rewards"]'); await sleep(300);
+  const rwFirst = await page.$eval('#pairsList .pr', e => !!e.querySelector('.pr-r'));
+  check('"rewards" sort puts a holder-reward coin first', rwFirst);
+  await page.click('.ps[data-k="mcap"]'); await sleep(300);
+
   // the baked file sorts by mcap; the live overlay may reorder, but the first row must not be zero
   const nonZero = rows.filter(r => !/^0 ALON$/.test(r.val)).length;
   check('live/baked prices give at least one non-zero mcap', nonZero > 0);

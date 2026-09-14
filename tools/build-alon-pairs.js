@@ -21,6 +21,7 @@
 // runners sometimes catch a Cloudflare wall).
 
 const fs = require('fs'), path = require('path');
+const { holderVault, holderRewardsPda } = require('./pda.js');
 
 const CA = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
 const PUMP = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
@@ -30,6 +31,7 @@ const QUOTE_OFF = 83;
 const KEY = process.env.HELIUS_KEY;
 const RPC = KEY ? `https://mainnet.helius-rpc.com/?api-key=${KEY}` : 'https://api.mainnet-beta.solana.com';
 const CONC = KEY ? 8 : 2;
+const RW_CAP = +(process.env.RW_CAP || (KEY ? 1500 : 100));   // payout-ledger txs walked per coin per run
 const OUT = path.join(__dirname, '..', 'alon-pairs.json');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -74,6 +76,11 @@ function decodeCurve(b64) {
   return {
     vTok: u(8), vQuote: u(16), rTok: u(24), rQuote: u(32), supply: u(40),
     complete: b[48] === 1,
+    // layout from the pump IDL: quote_mint @83, creator_fee_bps u64 @115, can_edit @123,
+    // is_holder_reward @124. bps 0 = the global default fee (vaults still fill). pump's own API reports is_holder_reward=false for EVERY custom
+    // pair while the chain says 74 of 102 — trust the byte, not the API.
+    feeBps: b.length > 123 ? u(115) : 0,
+    isHolderReward: b.length > 124 && b[124] === 1,
   };
 }
 
@@ -179,7 +186,56 @@ async function scan() {
         heldAlon = (r.value || []).reduce((t, x) => t + (x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
       } catch (e) { heldAlon = old.heldAlon || 0; console.warn('  pool balance ' + m.pool.slice(0, 8) + ': ' + e.message); }
     }
+    // HOLDER REWARDS. on a holder-reward coin the creator fee (feeBps, in ALON) is escrowed in
+    // a per-coin vault — creator_vault(PDA["holder-rewards", mint]) — swept by pump into the
+    // PDA's own token account, and paid to holders from there (distribute_fee_to_holders,
+    // 8 wallets per tx, several times an hour). sweeps and payouts both reference the
+    // holder-rewards PDA, so its signature list is the ledger: walked incrementally by cursor.
+    // accrued = still escrowed (both accounts) + already paid out.
+    let rw = null;
+    if (cv.isHolderReward) {
+      const vault = holderVault(mint), hrPda = holderRewardsPda(mint);
+      let pending = old.rwPending || 0, paid = old.rwPaid || 0, cursor = old.rwCursor || null, partial = false;
+      try {
+        // two escrow accounts: the vault (fees land here on every trade) and the rewards
+        // PDA's own token account (pump sweeps vault → pda with CollectCreatorFeeV2, then pays
+        // holders out of it, 8 per DistributeFeeToHolders). pending is both; a payout is ALON
+        // leaving the PAIR — a sweep between them nets to zero.
+        const balOf = async owner => ((await rpc('getTokenAccountsByOwner', [owner, { mint: CA }, { encoding: 'jsonParsed' }])).value || [])
+          .reduce((t, x) => t + (x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+        pending = await balOf(vault) + await balOf(hrPda);
+        // ⚠ once a coin is BONDED, every pumpswap trade also references the holder-rewards
+        // PDA (it's the pool's coin_creator_vault_authority), so an active bonded coin puts
+        // ~1000 sigs/hour here and each needs a getTransaction to tell payout from trade.
+        // page newest→oldest until the cursor, capped per run (public RPC would crawl for an
+        // hour otherwise); the cursor only advances over what was processed and the coin is
+        // flagged partial when the cap hit, so nothing is silently skipped — just deferred.
+        let sigs = [], before;
+        for (let pg = 0; pg < 20; pg++) {
+          const page = await rpc('getSignaturesForAddress', [hrPda, { limit: 1000, ...(cursor ? { until: cursor } : {}), ...(before ? { before } : {}) }]);
+          sigs.push(...page);
+          if (page.length < 1000) break;               // reached the cursor (or the coin's birth)
+          before = page[page.length - 1].signature;
+        }
+        // keep the OLDEST slice: everything newer stays above the new cursor, so the next run's
+        // `until` returns exactly the unprocessed remainder. (first run on a 20k+ tx coin loses
+        // history older than 20 pages — acceptable, those are the coin's earliest hours.)
+        if (sigs.length > RW_CAP) { partial = true; sigs = sigs.slice(sigs.length - RW_CAP); }
+        sigs.reverse();                                   // oldest first, so the cursor ends on the newest processed
+        if (sigs.length > 20) console.log(`  ${mint.slice(0, 8)} ${(m.symbol || '').slice(0, 8)}: walking ${sigs.length} txs on the rewards pda${partial ? ' (capped, partial)' : ''}`);
+        const bal = list => (list || []).filter(b => b.mint === CA && (b.owner === vault || b.owner === hrPda)).reduce((t, b) => t + (b.uiTokenAmount.uiAmount || 0), 0);
+        for (const sg of sigs) {
+          const tx = await rpc('getTransaction', [sg.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]);
+          if (!tx || !tx.meta || tx.meta.err) continue;
+          const out = bal(tx.meta.preTokenBalances) - bal(tx.meta.postTokenBalances);
+          if (out > 0) paid += out;
+        }
+        if (sigs.length) cursor = sigs[sigs.length - 1].signature;
+      } catch (e) { console.warn('  rewards ' + mint.slice(0, 8) + ': ' + e.message); }
+      rw = { rwVault: vault, rwPending: pending, rwPaid: paid, rwAccrued: pending + paid, rwCursor: cursor, rwPartial: partial };
+    }
     return {
+      feeBps: cv.feeBps, hr: cv.isHolderReward, ...(rw || {}),
       heldAlon,
       mint, curve, name: m.name, symbol: m.symbol, image: m.image, creator: m.creator || '',
       createdAt: m.createdAt || 0, twitter: m.twitter || '', telegram: m.telegram || '', website: m.website || '',
@@ -193,8 +249,10 @@ async function scan() {
 
   const list = coins.filter(Boolean).sort((a, b) => b.mcapAlon - a.mcapAlon);
   const heldAlon = list.reduce((t, c) => t + (c.heldAlon || 0), 0);
-  const out = { updatedAt: Math.floor(Date.now() / 1000), quote: CA, count: list.length, heldAlon, coins: list };
+  const sum = k => list.reduce((t, c) => t + (c[k] || 0), 0);
+  const rewards = { coins: list.filter(c => c.hr).length, accrued: sum('rwAccrued'), paid: sum('rwPaid'), pending: sum('rwPending') };
+  const out = { updatedAt: Math.floor(Date.now() / 1000), quote: CA, count: list.length, heldAlon, rewards, coins: list };
   fs.writeFileSync(OUT, JSON.stringify(out));
   const fresh = list.filter(c => !known.has(c.curve)).length;
-  console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated, ${Math.round(heldAlon).toLocaleString()} ALON held) → ${path.relative(process.cwd(), OUT)}`);
+  console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated, ${Math.round(heldAlon).toLocaleString()} ALON held; ${rewards.coins} holder-reward coins, ${Math.round(rewards.accrued).toLocaleString()} ALON accrued / ${Math.round(rewards.paid).toLocaleString()} paid) → ${path.relative(process.cwd(), OUT)}`);
 })().catch(e => { console.error(e); process.exit(1); });
