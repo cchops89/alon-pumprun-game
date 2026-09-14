@@ -169,7 +169,18 @@ async function scan() {
     // ratio needs no scaling. Once graduated the curve is frozen — the page reads the pool.
     const price = cv.vTok > 0 ? cv.vQuote / cv.vTok : 0;
     const supply = cv.supply / 1e6;
+    // real ALON backing the coin right now: the curve's real quote reserve while it's live;
+    // once bonded the curve is drained and the ALON lives in the pumpswap pool instead.
+    // NOT "locked" — every sell pulls some of it back out. it's what holders haven't sold.
+    let heldAlon = cv.complete ? 0 : cv.rQuote / 1e6;
+    if (cv.complete && m.pool) {
+      try {
+        const r = await rpc('getTokenAccountsByOwner', [m.pool, { mint: CA }, { encoding: 'jsonParsed' }]);
+        heldAlon = (r.value || []).reduce((t, x) => t + (x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
+      } catch (e) { heldAlon = old.heldAlon || 0; console.warn('  pool balance ' + m.pool.slice(0, 8) + ': ' + e.message); }
+    }
     return {
+      heldAlon,
       mint, curve, name: m.name, symbol: m.symbol, image: m.image, creator: m.creator || '',
       createdAt: m.createdAt || 0, twitter: m.twitter || '', telegram: m.telegram || '', website: m.website || '',
       pool: m.pool || '', src: m.src,
@@ -181,8 +192,9 @@ async function scan() {
   }, CONC);
 
   const list = coins.filter(Boolean).sort((a, b) => b.mcapAlon - a.mcapAlon);
-  const out = { updatedAt: Math.floor(Date.now() / 1000), quote: CA, count: list.length, coins: list };
+  const heldAlon = list.reduce((t, c) => t + (c.heldAlon || 0), 0);
+  const out = { updatedAt: Math.floor(Date.now() / 1000), quote: CA, count: list.length, heldAlon, coins: list };
   fs.writeFileSync(OUT, JSON.stringify(out));
   const fresh = list.filter(c => !known.has(c.curve)).length;
-  console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated) → ${path.relative(process.cwd(), OUT)}`);
+  console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated, ${Math.round(heldAlon).toLocaleString()} ALON held) → ${path.relative(process.cwd(), OUT)}`);
 })().catch(e => { console.error(e); process.exit(1); });

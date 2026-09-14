@@ -807,7 +807,7 @@
                     <b class="pairs-title">alon pairs</b><i class="dot"></i>
                     <span class="pairs-blurb">coins launched on pump.fun with <b>$ALON</b> as the pair</span>
                     <span class="pairs-cnt" id="pairsCnt">—</span>
-                    <span class="pairs-total" id="pairsTotal" title="combined market cap of every $ALON-paired coin, in ALON"></span>
+                    <span class="pairs-total" id="pairsTotal" title="real $ALON sitting inside these coins right now — bonding-curve reserves plus the pumpswap pools of the bonded ones. not locked: every sell pulls some back out"></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="pairs-wrap">
@@ -3283,8 +3283,11 @@
                                     : (a, b) => (b.mcapAlon || 0) - (a.mcapAlon || 0));
             cnt.textContent = arr.length + (arr.length === 1 ? ' coin' : ' coins');
             const px = (tok && tok.price) || 0, st = list.scrollTop;
-            const total = arr.reduce((t, c) => t + (c.mcapAlon || 0), 0);
-            tot.innerHTML = total ? `<b>${fmtA(total)} ALON</b> <i>total${px ? ' · ' + fmtMC(total * px) : ''}</i>` : '';
+            // the sum of mcaps is paper (100 coins × the 1.28M starting mcap nobody bought). what
+            // the pairs have actually soaked up is the ALON held in their curves and pools — baked
+            // per cron tick, so it lags trades by up to 30 min; the usd side is live.
+            const held = arr.reduce((t, c) => t + (c.heldAlon || 0), 0);
+            tot.innerHTML = held ? `<b>${fmtA(held)} ALON</b> <i>held${px ? ' · ' + fmtMC(held * px) : ''}</i>` : '';
             if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             list.innerHTML = arr.map(c => {
                 const usd = px && c.mcapAlon ? fmtMC(c.mcapAlon * px) : '';

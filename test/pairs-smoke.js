@@ -43,10 +43,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const count = await page.$eval('#pairsCnt', e => e.textContent);
   check('header count matches row count', parseInt(count, 10) === rows.length);
   const total = await page.$eval('#pairsTotal', e => e.textContent);
-  check('total ALON note is next to the count', /^[\d.]+[KM]? ALON total/.test(total));
-  check('total is at least the biggest row', (() => {
-    const num = t => { const m = t.match(/^([\d.]+)([KM]?) ALON/); return m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; };
-    return num(total) >= Math.max(...rows.map(r => num(r.val)));
+  check('held-ALON note is next to the count', /^[\d.]+[KM]? ALON held/.test(total));
+  check('held ALON is a real amount (> 100K, < supply)', (() => {
+    const m = total.match(/^([\d.]+)([KM]?) ALON/); const v = m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1;
+    return v > 1e5 && v < 1e9;
   })());
 
   // the baked file sorts by mcap; the live overlay may reorder, but the first row must not be zero
