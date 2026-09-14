@@ -610,6 +610,9 @@
         .pairs-cnt { padding:2px 9px; border-radius:999px; font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.3px;
                      white-space:nowrap; background:var(--green-x); color:var(--green); border:1px solid var(--green-d);
                      box-shadow:0 0 10px rgba(74,222,128,0.35), inset 0 0 6px rgba(74,222,128,0.15); text-shadow:0 0 6px rgba(74,222,128,0.6); }
+        .pairs-total { font-family:var(--mono); font-size:10.5px; color:var(--dim); white-space:nowrap; }
+        .pairs-total b { color:var(--txt); font-weight:700; } .pairs-total i { font-style:normal; color:var(--dimmer); }
+        @media (max-width:820px) { .pairs-total i { display:none; } }
         .pairs-wrap { overflow:hidden; max-height:0; transition:max-height .28s ease; }
         .pairs-panel.open .pairs-wrap { max-height:440px; overflow-y:auto; overscroll-behavior:contain; border-top:1px solid var(--line); }
         .pairs-panel.open .chev { transform:rotate(180deg); }
@@ -804,6 +807,7 @@
                     <b class="pairs-title">alon pairs</b><i class="dot"></i>
                     <span class="pairs-blurb">coins launched on pump.fun with <b>$ALON</b> as the pair</span>
                     <span class="pairs-cnt" id="pairsCnt">—</span>
+                    <span class="pairs-total" id="pairsTotal" title="combined market cap of every $ALON-paired coin, in ALON"></span>
                     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="pairs-wrap">
@@ -3263,7 +3267,7 @@
     // ALON, and the pair list for the quote token — which also catches launches the cron
     // hasn't baked yet (they show nameless-imageless for up to one cron tick).
     (function alonPairs() {
-        const list = document.getElementById('pairsList'), cnt = document.getElementById('pairsCnt');
+        const list = document.getElementById('pairsList'), cnt = document.getElementById('pairsCnt'), tot = document.getElementById('pairsTotal');
         if (!list) return;
         const DS = 'https://api.dexscreener.com';
         const coins = new Map();
@@ -3278,8 +3282,10 @@
             arr.sort(sort === 'new' ? (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
                                     : (a, b) => (b.mcapAlon || 0) - (a.mcapAlon || 0));
             cnt.textContent = arr.length + (arr.length === 1 ? ' coin' : ' coins');
-            if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             const px = (tok && tok.price) || 0, st = list.scrollTop;
+            const total = arr.reduce((t, c) => t + (c.mcapAlon || 0), 0);
+            tot.innerHTML = total ? `<b>${fmtA(total)} ALON</b> <i>total${px ? ' · ' + fmtMC(total * px) : ''}</i>` : '';
+            if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             list.innerHTML = arr.map(c => {
                 const usd = px && c.mcapAlon ? fmtMC(c.mcapAlon * px) : '';
                 const age = c.createdAt ? ago(c.createdAt) : '';

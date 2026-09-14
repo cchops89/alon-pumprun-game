@@ -29,7 +29,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('bar is thin (< 36px)', await page.$eval('.pairs-bar', e => e.getBoundingClientRect().height) < 36);
   check('collapsed by default', await page.$eval('.pairs-wrap', e => e.getBoundingClientRect().height) === 0);
   await page.click('#pairsToggle');
-  await sleep(500);
+  await sleep(1500);   // .28s css transition, but swiftshader paints slow
   check('click expands the list', await page.$eval('.pairs-wrap', e => e.getBoundingClientRect().height) > 200);
   const rows = await page.$$eval('#pairsList .pr', els => els.map(e => ({
     href: e.getAttribute('href'), sym: e.querySelector('.pr-n b').textContent, val: e.querySelector('.pr-v b').textContent,
@@ -42,6 +42,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('rows are not collapsed', rows.every(r => r.h > 30));
   const count = await page.$eval('#pairsCnt', e => e.textContent);
   check('header count matches row count', parseInt(count, 10) === rows.length);
+  const total = await page.$eval('#pairsTotal', e => e.textContent);
+  check('total ALON note is next to the count', /^[\d.]+[KM]? ALON total/.test(total));
+  check('total is at least the biggest row', (() => {
+    const num = t => { const m = t.match(/^([\d.]+)([KM]?) ALON/); return m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; };
+    return num(total) >= Math.max(...rows.map(r => num(r.val)));
+  })());
 
   // the baked file sorts by mcap; the live overlay may reorder, but the first row must not be zero
   const nonZero = rows.filter(r => !/^0 ALON$/.test(r.val)).length;

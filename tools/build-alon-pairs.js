@@ -34,12 +34,12 @@ const OUT = path.join(__dirname, '..', 'alon-pairs.json');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function rpc(method, params, tries = 4) {
+async function rpc(method, params, tries = 6) {
   for (let a = 1; a <= tries; a++) {
     try {
       const r = await fetch(RPC, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(60000) });
-      if (r.status === 429) { await sleep(a * 2000); continue; }
+      if (r.status === 429) { await sleep(a * 5000); continue; }
       const j = await r.json();
       if (j.error) throw new Error(method + ': ' + JSON.stringify(j.error));
       return j.result;
@@ -120,29 +120,24 @@ async function meta(mint) {
   return null;
 }
 
-// helius refuses plain getProgramAccounts on the pump program ("too many accounts", 10M+) even
-// with a memcmp that matches ~100 — it wants the paged V2. the public RPC still serves V1 fine
-// (~1s), so it is the fallback if V2 ever misbehaves.
+// discovery ALWAYS goes to the public RPC. helius refuses plain getProgramAccounts on the pump
+// program (10M+ accounts) even with a memcmp that matches ~100, and its paged V2 walks the
+// whole program in slices — one 10k-slice returned 0 matches and the cron committed an EMPTY
+// list (2026-09-14). the public RPC answers the V1 call with the filter in ~1s.
 async function scan() {
   const filters = [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }];
-  if (KEY) {
+  for (let a = 1; a <= 4; a++) {
     try {
-      const out = []; let paginationKey;
-      for (let pg = 0; pg < 50; pg++) {
-        const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', limit: 10000, filters, ...(paginationKey ? { paginationKey } : {}) }]);
-        out.push(...(r.accounts || []));
-        paginationKey = r.paginationKey;
-        if (!paginationKey || !(r.accounts || []).length) break;
-      }
-      return out;
-    } catch (e) { console.warn('  helius V2 scan failed, falling back to public rpc: ' + e.message); }
+      const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', filters }] }),
+        signal: AbortSignal.timeout(60000) });
+      if (r.status === 429) { await sleep(a * 3000); continue; }
+      const j = await r.json();
+      if (j.error) throw new Error(JSON.stringify(j.error));
+      return j.result;
+    } catch (e) { if (a === 4) throw new Error('public gPA: ' + e.message); await sleep(a * 2000); }
   }
-  const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', filters }] }),
-    signal: AbortSignal.timeout(60000) });
-  const j = await r.json();
-  if (j.error) throw new Error('public gPA: ' + JSON.stringify(j.error));
-  return j.result;
+  throw new Error('public gPA: rate-limited');
 }
 
 (async () => {
@@ -150,9 +145,12 @@ async function scan() {
   try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
   const known = new Map(prev.coins.map(c => [c.curve, c]));
 
-  console.log(`scanning pump program for quote_mint=${CA} via ${KEY ? 'helius' : 'public rpc'}`);
+  console.log(`scanning pump program for quote_mint=${CA} (public rpc; ${KEY ? 'helius' : 'public rpc'} for lookups)`);
   const accts = await scan();
   console.log(`${accts.length} curves on-chain, ${known.size} known`);
+  // curves are never deleted, so the set can only grow. a scan that comes back smaller than
+  // what we already know is a broken scan, not a smaller world — refuse to write it.
+  if (accts.length < known.size) throw new Error(`scan returned ${accts.length} < ${known.size} known — not writing`);
 
   let done = 0;
   const coins = await pmap(accts, async a => {
@@ -160,8 +158,12 @@ async function scan() {
     if (++done % 10 === 0) console.log(`  ${done}/${accts.length}`);
     const old = known.get(curve) || {};
     let mint = old.mint, m = old.name ? old : null;
-    if (!mint) { mint = await mintOf(curve); if (!mint) { console.warn('  no mint for ' + curve); return null; } }
-    if (!m || m.src === 'jup') { m = await meta(mint) || m; }
+    // a lookup that fails (public RPC 429s in bursts) must not sink the run: keep the coin's
+    // last-known record, or skip it this tick — it's retried next run because it stays unknown.
+    try {
+      if (!mint) { mint = await mintOf(curve); if (!mint) { console.warn('  no mint for ' + curve); return null; } }
+      if (!m || m.src === 'jup') { m = await meta(mint) || m; }
+    } catch (e) { console.warn('  ' + curve.slice(0, 8) + ': ' + e.message); if (!mint) return null; }
     if (!m) { console.warn('  no metadata for ' + mint); m = { name: '', symbol: '', image: '', createdAt: 0, src: 'none' }; }
     // price in ALON per token = quote reserves / token reserves; both 6-decimal, so the
     // ratio needs no scaling. Once graduated the curve is frozen — the page reads the pool.
