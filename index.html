@@ -613,7 +613,8 @@
         .pairs-total { font-family:var(--mono); font-size:10.5px; color:var(--dim); white-space:nowrap; }
         .pairs-total b { color:var(--txt); font-weight:700; } .pairs-total i { font-style:normal; color:var(--dimmer); }
         .pairs-total.rw b { color:var(--green); }
-        .pr-r { display:block; font-family:var(--mono); font-size:9.5px; color:var(--green-d); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        /* own row under name + value, full cell width — the amount is the point, don't clip it */
+        .pr-r { grid-column:1 / -1; margin-top:-2px; font-family:var(--mono); font-size:9.5px; line-height:1.35; color:var(--green-d); overflow-wrap:anywhere; }
         .pr-r b { color:var(--green); font-weight:700; }
         @media (max-width:820px) { .pairs-total i { display:none; } }
         .pairs-wrap { overflow:hidden; max-height:0; transition:max-height .28s ease; }
@@ -3308,8 +3309,9 @@
                                     : `<i class="pr-ph">${esc((c.symbol || '?')[0])}</i>`;
                 return `<a class="pr${c.complete ? ' grad' : ''}" href="https://pump.fun/coin/${esc(c.mint)}" target="_blank" rel="noopener" title="${esc(c.name)} · ${esc(c.mint)}">`
                     + pic
-                    + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span>${c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}to holders · <b>${fmtA(c.rwAccrued || 0)} ALON</b>${c.rwPaid ? ' · paid ' + fmtA(c.rwPaid) : ''}</i>` : ''}</div>`
+                    + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span></div>`
                     + `<div class="pr-v"><b>${fmtA(c.mcapAlon || 0)} ALON</b><span>${usd}${usd && age ? ' · ' : ''}${age}</span></div>`
+                    + (c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}to holders · <b>${fmtA(c.rwAccrued || 0)} ALON</b>${c.rwPaid ? ' · paid ' + fmtA(c.rwPaid) : ''}</i>` : '')
                     + `<div class="pr-bar"><i style="width:${Math.round((c.progress || 0) * 100)}%"></i></div></a>`;
             }).join('');
             list.scrollTop = st;

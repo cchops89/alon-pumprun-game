@@ -41,9 +41,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('mcap column reads in ALON', rows.every(r => /ALON$/.test(r.val)));
   check('rows are not collapsed', rows.every(r => r.h > 30));
   check('at most 3 columns', await page.$eval('#pairsList', e => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 3);
-  check('rewards line stays on one line and inside its cell', await page.$$eval('#pairsList .pr', els => els.filter(e => e.querySelector('.pr-r')).every(e => {
-    const r = e.querySelector('.pr-r').getBoundingClientRect(), v = e.querySelector('.pr-v').getBoundingClientRect();
-    return r.height < 16 && r.right <= v.left + 1;
+  check('rewards line sits under name + value, at most two lines', await page.$$eval('#pairsList .pr', els => els.filter(e => e.querySelector('.pr-r')).every(e => {
+    const r = e.querySelector('.pr-r').getBoundingClientRect(), v = e.querySelector('.pr-v').getBoundingClientRect(), n = e.querySelector('.pr-n').getBoundingClientRect();
+    return r.height < 30 && r.top >= v.bottom - 1 && r.top >= n.bottom - 1 && r.width > 150;
   })));
   const count = await page.$eval('#pairsCnt', e => e.textContent);
   check('header count matches row count', parseInt(count, 10) === rows.length);
@@ -59,6 +59,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const rwRows = await page.$$eval('#pairsList .pr .pr-r', els => els.map(e => e.textContent));
   check('holder-reward coins carry a rewards line (>= 20)', rwRows.length >= 20);
   check('rewards line names the fee and the ALON', rwRows.every(t => /^([\d.]+% )?to holders · [\d.]+[KM]? ALON/.test(t)));
+  check('rewards amount is not clipped', await page.$$eval('#pairsList .pr-r', els => els.every(e => e.scrollWidth <= e.clientWidth + 1)));
   await page.click('.ps[data-k="rewards"]'); await sleep(300);
   const rwFirst = await page.$eval('#pairsList .pr', e => !!e.querySelector('.pr-r'));
   check('"rewards" sort puts a holder-reward coin first', rwFirst);
