@@ -120,15 +120,38 @@ async function meta(mint) {
   return null;
 }
 
+// helius refuses plain getProgramAccounts on the pump program ("too many accounts", 10M+) even
+// with a memcmp that matches ~100 — it wants the paged V2. the public RPC still serves V1 fine
+// (~1s), so it is the fallback if V2 ever misbehaves.
+async function scan() {
+  const filters = [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }];
+  if (KEY) {
+    try {
+      const out = []; let paginationKey;
+      for (let pg = 0; pg < 50; pg++) {
+        const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', limit: 10000, filters, ...(paginationKey ? { paginationKey } : {}) }]);
+        out.push(...(r.accounts || []));
+        paginationKey = r.paginationKey;
+        if (!paginationKey || !(r.accounts || []).length) break;
+      }
+      return out;
+    } catch (e) { console.warn('  helius V2 scan failed, falling back to public rpc: ' + e.message); }
+  }
+  const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', filters }] }),
+    signal: AbortSignal.timeout(60000) });
+  const j = await r.json();
+  if (j.error) throw new Error('public gPA: ' + JSON.stringify(j.error));
+  return j.result;
+}
+
 (async () => {
   let prev = { coins: [] };
   try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
   const known = new Map(prev.coins.map(c => [c.curve, c]));
 
   console.log(`scanning pump program for quote_mint=${CA} via ${KEY ? 'helius' : 'public rpc'}`);
-  const accts = await rpc('getProgramAccounts', [PUMP, {
-    encoding: 'base64', filters: [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }],
-  }]);
+  const accts = await scan();
   console.log(`${accts.length} curves on-chain, ${known.size} known`);
 
   let done = 0;
