@@ -1,0 +1,43 @@
+name: alon pairs scan
+
+# every pump.fun coin launched with $ALON as its quote asset → alon-pairs.json.
+# discovery is on-chain (see tools/build-alon-pairs.js); the page overlays live prices itself,
+# so this cadence only bounds how long a brand-new launch shows without its name and image.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alon-pairs
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: scan
+        env:
+          HELIUS_KEY: ${{ secrets.HELIUS_KEY }}
+        run: node tools/build-alon-pairs.js
+
+      - name: commit
+        run: |
+          git config user.name  "alon-pairs"
+          git config user.email "actions@github.com"
+          git add alon-pairs.json
+          git diff --cached --quiet && echo "nothing changed" && exit 0
+          git commit -m "alon pairs $(date -u +%Y-%m-%dT%H:%M)"
+          git pull --rebase
+          git push
