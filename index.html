@@ -611,6 +611,8 @@
                      white-space:nowrap; background:var(--green-x); color:var(--green); border:1px solid var(--green-d);
                      box-shadow:0 0 10px rgba(74,222,128,0.35), inset 0 0 6px rgba(74,222,128,0.15); text-shadow:0 0 6px rgba(74,222,128,0.6); }
         .pairs-total { font-family:var(--mono); font-size:10.5px; color:var(--dim); white-space:nowrap; }
+        /* | between separate pieces of information; · only within a piece */
+        .pairs-total:not(:empty)::before { content:'|'; margin-right:8px; color:var(--line2); font-weight:400; }
         .pairs-total b { color:var(--txt); font-weight:700; } .pairs-total i { font-style:normal; color:var(--dimmer); }
         .pairs-total.rw b { color:var(--green); }
         /* own row under name + value, full cell width — the amount is the point, don't clip it */
@@ -3298,7 +3300,7 @@
             tot.innerHTML = held ? `<b>${fmtA(held)} ALON</b> <i>held${px ? ' · ' + fmtMC(held * px) : ''}</i>` : '';
             // holder rewards: fee escrowed for holders across every holder-reward coin (paid + pending)
             const rw = arr.reduce((t, c) => t + (c.rwAccrued || 0), 0), rwN = arr.filter(c => c.hr).length;
-            rwEl.innerHTML = rwN ? `<b>${fmtA(rw)} ALON</b> <i>to holders${px ? ' · ' + fmtMC(rw * px) : ''} · ${rwN} coins</i>` : '';
+            rwEl.innerHTML = rwN ? `<b>${fmtA(rw)} ALON</b> <i>to holders${px ? ' · ' + fmtMC(rw * px) : ''} · ${rwN} of ${arr.length} coins</i>` : '';
             if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             list.innerHTML = arr.map(c => {
                 const usd = px && c.mcapAlon ? fmtMC(c.mcapAlon * px) : '';
