@@ -2189,7 +2189,21 @@
             const W = box.clientWidth || pic.width;
             const S = pic.width / W;               // 1 on a plain display, 2 on retina
             const CH = pic.height / S;
-            const HEAD = 102, FOOT = 34, H = HEAD + CH + FOOT;
+            // the alon-pairs line rides along ONLY in the image (image-only by request — the
+            // page has its own bar for it), on a second footer row: the first row is full.
+            const pairsLine = (() => {
+                const pp = window.__pairs && window.__pairs.coins;
+                if (!pp || !pp.size) return '';
+                const arr = [...pp.values()];
+                const held = arr.reduce((t, x) => t + (x.heldAlon || 0), 0);
+                const rw = arr.reduce((t, x) => t + (x.rwAccrued || 0), 0), rwN = arr.filter(x => x.hr).length;
+                const fa = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toString();
+                const px = (tok && tok.price) || 0;
+                return [arr.length + ' alon pairs',
+                        held ? fa(held) + ' ALON held' + (px ? ' (' + fmtMC(held * px) + ')' : '') : '',
+                        rw ? fa(rw) + ' ALON to holders' + (px ? ' (' + fmtMC(rw * px) + ')' : '') + ' on ' + rwN : ''].filter(Boolean).join('  ·  ');
+            })();
+            const HEAD = 102, FOOT = pairsLine ? 52 : 34, H = HEAD + CH + FOOT;
 
             const out = document.createElement('canvas');
             out.width = Math.round(W * S); out.height = Math.round(H * S);
@@ -2313,6 +2327,13 @@
             c.textAlign = 'right';
             c.fillText('charts by TradingView  ·  ' + when, W - 16, base);
             c.textAlign = 'left';
+            if (pairsLine) {
+                c.font = '700 10.5px ' + MONO; c.fillStyle = '#4ade80';
+                c.fillText('pairs', 16, base + 18);
+                const pw = c.measureText('pairs').width;
+                c.font = '10.5px ' + MONO; c.fillStyle = '#7d8b83';
+                c.fillText('  ·  ' + pairsLine, 16 + pw, base + 18);
+            }
 
             return out;
         }
