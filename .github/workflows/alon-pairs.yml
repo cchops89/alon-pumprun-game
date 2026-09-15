@@ -6,7 +6,7 @@ name: alon pairs scan
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '7,37 * * * *'   # off the :00/:30 rush — github delays scheduled runs by hours there
   workflow_dispatch:
 
 permissions:

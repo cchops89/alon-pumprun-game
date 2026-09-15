@@ -127,24 +127,44 @@ async function meta(mint) {
   return null;
 }
 
-// discovery ALWAYS goes to the public RPC. helius refuses plain getProgramAccounts on the pump
-// program (10M+ accounts) even with a memcmp that matches ~100, and its paged V2 walks the
-// whole program in slices — one 10k-slice returned 0 matches and the cron committed an EMPTY
-// list (2026-09-14). the public RPC answers the V1 call with the filter in ~1s.
-async function scan() {
+// DISCOVERY. two paths:
+//  - helius (cron): getProgramAccountsV2 with changedSinceSlot — only curves whose account
+//    changed since the last run's slot (new launches + anything traded). incremental, small.
+//    plain V1 gPA is refused by helius on the pump program (10M+ accounts) and an unbounded
+//    V2 walk pages the whole program in 10k slices — that path once returned 0 and the cron
+//    committed an EMPTY list (2026-09-14). never again: incremental means "merge", not "replace".
+//  - public RPC (local, no key): the full V1 scan with the memcmp. ⚠ 2026-09-15 the public RPC
+//    started answering 503 to EVERY getProgramAccounts (even on a tiny program) while getSlot
+//    still works — it may be gone for good. local runs then fail loudly; the cron is the truth.
+async function scan(prev) {
   const filters = [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }];
+  if (KEY) {
+    const cur = await rpc('getSlot', []);
+    // overlap the last scan by ~5k slots (~35 min) so a slow commit can't open a gap. first
+    // run with no slot on file: 100k back (~11h) — the cached list already holds the rest.
+    const since = Math.max(1, (prev.scanSlot || cur - 100000) - 5000);
+    const out = []; let paginationKey, pages = 0;
+    for (; pages < 1200; pages++) {
+      const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', limit: 10000, filters, changedSinceSlot: since, ...(paginationKey ? { paginationKey } : {}) }]);
+      out.push(...(r.accounts || []));
+      paginationKey = r.paginationKey;
+      if (!paginationKey) break;
+    }
+    console.log(`  helius V2: ${out.length} curves changed since slot ${since} (${pages + 1} page${pages ? 's' : ''}, now ${cur})`);
+    return { accts: out, slot: cur, incremental: true };
+  }
   for (let a = 1; a <= 4; a++) {
     try {
       const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', filters }] }),
         signal: AbortSignal.timeout(60000) });
-      if (r.status === 429) { await sleep(a * 3000); continue; }
+      if (r.status === 429 || r.status === 503) { await sleep(a * 5000); continue; }
       const j = await r.json();
       if (j.error) throw new Error(JSON.stringify(j.error));
-      return j.result;
+      return { accts: j.result, slot: null, incremental: false };
     } catch (e) { if (a === 4) throw new Error('public gPA: ' + e.message); await sleep(a * 2000); }
   }
-  throw new Error('public gPA: rate-limited');
+  throw new Error('public gPA: 503/429 on every try — the public RPC is refusing getProgramAccounts');
 }
 
 (async () => {
@@ -152,16 +172,25 @@ async function scan() {
   try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
   const known = new Map(prev.coins.map(c => [c.curve, c]));
 
-  console.log(`scanning pump program for quote_mint=${CA} (public rpc; ${KEY ? 'helius' : 'public rpc'} for lookups)`);
-  const accts = await scan();
-  console.log(`${accts.length} curves on-chain, ${known.size} known`);
-  // curves are never deleted, so the set can only grow. a scan that comes back smaller than
-  // what we already know is a broken scan, not a smaller world — refuse to write it.
-  if (accts.length < known.size) throw new Error(`scan returned ${accts.length} < ${known.size} known — not writing`);
+  console.log(`scanning pump program for quote_mint=${CA} via ${KEY ? 'helius (incremental)' : 'public rpc (full)'}`);
+  const { accts: changed, slot, incremental } = await scan(prev);
+  // curves are never deleted, so the set can only grow. a FULL scan that comes back smaller
+  // than what we already know is a broken scan, not a smaller world — refuse to write it.
+  if (!incremental && changed.length < known.size) throw new Error(`scan returned ${changed.length} < ${known.size} known — not writing`);
+  // incremental: known curves that didn't change keep their curve-derived numbers (reserves
+  // didn't move, by definition) but still get their rewards + pool balances refreshed below,
+  // because sweeps, payouts and pumpswap trades don't touch the curve account.
+  const seen = new Set(changed.map(a => a.pubkey));
+  const accts = incremental ? [...changed, ...[...known.values()].filter(c => !seen.has(c.curve)).map(c => ({ pubkey: c.curve, account: null }))] : changed;
+  console.log(`${changed.length} curves ${incremental ? 'changed' : 'on-chain'}, ${known.size} known, ${accts.length} total`);
 
   let done = 0;
   const coins = await pmap(accts, async a => {
-    const curve = a.pubkey, cv = decodeCurve(a.account.data[0]);
+    const curve = a.pubkey, old0 = known.get(curve) || {};
+    const cv = a.account ? decodeCurve(a.account.data[0]) : {
+      vTok: 0, vQuote: 0, rTok: 0, rQuote: (old0.heldAlon || 0) * 1e6, supply: (old0.supply || 1e9) * 1e6,
+      complete: !!old0.complete, feeBps: old0.feeBps || 0, isHolderReward: !!old0.hr, _carry: true,
+    };
     if (++done % 10 === 0) console.log(`  ${done}/${accts.length}`);
     const old = known.get(curve) || {};
     let mint = old.mint, m = old.name ? old : null;
@@ -176,6 +205,8 @@ async function scan() {
     // ratio needs no scaling. Once graduated the curve is frozen — the page reads the pool.
     const price = cv.vTok > 0 ? cv.vQuote / cv.vTok : 0;
     const supply = cv.supply / 1e6;
+    const mcapAlon = cv._carry ? (old.mcapAlon || 0) : price * supply;
+    const progress = cv._carry ? (old.progress || 0) : cv.complete ? 1 : Math.max(0, Math.min(1, 1 - cv.rTok / (0.793e9 * 1e6)));
     // real ALON backing the coin right now: the curve's real quote reserve while it's live;
     // once bonded the curve is drained and the ALON lives in the pumpswap pool instead.
     // NOT "locked" — every sell pulls some of it back out. it's what holders haven't sold.
@@ -240,10 +271,10 @@ async function scan() {
       mint, curve, name: m.name, symbol: m.symbol, image: m.image, creator: m.creator || '',
       createdAt: m.createdAt || 0, twitter: m.twitter || '', telegram: m.telegram || '', website: m.website || '',
       pool: m.pool || '', src: m.src,
-      complete: cv.complete, supply, mcapAlon: price * supply,
+      complete: cv.complete, supply, mcapAlon,
       // progress toward graduation: real quote raised over the curve's cap (bonding curve holds
       // ~79% of supply at launch and graduates when real tokens run out)
-      progress: cv.complete ? 1 : Math.max(0, Math.min(1, 1 - cv.rTok / (0.793e9 * 1e6))),
+      progress,
     };
   }, CONC);
 
@@ -251,7 +282,7 @@ async function scan() {
   const heldAlon = list.reduce((t, c) => t + (c.heldAlon || 0), 0);
   const sum = k => list.reduce((t, c) => t + (c[k] || 0), 0);
   const rewards = { coins: list.filter(c => c.hr).length, accrued: sum('rwAccrued'), paid: sum('rwPaid'), pending: sum('rwPending') };
-  const out = { updatedAt: Math.floor(Date.now() / 1000), quote: CA, count: list.length, heldAlon, rewards, coins: list };
+  const out = { updatedAt: Math.floor(Date.now() / 1000), scanSlot: slot || prev.scanSlot || null, quote: CA, count: list.length, heldAlon, rewards, coins: list };
   fs.writeFileSync(OUT, JSON.stringify(out));
   const fresh = list.filter(c => !known.has(c.curve)).length;
   console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated, ${Math.round(heldAlon).toLocaleString()} ALON held; ${rewards.coins} holder-reward coins, ${Math.round(rewards.accrued).toLocaleString()} ALON accrued / ${Math.round(rewards.paid).toLocaleString()} paid) → ${path.relative(process.cwd(), OUT)}`);
