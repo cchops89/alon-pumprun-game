@@ -21,7 +21,7 @@
 // runners sometimes catch a Cloudflare wall).
 
 const fs = require('fs'), path = require('path');
-const { holderVault, holderRewardsPda } = require('./pda.js');
+const { holderVault, holderRewardsPda, bondingCurve, ata } = require('./pda.js');
 
 const CA = '8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS';
 const PUMP = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
@@ -32,6 +32,7 @@ const KEY = process.env.HELIUS_KEY;
 const RPC = KEY ? `https://mainnet.helius-rpc.com/?api-key=${KEY}` : 'https://api.mainnet-beta.solana.com';
 const CONC = KEY ? 8 : 2;
 const RW_CAP = +(process.env.RW_CAP || (KEY ? 1500 : 100));   // payout-ledger txs walked per coin per run
+const WALK_SLOTS = +(process.env.WALK_SLOTS || 108000);         // full helius walk at most every ~12h (≈9k slots/h) — it's ~1,500 credits
 const OUT = path.join(__dirname, '..', 'alon-pairs.json');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -127,86 +128,132 @@ async function meta(mint) {
   return null;
 }
 
-// DISCOVERY. two paths:
-//  - helius (cron): getProgramAccountsV2 with changedSinceSlot — only curves whose account
-//    changed since the last run's slot (new launches + anything traded). incremental, small.
-//    plain V1 gPA is refused by helius on the pump program (10M+ accounts) and an unbounded
-//    V2 walk pages the whole program in 10k slices — that path once returned 0 and the cron
-//    committed an EMPTY list (2026-09-14). never again: incremental means "merge", not "replace".
-//  - public RPC (local, no key): the full V1 scan with the memcmp. ⚠ 2026-09-15 the public RPC
-//    started answering 503 to EVERY getProgramAccounts (even on a tiny program) while getSlot
-//    still works — it may be gone for good. local runs then fail loudly; the cron is the truth.
-async function scan(prev) {
-  const filters = [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }];
-  if (KEY) {
-    const cur = await rpc('getSlot', []);
-    // overlap the last scan by ~5k slots (~35 min) so a slow commit can't open a gap. first
-    // run with no slot on file: 100k back (~11h) — the cached list already holds the rest.
-    const since = Math.max(1, (prev.scanSlot || cur - 100000) - 5000);
-    const out = []; let paginationKey, pages = 0;
-    for (; pages < 1200; pages++) {
-      const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', limit: 10000, filters, changedSinceSlot: since, ...(paginationKey ? { paginationKey } : {}) }]);
-      out.push(...(r.accounts || []));
-      paginationKey = r.paginationKey;
-      if (!paginationKey) break;
-    }
-    console.log(`  helius V2: ${out.length} curves changed since slot ${since} (${pages + 1} page${pages ? 's' : ''}, now ${cur})`);
-    return { accts: out, slot: cur, incremental: true };
+// DISCOVERY — built around what is cheap. helius bills 1 credit per call, and the only
+// exhaustive query (getProgramAccountsV2 on the pump program) is ~1,200 calls because it
+// slices the whole 10M-account program regardless of the memcmp — changedSinceSlot does NOT
+// prune (2026-09-15: 1,201 pages to find 13 changes). so:
+//   every run   : known curves ∪ mints dexscreener lists for the ALON quote (free, catches the
+//                 active new launches) → ONE getMultipleAccounts per 100 curves refreshes every
+//                 reserve. ~3 credits.
+//   every ~12h  : the full V2 walk, to catch launches dexscreener never surfaced. ~1,500 credits.
+//   no key      : the public RPC's V1 gPA (full) — which began 503ing every gPA on 2026-09-15.
+//                 if it fails the run continues on known ∪ dexscreener.
+// and it is always MERGE, never replace: an unbounded V2 walk once returned 0 and the cron
+// committed an EMPTY list (2026-09-14).
+async function walkV2() {
+  const out = []; let paginationKey, pages = 0;
+  for (; pages < 1500; pages++) {
+    const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', dataSlice: { offset: 0, length: 0 }, limit: 10000,
+      filters: [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }], ...(paginationKey ? { paginationKey } : {}) }]);
+    const acc = r.accounts || [];
+    out.push(...acc.map(x => x.pubkey));
+    paginationKey = r.paginationKey;
+    // with a memcmp a slice is often legitimately empty, so "no accounts" is NOT the end —
+    // only a null key is. observed: the key never nulled in 1,200 pages, so the cap is the
+    // real bound and the walk costs ~1,500 credits. hence WALK_SLOTS keeps it to twice a day.
+    if (!paginationKey) break;
   }
-  for (let a = 1; a <= 4; a++) {
+  console.log(`  helius V2 walk: ${out.length} curves in ${pages + 1} pages${paginationKey ? ' (cap hit, key still live)' : ' (key nulled)'}`);
+  return out;
+}
+async function publicV1() {
+  for (let a = 1; a <= 3; a++) {
     try {
       const r = await fetch('https://api.mainnet-beta.solana.com', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', filters }] }),
-        signal: AbortSignal.timeout(60000) });
-      if (r.status === 429 || r.status === 503) { await sleep(a * 5000); continue; }
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getProgramAccounts', params: [PUMP, { encoding: 'base64', dataSlice: { offset: 0, length: 0 },
+          filters: [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }] }] }), signal: AbortSignal.timeout(60000) });
+      if (r.status === 429 || r.status === 503) { await sleep(a * 4000); continue; }
       const j = await r.json();
       if (j.error) throw new Error(JSON.stringify(j.error));
-      return { accts: j.result, slot: null, incremental: false };
-    } catch (e) { if (a === 4) throw new Error('public gPA: ' + e.message); await sleep(a * 2000); }
+      return j.result.map(x => x.pubkey);
+    } catch (e) { if (a === 3) { console.warn('  public gPA failed: ' + e.message); return null; } await sleep(a * 2000); }
   }
-  throw new Error('public gPA: 503/429 on every try — the public RPC is refusing getProgramAccounts');
+  console.warn('  public gPA: 503/429 on every try (the public RPC has been refusing getProgramAccounts since 2026-09-15)');
+  return null;
+}
+async function dexscreenerMints() {
+  const j = await getJson(`https://api.dexscreener.com/token-pairs/v1/solana/${CA}`);
+  return (Array.isArray(j) ? j : []).filter(p => p.quoteToken && p.quoteToken.address === CA && /^pump/.test(p.dexId || '') && p.baseToken)
+    .map(p => p.baseToken.address);
+}
+async function accountsOf(pubkeys) {
+  const out = new Map();
+  for (let i = 0; i < pubkeys.length; i += 100) {
+    const r = await rpc('getMultipleAccounts', [pubkeys.slice(i, i + 100), { encoding: 'base64' }]);
+    (r.value || []).forEach((v, k) => { if (v) out.set(pubkeys[i + k], v); });
+  }
+  return out;
+}
+async function tokenBalances(atas) {          // parsed ui amounts for a list of token accounts, 100 per credit
+  const out = new Map();
+  for (let i = 0; i < atas.length; i += 100) {
+    const r = await rpc('getMultipleAccounts', [atas.slice(i, i + 100), { encoding: 'jsonParsed' }]);
+    (r.value || []).forEach((v, k) => {
+      const info = v && v.data && v.data.parsed && v.data.parsed.info;
+      out.set(atas[i + k], info && info.tokenAmount ? (info.tokenAmount.uiAmount || 0) : 0);
+    });
+  }
+  return out;
 }
 
 (async () => {
   let prev = { coins: [] };
   try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
   const known = new Map(prev.coins.map(c => [c.curve, c]));
+  const mintByCurve = new Map(prev.coins.map(c => [c.curve, c.mint]));
 
-  console.log(`scanning pump program for quote_mint=${CA} via ${KEY ? 'helius (incremental)' : 'public rpc (full)'}`);
-  const { accts: changed, slot, incremental } = await scan(prev);
-  // curves are never deleted, so the set can only grow. a FULL scan that comes back smaller
-  // than what we already know is a broken scan, not a smaller world — refuse to write it.
-  if (!incremental && changed.length < known.size) throw new Error(`scan returned ${changed.length} < ${known.size} known — not writing`);
-  // incremental: known curves that didn't change keep their curve-derived numbers (reserves
-  // didn't move, by definition) but still get their rewards + pool balances refreshed below,
-  // because sweeps, payouts and pumpswap trades don't touch the curve account.
-  const seen = new Set(changed.map(a => a.pubkey));
-  const accts = incremental ? [...changed, ...[...known.values()].filter(c => !seen.has(c.curve)).map(c => ({ pubkey: c.curve, account: null }))] : changed;
-  console.log(`${changed.length} curves ${incremental ? 'changed' : 'on-chain'}, ${known.size} known, ${accts.length} total`);
+  // ---- discovery ----
+  const curves = new Set(known.keys());
+  let slot = prev.scanSlot || null, walked = null;
+  const ds = await dexscreenerMints();
+  for (const m of ds) { const c = bondingCurve(m); mintByCurve.set(c, m); curves.add(c); }
+  if (KEY) {
+    const cur = await rpc('getSlot', []);
+    if (!prev.scanSlot || cur - prev.scanSlot > WALK_SLOTS) {
+      console.log(`full helius walk (last at slot ${prev.scanSlot || 'never'}, now ${cur})`);
+      try { walked = await walkV2(); slot = cur; }
+      catch (e) { console.warn('  full walk failed, continuing on known ∪ dexscreener: ' + e.message); }
+    } else console.log(`no full walk this run (last ${cur - prev.scanSlot} slots ago, walk every ${WALK_SLOTS})`);
+  } else {
+    console.log('no HELIUS_KEY — trying the public RPC full scan');
+    walked = await publicV1();
+  }
+  if (walked) {
+    // curves are never deleted, so a full scan smaller than what we know is a broken scan
+    if (walked.length < known.size) throw new Error(`full scan returned ${walked.length} < ${known.size} known — not writing`);
+    walked.forEach(c => curves.add(c));
+  }
+  const all = [...curves];
+  const acctMap = await accountsOf(all);
+  console.log(`${all.length} curves (${known.size} known, ${ds.length} via dexscreener${walked ? ', ' + walked.length + ' via full scan' : ''}), ${acctMap.size} accounts read`);
+  if (acctMap.size < known.size * 0.9) throw new Error(`only ${acctMap.size} of ${all.length} curve accounts came back — not writing`);
+
+  // ---- rewards escrow balances in bulk: vault ATA + rewards-pda ATA for every known holder-reward coin ----
+  const escrow = new Map();       // curve → { vault, hrPda, vAta, pAta }
+  for (const c of all) {
+    const mint = mintByCurve.get(c); if (!mint) continue;
+    const acc = acctMap.get(c); if (!acc) continue;
+    const cv = decodeCurve(acc.data[0]); if (!cv.isHolderReward) continue;
+    const vault = holderVault(mint), hrPda = holderRewardsPda(mint);
+    escrow.set(c, { vault, hrPda, vAta: ata(vault, CA), pAta: ata(hrPda, CA) });
+  }
+  const balances = await tokenBalances([...escrow.values()].flatMap(e => [e.vAta, e.pAta]));
 
   let done = 0;
-  const coins = await pmap(accts, async a => {
-    const curve = a.pubkey, old0 = known.get(curve) || {};
-    const cv = a.account ? decodeCurve(a.account.data[0]) : {
-      vTok: 0, vQuote: 0, rTok: 0, rQuote: (old0.heldAlon || 0) * 1e6, supply: (old0.supply || 1e9) * 1e6,
-      complete: !!old0.complete, feeBps: old0.feeBps || 0, isHolderReward: !!old0.hr, _carry: true,
-    };
-    if (++done % 10 === 0) console.log(`  ${done}/${accts.length}`);
+  const coins = await pmap(all.filter(c => acctMap.has(c)), async curve => {
+    const cv = decodeCurve(acctMap.get(curve).data[0]);
+    if (++done % 25 === 0) console.log(`  ${done}/${all.length}`);
     const old = known.get(curve) || {};
-    let mint = old.mint, m = old.name ? old : null;
-    // a lookup that fails (public RPC 429s in bursts) must not sink the run: keep the coin's
-    // last-known record, or skip it this tick — it's retried next run because it stays unknown.
+    let mint = mintByCurve.get(curve), m = old.name ? old : null;
+    // a lookup that fails must not sink the run: keep the coin's last-known record, or skip it
+    // this tick — it's retried next run because it stays unknown.
     try {
       if (!mint) { mint = await mintOf(curve); if (!mint) { console.warn('  no mint for ' + curve); return null; } }
       if (!m || m.src === 'jup') { m = await meta(mint) || m; }
     } catch (e) { console.warn('  ' + curve.slice(0, 8) + ': ' + e.message); if (!mint) return null; }
     if (!m) { console.warn('  no metadata for ' + mint); m = { name: '', symbol: '', image: '', createdAt: 0, src: 'none' }; }
-    // price in ALON per token = quote reserves / token reserves; both 6-decimal, so the
-    // ratio needs no scaling. Once graduated the curve is frozen — the page reads the pool.
     const price = cv.vTok > 0 ? cv.vQuote / cv.vTok : 0;
     const supply = cv.supply / 1e6;
-    const mcapAlon = cv._carry ? (old.mcapAlon || 0) : price * supply;
-    const progress = cv._carry ? (old.progress || 0) : cv.complete ? 1 : Math.max(0, Math.min(1, 1 - cv.rTok / (0.793e9 * 1e6)));
     // real ALON backing the coin right now: the curve's real quote reserve while it's live;
     // once bonded the curve is drained and the ALON lives in the pumpswap pool instead.
     // NOT "locked" — every sell pulls some of it back out. it's what holders haven't sold.
@@ -217,53 +264,46 @@ async function scan(prev) {
         heldAlon = (r.value || []).reduce((t, x) => t + (x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
       } catch (e) { heldAlon = old.heldAlon || 0; console.warn('  pool balance ' + m.pool.slice(0, 8) + ': ' + e.message); }
     }
-    // HOLDER REWARDS. on a holder-reward coin the creator fee (feeBps, in ALON) is escrowed in
-    // a per-coin vault — creator_vault(PDA["holder-rewards", mint]) — swept by pump into the
-    // PDA's own token account, and paid to holders from there (distribute_fee_to_holders,
-    // 8 wallets per tx, several times an hour). sweeps and payouts both reference the
-    // holder-rewards PDA, so its signature list is the ledger: walked incrementally by cursor.
-    // accrued = still escrowed (both accounts) + already paid out.
+    // HOLDER REWARDS. the creator fee (feeBps, in ALON) is escrowed in a per-coin vault —
+    // creator_vault(PDA["holder-rewards", mint]) — swept by pump into the PDA's own token
+    // account, and paid to holders from there (distribute_fee_to_holders, 8 wallets per tx).
+    // sweeps and payouts both reference the holder-rewards PDA, so its signature list is the
+    // ledger, walked incrementally by cursor — but only when an escrow balance moved since
+    // the last run: unchanged balances mean no trade, no sweep, no payout, so no credits spent.
     let rw = null;
-    if (cv.isHolderReward) {
-      const vault = holderVault(mint), hrPda = holderRewardsPda(mint);
-      let pending = old.rwPending || 0, paid = old.rwPaid || 0, cursor = old.rwCursor || null, partial = false;
-      try {
-        // two escrow accounts: the vault (fees land here on every trade) and the rewards
-        // PDA's own token account (pump sweeps vault → pda with CollectCreatorFeeV2, then pays
-        // holders out of it, 8 per DistributeFeeToHolders). pending is both; a payout is ALON
-        // leaving the PAIR — a sweep between them nets to zero.
-        const balOf = async owner => ((await rpc('getTokenAccountsByOwner', [owner, { mint: CA }, { encoding: 'jsonParsed' }])).value || [])
-          .reduce((t, x) => t + (x.account.data.parsed.info.tokenAmount.uiAmount || 0), 0);
-        pending = await balOf(vault) + await balOf(hrPda);
-        // ⚠ once a coin is BONDED, every pumpswap trade also references the holder-rewards
-        // PDA (it's the pool's coin_creator_vault_authority), so an active bonded coin puts
-        // ~1000 sigs/hour here and each needs a getTransaction to tell payout from trade.
-        // page newest→oldest until the cursor, capped per run (public RPC would crawl for an
-        // hour otherwise); the cursor only advances over what was processed and the coin is
-        // flagged partial when the cap hit, so nothing is silently skipped — just deferred.
-        let sigs = [], before;
-        for (let pg = 0; pg < 20; pg++) {
-          const page = await rpc('getSignaturesForAddress', [hrPda, { limit: 1000, ...(cursor ? { until: cursor } : {}), ...(before ? { before } : {}) }]);
-          sigs.push(...page);
-          if (page.length < 1000) break;               // reached the cursor (or the coin's birth)
-          before = page[page.length - 1].signature;
-        }
-        // keep the OLDEST slice: everything newer stays above the new cursor, so the next run's
-        // `until` returns exactly the unprocessed remainder. (first run on a 20k+ tx coin loses
-        // history older than 20 pages — acceptable, those are the coin's earliest hours.)
-        if (sigs.length > RW_CAP) { partial = true; sigs = sigs.slice(sigs.length - RW_CAP); }
-        sigs.reverse();                                   // oldest first, so the cursor ends on the newest processed
-        if (sigs.length > 20) console.log(`  ${mint.slice(0, 8)} ${(m.symbol || '').slice(0, 8)}: walking ${sigs.length} txs on the rewards pda${partial ? ' (capped, partial)' : ''}`);
-        const bal = list => (list || []).filter(b => b.mint === CA && (b.owner === vault || b.owner === hrPda)).reduce((t, b) => t + (b.uiTokenAmount.uiAmount || 0), 0);
-        for (const sg of sigs) {
-          const tx = await rpc('getTransaction', [sg.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]);
-          if (!tx || !tx.meta || tx.meta.err) continue;
-          const out = bal(tx.meta.preTokenBalances) - bal(tx.meta.postTokenBalances);
-          if (out > 0) paid += out;
-        }
-        if (sigs.length) cursor = sigs[sigs.length - 1].signature;
-      } catch (e) { console.warn('  rewards ' + mint.slice(0, 8) + ': ' + e.message); }
-      rw = { rwVault: vault, rwPending: pending, rwPaid: paid, rwAccrued: pending + paid, rwCursor: cursor, rwPartial: partial };
+    if (cv.isHolderReward && escrow.has(curve)) {
+      const { vault, hrPda, vAta, pAta } = escrow.get(curve);
+      const vBal = balances.get(vAta) || 0, pBal = balances.get(pAta) || 0, pending = vBal + pBal;
+      let paid = old.rwPaid || 0, cursor = old.rwCursor || null, partial = !!old.rwPartial;
+      const moved = old.rwVaultBal !== vBal || old.rwPdaBal !== pBal || !cursor || partial;
+      if (moved) {
+        try {
+          // ⚠ once BONDED, every pumpswap trade also references the holder-rewards PDA (it's
+          // the pool's coin_creator_vault_authority) — an active bonded coin is ~1000 sigs/hour
+          // here, each needing a getTransaction to tell payout from trade. capped per run; the
+          // cursor only advances over what was processed, partial flags the remainder.
+          let sigs = [], before;
+          for (let pg = 0; pg < 20; pg++) {
+            const page = await rpc('getSignaturesForAddress', [hrPda, { limit: 1000, ...(cursor ? { until: cursor } : {}), ...(before ? { before } : {}) }]);
+            sigs.push(...page);
+            if (page.length < 1000) break;
+            before = page[page.length - 1].signature;
+          }
+          partial = false;
+          if (sigs.length > RW_CAP) { partial = true; sigs = sigs.slice(sigs.length - RW_CAP); }   // keep the OLDEST slice
+          sigs.reverse();
+          if (sigs.length > 20) console.log(`  ${mint.slice(0, 8)} ${(m.symbol || '').slice(0, 8)}: walking ${sigs.length} txs on the rewards pda${partial ? ' (capped, partial)' : ''}`);
+          const bal = list => (list || []).filter(b => b.mint === CA && (b.owner === vault || b.owner === hrPda)).reduce((t, b) => t + (b.uiTokenAmount.uiAmount || 0), 0);
+          for (const sg of sigs) {
+            const tx = await rpc('getTransaction', [sg.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]);
+            if (!tx || !tx.meta || tx.meta.err) continue;
+            const out = bal(tx.meta.preTokenBalances) - bal(tx.meta.postTokenBalances);
+            if (out > 0) paid += out;
+          }
+          if (sigs.length) cursor = sigs[sigs.length - 1].signature;
+        } catch (e) { console.warn('  rewards ' + mint.slice(0, 8) + ': ' + e.message); }
+      }
+      rw = { rwVault: vault, rwPending: pending, rwPaid: paid, rwAccrued: pending + paid, rwCursor: cursor, rwPartial: partial, rwVaultBal: vBal, rwPdaBal: pBal };
     }
     return {
       feeBps: cv.feeBps, hr: cv.isHolderReward, ...(rw || {}),
@@ -271,18 +311,19 @@ async function scan(prev) {
       mint, curve, name: m.name, symbol: m.symbol, image: m.image, creator: m.creator || '',
       createdAt: m.createdAt || 0, twitter: m.twitter || '', telegram: m.telegram || '', website: m.website || '',
       pool: m.pool || '', src: m.src,
-      complete: cv.complete, supply, mcapAlon,
-      // progress toward graduation: real quote raised over the curve's cap (bonding curve holds
-      // ~79% of supply at launch and graduates when real tokens run out)
-      progress,
+      complete: cv.complete, supply, mcapAlon: price * supply,
+      // progress toward graduation: bonding curve holds ~79% of supply at launch and
+      // graduates when real tokens run out
+      progress: cv.complete ? 1 : Math.max(0, Math.min(1, 1 - cv.rTok / (0.793e9 * 1e6))),
     };
   }, CONC);
 
   const list = coins.filter(Boolean).sort((a, b) => b.mcapAlon - a.mcapAlon);
+  if (list.length < known.size * 0.9) throw new Error(`only ${list.length} coins resolved of ${known.size} known — not writing`);
   const heldAlon = list.reduce((t, c) => t + (c.heldAlon || 0), 0);
   const sum = k => list.reduce((t, c) => t + (c[k] || 0), 0);
   const rewards = { coins: list.filter(c => c.hr).length, accrued: sum('rwAccrued'), paid: sum('rwPaid'), pending: sum('rwPending') };
-  const out = { updatedAt: Math.floor(Date.now() / 1000), scanSlot: slot || prev.scanSlot || null, quote: CA, count: list.length, heldAlon, rewards, coins: list };
+  const out = { updatedAt: Math.floor(Date.now() / 1000), scanSlot: slot, quote: CA, count: list.length, heldAlon, rewards, coins: list };
   fs.writeFileSync(OUT, JSON.stringify(out));
   const fresh = list.filter(c => !known.has(c.curve)).length;
   console.log(`wrote ${list.length} coins (${fresh} new, ${list.filter(c => c.complete).length} graduated, ${Math.round(heldAlon).toLocaleString()} ALON held; ${rewards.coins} holder-reward coins, ${Math.round(rewards.accrued).toLocaleString()} ALON accrued / ${Math.round(rewards.paid).toLocaleString()} paid) → ${path.relative(process.cwd(), OUT)}`);

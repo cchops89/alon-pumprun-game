@@ -42,15 +42,22 @@ function pda(seeds, prog = PUMP) {
     if (!onCurve(h)) return b58e(h);
   }
 }
+const ATA_PROGRAM = b58d('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+const TOKEN_LEGACY = b58d('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+// associated token account: PDA([owner, token_program, mint]) under the ATA program
+const ata = (owner, mint, tokenProgram = TOKEN_LEGACY) => pda([b58d(owner), tokenProgram, b58d(mint)], ATA_PROGRAM);
+const bondingCurve = mint => pda([Buffer.from('bonding-curve'), b58d(mint)]);
 const creatorVault = creator => pda([Buffer.from('creator-vault'), b58d(creator)]);
 const holderRewardsPda = mint => pda([Buffer.from('holder-rewards'), b58d(mint)]);
 const holderVault = mint => creatorVault(holderRewardsPda(mint));
 
-module.exports = { pda, b58d, b58e, creatorVault, holderRewardsPda, holderVault };
+module.exports = { pda, b58d, b58e, ata, bondingCurve, creatorVault, holderRewardsPda, holderVault };
 
 if (require.main === module) {
   const ok1 = pda([Buffer.from('global')]) === '4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf';
   const ok2 = holderVault('5hfCB5NuXkuDWGp4tbjuaCgGseBviJYg7Kkzt9d7pump') === 'G9jfCgLeXNY45krKFQbLCdA3sdvtECSyRiudqS6sW82c';
-  console.log('global pda', ok1 ? 'ok' : 'WRONG', '| holder vault', ok2 ? 'ok' : 'WRONG');
-  process.exit(ok1 && ok2 ? 0 : 1);
+  // SeAlon: curve 3Js43QaZ… per pump's api; its curve's ALON ATA is DL2v8byg… (associated_bonding_curve is the BASE ata, so check the curve pda only)
+  const ok3 = bondingCurve('GdELihwJ1uQjkSxaSTsBdb71TNhVoUi4QtJG1Mptpump') === '3Js43QaZFDDQgE16QJ1vD8anC1GfHBM1MRud26fY2Ds6';
+  console.log('global pda', ok1 ? 'ok' : 'WRONG', '| holder vault', ok2 ? 'ok' : 'WRONG', '| bonding curve', ok3 ? 'ok' : 'WRONG');
+  process.exit(ok1 && ok2 && ok3 ? 0 : 1);
 }
