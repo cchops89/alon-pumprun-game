@@ -32,7 +32,7 @@ const KEY = process.env.HELIUS_KEY;
 const RPC = KEY ? `https://mainnet.helius-rpc.com/?api-key=${KEY}` : 'https://api.mainnet-beta.solana.com';
 const CONC = KEY ? 8 : 2;
 const RW_CAP = +(process.env.RW_CAP || (KEY ? 1500 : 100));   // payout-ledger txs walked per coin per run
-const WALK_SLOTS = +(process.env.WALK_SLOTS || 108000);         // full helius walk at most every ~12h (≈9k slots/h) — it's ~1,500 credits
+const WALK_SLOTS = +(process.env.WALK_SLOTS || 216000);         // full helius walk at most once a day (≈9k slots/h) — up to 4,000 credits
 const OUT = path.join(__dirname, '..', 'alon-pairs.json');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -135,22 +135,23 @@ async function meta(mint) {
 //   every run   : known curves ∪ mints dexscreener lists for the ALON quote (free, catches the
 //                 active new launches) → ONE getMultipleAccounts per 100 curves refreshes every
 //                 reserve. ~3 credits.
-//   every ~12h  : the full V2 walk, to catch launches dexscreener never surfaced. ~1,500 credits.
+//   once a day  : the V2 walk, capped at 4,000 pages (the program is >15M accounts and the
+//                 key never nulls), to catch launches dexscreener never surfaced. ≤4,000 credits.
 //   no key      : the public RPC's V1 gPA (full) — which began 503ing every gPA on 2026-09-15.
 //                 if it fails the run continues on known ∪ dexscreener.
 // and it is always MERGE, never replace: an unbounded V2 walk once returned 0 and the cron
 // committed an EMPTY list (2026-09-14).
 async function walkV2() {
   const out = []; let paginationKey, pages = 0;
-  for (; pages < 1500; pages++) {
+  for (; pages < 4000; pages++) {
     const r = await rpc('getProgramAccountsV2', [PUMP, { encoding: 'base64', dataSlice: { offset: 0, length: 0 }, limit: 10000,
       filters: [{ memcmp: { offset: QUOTE_OFF, bytes: CA } }], ...(paginationKey ? { paginationKey } : {}) }]);
     const acc = r.accounts || [];
     out.push(...acc.map(x => x.pubkey));
     paginationKey = r.paginationKey;
     // with a memcmp a slice is often legitimately empty, so "no accounts" is NOT the end —
-    // only a null key is. observed: the key never nulled in 1,200 pages, so the cap is the
-    // real bound and the walk costs ~1,500 credits. hence WALK_SLOTS keeps it to twice a day.
+    // only a null key is. observed: 1,500 pages covered only 80 of 125 known curves and the
+    // key was still live, so the cap IS the bound. hence merge-only and once a day.
     if (!paginationKey) break;
   }
   console.log(`  helius V2 walk: ${out.length} curves in ${pages + 1} pages${paginationKey ? ' (cap hit, key still live)' : ' (key nulled)'}`);
@@ -219,8 +220,11 @@ async function tokenBalances(atas) {          // parsed ui amounts for a list of
     walked = await publicV1();
   }
   if (walked) {
-    // curves are never deleted, so a full scan smaller than what we know is a broken scan
-    if (walked.length < known.size) throw new Error(`full scan returned ${walked.length} < ${known.size} known — not writing`);
+    // MERGE ONLY. the walk can only add curves; a capped/incomplete walk is still worth
+    // merging. (a "smaller than known" throw here emailed chris twice on 09-15 — the walk
+    // is legitimately partial when the cap hits.) log the coverage instead.
+    const hit = walked.filter(c => known.has(c)).length;
+    console.log(`  walk covered ${hit}/${known.size} known curves${hit < known.size ? ' — partial (cap hit)' : ''}`);
     walked.forEach(c => curves.add(c));
   }
   const all = [...curves];
