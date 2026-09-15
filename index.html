@@ -3082,12 +3082,22 @@
 
             x.strokeStyle = '#232a2b'; x.lineWidth = 2; x.strokeRect(1, 1, SHARE_W - 2, SHARE_H - 2);
 
-            const L = 68, RIGHT = 930;                 // left text column, right identity column
+            const L = 68, RIGHT = 930;                 // left text column, right stat column
+            // pfp top-left, title beside it — the right column is for the alon-pairs numbers now
+            let TL = L;
+            if (pfp.complete && pfp.naturalWidth) {
+                const d = 104, px = L, py = 58;
+                x.save(); x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2, 0, Math.PI * 2);
+                x.closePath(); x.clip(); x.drawImage(pfp, px, py, d, d); x.restore();
+                x.strokeStyle = '#16a34a'; x.lineWidth = 3;
+                x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2 + 2, 0, Math.PI * 2); x.stroke();
+                TL = L + d + 26;
+            }
             x.fillStyle = '#7d8b83'; x.font = F(23, 700); x.letterSpacing = '2px';
-            x.fillText("WHO'S ACTUALLY HOLDING", L, 92);
+            x.fillText("WHO'S ACTUALLY HOLDING", TL, 100);
             x.letterSpacing = '0px';
             x.fillStyle = '#e9f2ec'; x.font = F(52, 800);
-            x.fillText('$ALON', L, 152);
+            x.fillText('$ALON', TL, 156);
 
             // credit block, top right — the card travels without the page around it
             x.textAlign = 'right';
@@ -3152,17 +3162,37 @@
                 y += 210;                       // even rhythm — the spark hangs below its own row
             }
 
-            // right column: pfp, ticker under it
-            if (pfp.complete && pfp.naturalWidth) {
-                const d = 190, px = RIGHT + 20, py = 402;   // centred against the three rows
-                x.save(); x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2, 0, Math.PI * 2);
-                x.closePath(); x.clip(); x.drawImage(pfp, px, py, d, d); x.restore();
-                x.strokeStyle = '#16a34a'; x.lineWidth = 3;
-                x.beginPath(); x.arc(px + d / 2, py + d / 2, d / 2 + 2, 0, Math.PI * 2); x.stroke();
-                x.fillStyle = '#e9f2ec'; x.font = F(40, 800, true); x.textAlign = 'center';
-                x.fillText('$ALON', px + d / 2, py + d + 62);
-                x.fillStyle = '#5a6862'; x.font = F(20, 600);
-                x.fillText('alonpump.run', px + d / 2, py + d + 96);
+            // right column: the alon-pairs numbers (pump.fun custom pairs quoted in $ALON),
+            // one stat per row so they sit level with the three holder rows
+            const pp = window.__pairs && window.__pairs.coins;
+            if (pp && pp.size) {
+                const arr = [...pp.values()];
+                const held = arr.reduce((t, v) => t + (v.heldAlon || 0), 0);
+                const rw = arr.reduce((t, v) => t + (v.rwAccrued || 0), 0), rwN = arr.filter(v => v.hr).length;
+                const fa = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toString();
+                const usd = v => (tok && tok.price) ? fmtMC(v * tok.price) : '';
+                const stats = [
+                    { big: String(arr.length), l1: 'coins launched', l2: 'paired with $ALON' },
+                    { big: fa(held), l1: 'ALON held in them', l2: usd(held) || 'curves + pools' },
+                    { big: fa(rw), l1: 'ALON to holders', l2: (usd(rw) ? usd(rw) + ' · ' : '') + 'on ' + rwN + ' coins' },
+                ];
+                x.textAlign = 'right';
+                x.fillStyle = '#7d8b83'; x.font = F(17, 700, true); x.letterSpacing = '2px';
+                x.fillText('ALON PAIRS', SHARE_W - L, 246);
+                x.letterSpacing = '0px';
+                x.strokeStyle = '#232a2b'; x.lineWidth = 1;
+                x.beginPath(); x.moveTo(RIGHT - 40, 260); x.lineTo(SHARE_W - L, 260); x.stroke();
+                let sy = 336;
+                for (const st of stats) {
+                    x.fillStyle = '#4ade80'; x.font = F(50, 800, true);
+                    x.shadowColor = '#4ade80'; x.shadowBlur = 18;
+                    x.fillText(st.big, SHARE_W - L, sy + 2); x.shadowBlur = 0;
+                    x.fillStyle = '#e9f2ec'; x.font = F(21, 700);
+                    x.fillText(st.l1, SHARE_W - L, sy + 34);
+                    x.fillStyle = '#7d8b83'; x.font = F(19, 500);
+                    x.fillText(st.l2, SHARE_W - L, sy + 60);
+                    sy += 210;
+                }
                 x.textAlign = 'left';
             }
 
