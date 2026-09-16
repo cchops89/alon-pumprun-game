@@ -3173,8 +3173,9 @@
                 const usd = v => (tok && tok.price) ? fmtMC(v * tok.price) : '';
                 const stats = [
                     { big: String(arr.length), l1: 'coins launched', l2: 'paired with $ALON' },
-                    { big: usd(held) || fa(held), l1: 'ALON held in them', l2: usd(held) ? fa(held) + ' ALON' : 'curves + pools' },
-                    { big: usd(rw) || fa(rw), l1: 'paid in rewards', l2: (usd(rw) ? fa(rw) + ' ALON · ' : '') + rwN + ' coins' },
+                    // ALON is the headline on this card, usd underneath — chris 09-16
+                    { big: fa(held), l1: 'ALON held in them', l2: usd(held) || 'curves + pools' },
+                    { big: fa(rw), l1: 'ALON paid in rewards', l2: (usd(rw) ? usd(rw) + ' · ' : '') + rwN + ' coins' },
                 ];
                 x.textAlign = 'right';
                 x.fillStyle = '#7d8b83'; x.font = F(17, 700, true); x.letterSpacing = '2px';
