@@ -39,7 +39,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   check('every row links to pump.fun/coin/<mint>', rows.length > 0 && rows.every(r => /^https:\/\/pump\.fun\/coin\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(r.href)));
   check('every row has a symbol', rows.every(r => r.sym.trim().length > 0));
   check('mcap column leads with usd', rows.every(r => /^\$[\d.]+[KMB]?$/.test(r.val)));
-  check('ALON amount sits under the usd', rows.every(r => /^[\d.]+[KM]? ALON/.test(r.alon)));
+  check('no ALON mcap on the rows', rows.every(r => !/ALON/.test(r.alon)));
   check('rows are not collapsed', rows.every(r => r.h > 30));
   check('at most 3 columns', await page.$eval('#pairsList', e => getComputedStyle(e).gridTemplateColumns.split(' ').length) === 3);
   check('rewards line sits under name + value, at most two lines', await page.$$eval('#pairsList .pr', els => els.filter(e => e.querySelector('.pr-r')).every(e => {
@@ -56,10 +56,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   })());
 
   const rwNote = await page.$eval('#pairsRewards', e => e.textContent);
-  check('holder-rewards total is in the bar', /^[\d.]+[KM]? ALON to holders/.test(rwNote));
+  check('holder-rewards total is in the bar as one paid number', /^\$[\d.]+[KMB]? paid in rewards · [\d.]+[KM]? ALON · \d+ of \d+ coins$/.test(rwNote));
   const rwRows = await page.$$eval('#pairsList .pr .pr-r', els => els.map(e => e.textContent));
   check('holder-reward coins carry a rewards line (>= 20)', rwRows.length >= 20);
-  check('rewards line names the fee and the ALON', rwRows.every(t => /^([\d.]+% )?to holders · [\d.]+[KM]? ALON/.test(t)));
+  check('rewards line is one number: paid in rewards', rwRows.every(t => /^([\d.]+% )?to holders · (\$[\d.]+[KMB]? paid in rewards \([\d.]+[KM]? ALON\)|nothing paid yet)$/.test(t)));
+  check('some coins have actually been paid', rwRows.filter(t => /paid in rewards/.test(t)).length >= 10);
   check('rewards amount is not clipped', await page.$$eval('#pairsList .pr-r', els => els.every(e => e.scrollWidth <= e.clientWidth + 1)));
   await page.click('.ps[data-k="rewards"]'); await sleep(300);
   const rwFirst = await page.$eval('#pairsList .pr', e => !!e.querySelector('.pr-r'));
@@ -67,10 +68,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.click('.ps[data-k="mcap"]'); await sleep(300);
 
   // the baked file sorts by mcap; the live overlay may reorder, but the first row must not be zero
-  const nonZero = rows.filter(r => !/^0 ALON/.test(r.alon)).length;
+  const nonZero = rows.filter(r => !/^\$0(\.00)?$/.test(r.val)).length;
   check('live/baked prices give at least one non-zero mcap', nonZero > 0);
   check('mcap sort is descending', (() => {
-    const v = rows.map(r => { const m = r.alon.match(/^([\d.]+)([KM]?) ALON/); return m ? parseFloat(m[1]) * (m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; });
+    const v = rows.map(r => { const m = r.val.match(/^\$([\d.]+)([KMB]?)$/); return m ? parseFloat(m[1]) * (m[2] === 'B' ? 1e9 : m[2] === 'M' ? 1e6 : m[2] === 'K' ? 1e3 : 1) : -1; });
     return v.every((x, i) => i === 0 || x <= v[i - 1]);
   })());
 

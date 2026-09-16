@@ -2196,12 +2196,12 @@
                 if (!pp || !pp.size) return '';
                 const arr = [...pp.values()];
                 const held = arr.reduce((t, x) => t + (x.heldAlon || 0), 0);
-                const rw = arr.reduce((t, x) => t + (x.rwAccrued || 0), 0), rwN = arr.filter(x => x.hr).length;
+                const rw = arr.reduce((t, x) => t + (x.rwPaid || 0), 0), rwN = arr.filter(x => x.hr).length;
                 const fa = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toString();
                 const px = (tok && tok.price) || 0;
                 return [arr.length + ' alon pairs',
                         held ? fa(held) + ' ALON held' + (px ? ' (' + fmtMC(held * px) + ')' : '') : '',
-                        rw ? fa(rw) + ' ALON to holders' + (px ? ' (' + fmtMC(rw * px) + ')' : '') + ' on ' + rwN : ''].filter(Boolean).join('  ·  ');
+                        rw ? (px ? fmtMC(rw * px) + ' (' + fa(rw) + ' ALON)' : fa(rw) + ' ALON') + ' paid in rewards on ' + rwN : ''].filter(Boolean).join('  ·  ');
             })();
             const HEAD = 102, FOOT = pairsLine ? 52 : 34, H = HEAD + CH + FOOT;
 
@@ -3168,13 +3168,13 @@
             if (pp && pp.size) {
                 const arr = [...pp.values()];
                 const held = arr.reduce((t, v) => t + (v.heldAlon || 0), 0);
-                const rw = arr.reduce((t, v) => t + (v.rwAccrued || 0), 0), rwN = arr.filter(v => v.hr).length;
+                const rw = arr.reduce((t, v) => t + (v.rwPaid || 0), 0), rwN = arr.filter(v => v.hr).length;
                 const fa = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toString();
                 const usd = v => (tok && tok.price) ? fmtMC(v * tok.price) : '';
                 const stats = [
                     { big: String(arr.length), l1: 'coins launched', l2: 'paired with $ALON' },
-                    { big: fa(held), l1: 'ALON held in them', l2: usd(held) || 'curves + pools' },
-                    { big: fa(rw), l1: 'ALON to holders', l2: (usd(rw) ? usd(rw) + ' · ' : '') + 'on ' + rwN + ' coins' },
+                    { big: usd(held) || fa(held), l1: 'ALON held in them', l2: usd(held) ? fa(held) + ' ALON' : 'curves + pools' },
+                    { big: usd(rw) || fa(rw), l1: 'paid in rewards', l2: (usd(rw) ? fa(rw) + ' ALON · ' : '') + rwN + ' coins' },
                 ];
                 x.textAlign = 'right';
                 x.fillStyle = '#7d8b83'; x.font = F(17, 700, true); x.letterSpacing = '2px';
@@ -3340,7 +3340,7 @@
         function render() {
             const arr = [...coins.values()];
             arr.sort(sort === 'new' ? (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
-                   : sort === 'rewards' ? (a, b) => (b.rwAccrued || 0) - (a.rwAccrued || 0) || (b.mcapAlon || 0) - (a.mcapAlon || 0)
+                   : sort === 'rewards' ? (a, b) => (b.rwPaid || 0) - (a.rwPaid || 0) || (b.mcapAlon || 0) - (a.mcapAlon || 0)
                                         : (a, b) => (b.mcapAlon || 0) - (a.mcapAlon || 0));
             cnt.textContent = arr.length + (arr.length === 1 ? ' coin' : ' coins');
             const px = (tok && tok.price) || 0, st = list.scrollTop;
@@ -3349,9 +3349,10 @@
             // per cron tick, so it lags trades by up to 30 min; the usd side is live.
             const held = arr.reduce((t, c) => t + (c.heldAlon || 0), 0);
             tot.innerHTML = held ? `<b>${fmtA(held)} ALON</b> <i>held${px ? ' · ' + fmtMC(held * px) : ''}</i>` : '';
-            // holder rewards: fee escrowed for holders across every holder-reward coin (paid + pending)
-            const rw = arr.reduce((t, c) => t + (c.rwAccrued || 0), 0), rwN = arr.filter(c => c.hr).length;
-            rwEl.innerHTML = rwN ? `<b>${fmtA(rw)} ALON</b> <i>to holders${px ? ' · ' + fmtMC(rw * px) : ''} · ${rwN} of ${arr.length} coins</i>` : '';
+            // holder rewards: ONE number, what pump.fun has actually paid out to holders (rwPaid).
+            // accrued/pending were shown before and read as two competing figures — chris 09-16.
+            const rw = arr.reduce((t, c) => t + (c.rwPaid || 0), 0), rwN = arr.filter(c => c.hr).length;
+            rwEl.innerHTML = rwN ? `<b>${px ? fmtMC(rw * px) : fmtA(rw) + ' ALON'}</b> <i>paid in rewards${px ? ' · ' + fmtA(rw) + ' ALON' : ''} · ${rwN} of ${arr.length} coins</i>` : '';
             if (!arr.length) { list.innerHTML = '<div class="pairs-empty">no $ALON pairs yet</div>'; return; }
             list.innerHTML = arr.map(c => {
                 const usd = px && c.mcapAlon ? fmtMC(c.mcapAlon * px) : '';
@@ -3363,9 +3364,8 @@
                 return `<a class="pr${c.complete ? ' grad' : ''}" href="https://pump.fun/coin/${esc(c.mint)}" target="_blank" rel="noopener" title="${esc(c.name)} · ${esc(c.mint)}">`
                     + pic
                     + `<div class="pr-n"><b>${esc(c.symbol) || '?'}${tag}</b><span>${esc(c.name) || short(c.mint)}</span></div>`
-                    + (usd ? `<div class="pr-v"><b>${usd}</b><span>${fmtA(c.mcapAlon || 0)} ALON${age ? ' · ' + age : ''}</span></div>`
-                           : `<div class="pr-v"><b>${fmtA(c.mcapAlon || 0)} ALON</b><span>${age}</span></div>`)
-                    + (c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}to holders · <b>${fmtA(c.rwAccrued || 0)} ALON</b>${c.rwPaid ? ' · paid ' + fmtA(c.rwPaid) : ''}</i>` : '')
+                    + `<div class="pr-v"><b>${usd || fmtA(c.mcapAlon || 0) + ' ALON'}</b><span>${usd ? 'mcap' : ''}${usd && age ? ' · ' : ''}${age}</span></div>`
+                    + (c.hr ? `<i class="pr-r">${c.feeBps ? (c.feeBps / 100) + '% ' : ''}to holders · ${c.rwPaid ? `<b>${px ? fmtMC(c.rwPaid * px) : fmtA(c.rwPaid) + ' ALON'}</b> paid in rewards${px ? ' (' + fmtA(c.rwPaid) + ' ALON)' : ''}` : 'nothing paid yet'}</i>` : '')
                     + `<div class="pr-bar"><i style="width:${Math.round((c.progress || 0) * 100)}%"></i></div></a>`;
             }).join('');
             list.scrollTop = st;
