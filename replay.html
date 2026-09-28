@@ -632,7 +632,7 @@ $('ggClose').onclick=()=>$('gg').className='';
 $('ggAgain').onclick=()=>{$('gg').className='';play()};
 $('ggCopy').onclick=async()=>{
   const {mult,rank,label}=rankOf(cur.p);
-  const txt=`$ALON wallet replay — RANK ${rank} (${label})\n${mult.toFixed(2)}x · ${(cur.p.total>=0?'+':'')+fmt(cur.p.total)} on ${fmt(cur.p.bought)} in · ${cur.p.trades} trades\n${cur.w}\nalonpump.run`;
+  const txt=`$ALON wallet replay — RANK ${rank} (${label})\n${mult.toFixed(2)}x · ${(cur.p.total>=0?'+':'')+fmt(cur.p.total)} on ${fmt(cur.p.bought)} in · ${cur.p.trades} trades\n${cur.w}\nalon.fun`;
   try{await navigator.clipboard.writeText(txt);$('ggCopy').textContent='COPIED';
     setTimeout(()=>$('ggCopy').textContent='COPY CARD',1400);}catch(e){}
 };

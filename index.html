@@ -9,21 +9,21 @@
     <link rel="apple-touch-icon" href="alon-pfp.jpg?v=1">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="ALON'S ARCADE">
-    <meta property="og:url" content="https://alonpump.run/">
-    <meta property="og:title" content="ALON'S ARCADE — alonpump.run">
+    <meta property="og:url" content="https://alon.fun/">
+    <meta property="og:title" content="ALON'S ARCADE — alon.fun">
     <meta property="og:description" content="Two games, one bull run — plus the live $ALON chart, trades and ATH. Play Alon's Pump Run and Alon's Pump Castle.">
-    <meta property="og:image" content="https://alonpump.run/og-basement.jpg?v=1">
-    <meta property="og:image:secure_url" content="https://alonpump.run/og-basement.jpg?v=1">
+    <meta property="og:image" content="https://alon.fun/og-alonfun.jpg?v=1">
+    <meta property="og:image:secure_url" content="https://alon.fun/og-alonfun.jpg?v=1">
     <meta property="og:image:type" content="image/jpeg">
-    <meta property="og:image:width" content="1600">
-    <meta property="og:image:height" content="800">
-    <meta property="og:image:alt" content="ALON'S BASEMENT — the $ALON arcade">
+    <meta property="og:image:width" content="1500">
+    <meta property="og:image:height" content="750">
+    <meta property="og:image:alt" content="ALON.FUN — the $ALON arcade">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="ALON'S ARCADE — alonpump.run">
+    <meta name="twitter:title" content="ALON'S ARCADE — alon.fun">
     <meta name="twitter:description" content="Two games, one bull run — plus the live $ALON chart, trades and ATH. Play Alon's Pump Run and Alon's Pump Castle.">
-    <meta name="twitter:image" content="https://alonpump.run/og-basement.jpg?v=1">
-    <meta name="twitter:image:alt" content="ALON'S BASEMENT — the $ALON arcade">
-    <title>ALONPUMP.RUN — the ALON arcade</title>
+    <meta name="twitter:image" content="https://alon.fun/og-alonfun.jpg?v=1">
+    <meta name="twitter:image:alt" content="ALON.FUN — the $ALON arcade">
+    <title>ALON.FUN — the ALON arcade</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -717,7 +717,7 @@
     <div class="topbar">
         <a class="brand" href="/">
             <img src="alon-pfp.jpg?v=1" alt="ALON">
-            <b>alonpump<i>.run</i></b>
+            <b>alon<i>.fun</i></b>
         </a>
         <a class="arcade-btn" href="#arcade">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h4M8 9v4"/><circle cx="15.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/><circle cx="17.8" cy="13" r=".9" fill="currentColor" stroke="none"/><path d="M17.5 6h-11a4.5 4.5 0 0 0-4.5 4.5v3A4.5 4.5 0 0 0 6.5 18h11a4.5 4.5 0 0 0 4.5-4.5v-3A4.5 4.5 0 0 0 17.5 6Z"/></svg>
@@ -1026,7 +1026,7 @@
 
     <footer>
         games developed by <a href="https://x.com/thejpegjunkie" target="_blank" rel="noopener">@thejpegjunkie</a> · powered by $ALON · imagine imagining
-        <p class="disclaimer">alonpump.run is a fan-made arcade. it does not facilitate buying or selling and never asks for your wallet or keys — the buy button links out to pump.fun. market data from jupiter. not financial advice. DYOR.</p>
+        <p class="disclaimer">alon.fun is a fan-made arcade. it does not facilitate buying or selling and never asks for your wallet or keys — the buy button links out to pump.fun. market data from jupiter. not financial advice. DYOR.</p>
     </footer>
 
     <script>
@@ -1922,7 +1922,7 @@
     function renderCoin() {
         const p = shown(); if (!p) return;
         // mcap first — tabs truncate from the right, so the number survives the squeeze
-        if (p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alonpump.run`;
+        if (p.mcap) document.title = `${fmtMC(p.mcap)} ALON · alon.fun`;
         setTxt('headMc', fmtMC(p.mcap));
         setTxt('headChg', `${p.h24 >= 0 ? '▲' : '▼'} ${Math.abs(p.h24).toFixed(1)}% 24h`, 'c ' + cls(p.h24));
 
@@ -2317,8 +2317,8 @@
             c.fillStyle = '#232a2b'; c.fillRect(0, fy, W, 1);
             const base = fy + 22;
             c.font = '800 12px ' + MONO; c.fillStyle = '#4ade80';
-            c.fillText('alonpump.run', 16, base);
-            const brand = c.measureText('alonpump.run').width;
+            c.fillText('alon.fun', 16, base);
+            const brand = c.measureText('alon.fun').width;
             c.font = '11px ' + MONO; c.fillStyle = '#5a6862';
             c.fillText('  ·  @thejpegjunkie  ·  $ALON  ·  ' + tf.toUpperCase(), 16 + brand, base);
             const d = new Date();
@@ -3102,7 +3102,7 @@
             // credit block, top right — the card travels without the page around it
             x.textAlign = 'right';
             x.fillStyle = '#4ade80'; x.font = F(20, 800, true);
-            x.fillText('analyzed on alonpump.run', SHARE_W - L, 86);
+            x.fillText('analyzed on alon.fun', SHARE_W - L, 86);
             x.fillStyle = '#5a6862'; x.font = F(18, 700, true);
             x.fillText('by @thejpegjunkie', SHARE_W - L, 114);
             x.textAlign = 'left';
@@ -3311,7 +3311,7 @@
         });
         document.getElementById('shareX').addEventListener('click', async function () {
             try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toBlob() })]); } catch (e) {}
-            const t = encodeURIComponent(shareLines.join('\n') + '\n\nalonpump.run');
+            const t = encodeURIComponent(shareLines.join('\n') + '\n\nalon.fun');
             window.open('https://twitter.com/intent/tweet?text=' + t, '_blank', 'noopener');
         });
 

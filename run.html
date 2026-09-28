@@ -10,19 +10,19 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://alonpump.run/run.html">
+    <meta property="og:url" content="https://alon.fun/run">
     <meta property="og:title" content="ALON's PumpRun - To The Moon!">
     <meta property="og:description" content="Help ALON dodge the bears and collect pills in this endless runner! Can you make it to the moon?">
-    <meta property="og:image" content="https://alonpump.run/run-card.jpg">
+    <meta property="og:image" content="https://alon.fun/run-card.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="600">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="https://alonpump.run/run.html">
+    <meta name="twitter:url" content="https://alon.fun/run">
     <meta name="twitter:title" content="ALON's PumpRun - To The Moon!">
     <meta name="twitter:description" content="Help ALON dodge the bears and collect pills in this endless runner! Can you make it to the moon?">
-    <meta name="twitter:image" content="https://alonpump.run/run-card.jpg">
+    <meta name="twitter:image" content="https://alon.fun/run-card.jpg">
 
     <title>ALON's PumpRun - To The Moon!</title>
     <style>
@@ -377,7 +377,7 @@
             <p><strong>TAP</strong> to jump · <strong>TAP TWICE</strong> to double jump</p>
             <p style="opacity:.65; font-size:0.82em;">grab the purple booster for triple jumps · survive to 690 for the storm</p>
             <button id="startBtn">START GAME</button>
-            <p style="margin-top:16px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alonpump.run arcade</a></p>
+            <p style="margin-top:16px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alon.fun arcade</a></p>
         </div>
 
         <div id="gameOver">
@@ -390,7 +390,7 @@
                 <button id="restartBtn">Play Again</button>
                 <button id="shareBtn">Share on 𝕏</button>
             </div>
-            <p style="margin-top:14px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alonpump.run arcade</a></p>
+            <p style="margin-top:14px;"><a href="/" style="color:#4b6355; font-size:12px; text-decoration:none;">&larr; alon.fun arcade</a></p>
         </div>
     </div>
 
@@ -2503,7 +2503,7 @@
         // Share score to X / Twitter — proper card via url param so it renders the run.html card
         function shareScore() {
             const text = `hey @a1lon9, can you beat my score of ${lastScore} (${tokensCollected} pills) on ALON's PumpRun?? 🚀 $ALON`;
-            const url = 'https://alonpump.run/run.html';
+            const url = 'https://alon.fun/run';
             window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url), '_blank');
         }
 
