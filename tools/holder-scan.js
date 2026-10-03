@@ -180,7 +180,11 @@ async function lastActivity(accounts, prior) {
       const w = state.wallets[h.account] || (state.wallets[h.account] = { lastActive: null, amount: h.amount, dir: 'flat', first: now });
       if (!w.first) w.first = now;
       const before = w.amount;
-      if (before == null || h.amount === before) { w.dir = w.dir || 'flat'; }
+      // pro-rata reward airdrops land a sliver in every big bag at once (2026-10-03: +0.0005%
+      // to ~450M dormant ALON overnight, 7d hold read 60% -> 18%). an inflow that small is
+      // something that happened TO the wallet, not something it did
+      const passive = before > 0 && h.amount > before && (h.amount - before) / before < 0.001;
+      if (before == null || h.amount === before || passive) { w.dir = w.dir || 'flat'; }
       else { w.lastActive = now; w.dir = h.amount > before ? 'accumulating' : 'distributing'; }
       w.amount = h.amount;
     }
