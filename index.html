@@ -125,6 +125,13 @@
         .topnav a.soc.pf:hover img { filter:drop-shadow(0 0 7px rgba(74,222,128,0.65)); }
         .topnav a.soc:hover { color:var(--green); background:var(--panel2); }
         .topbar-right { margin-left:auto; display:flex; align-items:center; gap:9px; }
+        .chill-btn { display:flex; align-items:center; gap:7px; padding:7px 13px; border-radius:10px;
+                     background:#24163a; border:1px solid #7c3aed; color:#d8b4fe; font:inherit;
+                     font-weight:800; font-size:12.5px; white-space:nowrap; cursor:pointer; transition:.14s; }
+        .chill-btn:hover { background:#321d52; box-shadow:0 0 16px rgba(168,85,247,0.35); }
+        .chill-btn svg { width:15px; height:15px; }
+        /* desktop only — on mobile it shoves buy $ALON off the bar; the arcade card covers it there */
+        @media (max-width:820px) { .chill-btn { display:none; } }
         .dot { width:6px; height:6px; border-radius:50%; background:var(--green);
                box-shadow:0 0 8px var(--green); animation:blink 2s infinite; }
         @keyframes blink { 50% { opacity:0.2; } }
@@ -206,6 +213,11 @@
                        background:linear-gradient(180deg,rgba(11,13,14,0) 42%,rgba(11,13,14,0.92)); }
         .art-run { background-image:url('run-card.jpg?v=1'); }
         .art-castle { background-image:url('castle-card.jpg?v=1'); }
+        .art-chill { background-image:url('chill-poster.jpg?v=1'); background-position:68% center; }
+        .gcard.chill .gbadge { background:#7c3aed; color:#fff; }
+        .gcard.chill .gplay { background:#a855f7; color:#fff; }
+        .gcard.chill:hover { border-color:#7c3aed; box-shadow:0 10px 22px rgba(168,85,247,0.18); }
+        .gcard.chill:hover .gplay { background:#c084fc; }
         .gbadge { position:absolute; top:8px; right:8px; z-index:2; padding:3px 9px; border-radius:999px;
                   font-family:var(--mono); font-size:9.5px; letter-spacing:0.8px; font-weight:700;
                   background:rgba(6,20,12,0.88); color:var(--green); border:1px solid var(--green-x); }
@@ -733,6 +745,10 @@
             </a>
         </nav>
         <div class="topbar-right">
+            <a class="chill-btn" href="chill" title="manifest and chill — lofi beats" aria-label="manifest and chill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg>
+                manifest and chill
+            </a>
             <a class="btn-buy" href="https://pump.fun/coin/8XtRWb4uAAJFMP4QQhoYYCWR6XXb7ybcCdiqPwz9s5WS" target="_blank" rel="noopener">buy $ALON</a>
         </div>
     </div>
@@ -790,6 +806,13 @@
                             <span class="gname">Pump Castle</span>
                         </div>
                         <div class="gfoot"><span class="gtag">3D · survival</span><span class="gplay">PLAY ▸</span></div>
+                    </a>
+                    <a class="gcard chill" href="chill">
+                        <div class="gart art-chill">
+                            <span class="gbadge">LOFI</span>
+                            <span class="gname">Manifest and Chill</span>
+                        </div>
+                        <div class="gfoot"><span class="gtag">beats to manifest to</span><span class="gplay">TUNE IN ▸</span></div>
                     </a>
                 </div>
             </div>
@@ -3588,6 +3611,7 @@
             });
         }).catch(function () {});
     })();
+
 
 </script>
 </body>

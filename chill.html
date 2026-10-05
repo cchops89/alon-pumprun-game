@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="lofi beats to manifest to. pull up a chair.">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+    <link rel="apple-touch-icon" href="pumpfun-logo.png?v=2">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://alon.fun/chill">
+    <meta property="og:title" content="manifest and chill">
+    <meta property="og:description" content="lofi beats to manifest to. pull up a chair.">
+    <meta property="og:image" content="https://alon.fun/chill-card.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://alon.fun/chill">
+    <meta name="twitter:title" content="manifest and chill">
+    <meta name="twitter:description" content="lofi beats to manifest to. pull up a chair.">
+    <meta name="twitter:image" content="https://alon.fun/chill-card.jpg">
+
+    <title>manifest and chill</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { height:100%; background:#000; overflow:hidden; color:#fff;
+                     font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif; }
+        video { position:fixed; inset:0; width:100%; height:100%; object-fit:contain; background:#000; }
+        .back { position:fixed; left:14px; top:calc(14px + env(safe-area-inset-top)); z-index:3;
+                padding:8px 13px; border-radius:999px; background:rgba(0,0,0,0.55);
+                border:1px solid rgba(255,255,255,0.22); color:#fff; text-decoration:none;
+                font-weight:700; font-size:13px; transition:opacity .4s; }
+        .back:hover { background:rgba(0,0,0,0.8); }
+        body.idle .back { opacity:0; pointer-events:none; }
+        /* start screen — only shows if the browser blocks autoplay with sound */
+        .start { position:fixed; inset:0; z-index:2; display:none; place-items:center;
+                 background:rgba(0,0,0,0.35); cursor:pointer; border:0; color:inherit; font:inherit; width:100%; }
+        .start.show { display:grid; }
+        .start span { display:flex; align-items:center; gap:10px; padding:16px 26px; border-radius:999px;
+                      background:rgba(36,22,58,0.88); border:1.5px solid #a855f7; color:#e9d5ff;
+                      font-weight:800; font-size:18px; box-shadow:0 0 30px rgba(168,85,247,0.45); }
+        .start svg { width:20px; height:20px; }
+    </style>
+</head>
+<body>
+    <a class="back" href="/">&larr; alon.fun</a>
+    <video id="v" src="manifest-and-chill.mp4?v=1" poster="chill-poster.jpg?v=1" preload="auto" loop playsinline controls></video>
+    <button class="start" id="start" aria-label="play">
+        <span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>manifest and chill</span>
+    </button>
+    <script>
+        var v = document.getElementById('v'), start = document.getElementById('start');
+        // coming from the button on alon.fun, Chrome usually allows sound straight away;
+        // a cold link (or Safari) blocks it — then one tap starts it
+        v.play().catch(function () { start.classList.add('show'); });
+        start.addEventListener('click', function () {
+            start.classList.remove('show');
+            v.play().catch(function () {});
+            var el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+        });
+        // the back link gets out of the way when the mouse is still
+        var t;
+        function wake() { document.body.classList.remove('idle'); clearTimeout(t);
+            t = setTimeout(function () { if (!v.paused) document.body.classList.add('idle'); }, 2500); }
+        ['mousemove', 'touchstart', 'keydown'].forEach(function (e) { window.addEventListener(e, wake); });
+        v.addEventListener('pause', wake);
+        wake();
+    </script>
+</body>
+</html>
